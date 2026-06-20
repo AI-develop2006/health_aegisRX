@@ -201,9 +201,14 @@ class SimulationState extends ChangeNotifier {
         notifyListeners();
         return null;
       }
-      final detail = jsonDecode(response.body)['detail'] ?? 'Login failed';
-      return detail as String;
+      try {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        return decoded['detail'] ?? 'Login failed';
+      } catch (_) {
+        return 'Server Error: Status ${response.statusCode}';
+      }
     } catch (e) {
+      debugPrint('Login connection error: $e');
       return 'Cannot reach server. Check your connection.';
     }
   }
@@ -227,9 +232,14 @@ class SimulationState extends ChangeNotifier {
         notifyListeners();
         return null;
       }
-      final detail = jsonDecode(response.body)['detail'] ?? 'Registration failed';
-      return detail as String;
+      try {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        return decoded['detail'] ?? 'Registration failed';
+      } catch (_) {
+        return 'Server Error: Status ${response.statusCode}';
+      }
     } catch (e) {
+      debugPrint('Registration connection error: $e');
       return 'Cannot reach server. Check your connection.';
     }
   }
