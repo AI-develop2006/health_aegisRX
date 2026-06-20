@@ -2,9 +2,6 @@ import os
 import json
 from datetime import datetime, timedelta
 from pymongo import MongoClient
-import pandas as pd
-import numpy as np
-from sklearn.ensemble import IsolationForest
 from requests import post
 
 # Import settings and config-level logger from config
@@ -641,13 +638,7 @@ class AIAgent:
     # ============================================
     def analyze_prescription_pattern(self, doctor_id: str) -> dict:
         """
-        Analyze prescription patterns using Python + Pandas + Scikit-learn
-        Technology: Python + Pandas + Scikit-learn (Isolation Forest)
-        Why: Detects outliers (unusual prescribing patterns), no need for complex ML
-        Args:
-            doctor_id: Doctor ID (e.g., "Dr_Arun_456")
-        Returns:
-            dict: Prescription pattern analysis result
+        Analyze prescription patterns using pure Python (replaces Pandas/Scikit-learn for compatibility and deployment speed).
         """
         logger.info(f"Analyzing prescription pattern for doctor {doctor_id}")
         
@@ -664,23 +655,25 @@ class AIAgent:
                 "recommendation": "No prescription data available"
             }
             
-        # Step 2: Convert to Pandas DataFrame
-        df = pd.DataFrame(prescriptions)
+        # Step 2 & 3: Aggregate medicine counts in pure Python
+        medicine_counts = {}
+        for p in prescriptions:
+            med = p.get("medicine")
+            if med:
+                medicine_counts[med] = medicine_counts.get(med, 0) + 1
         
-        # Step 3: Aggregate medicine counts
-        medicine_counts = df.groupby("medicine").size().reset_index(name="count")
+        total_medicines = len(medicine_counts)
+        counts = list(medicine_counts.values())
         
         # Step 4: Calculate statistics
-        mean_count = medicine_counts["count"].mean()
-        std_count = medicine_counts["count"].std()
+        mean_count = sum(counts) / total_medicines if total_medicines > 0 else 0
         
-        # If too few unique medications, IsolationForest is not suitable
-        if len(medicine_counts) < 2:
-            logger.info("Not enough unique medicines to run Isolation Forest. Standard normal template returned.")
+        if total_medicines < 2:
+            logger.info("Not enough unique medicines to analyze. Standard normal template returned.")
             return {
                 "doctor_id": doctor_id,
                 "total_prescriptions": len(prescriptions),
-                "total_medicines": len(medicine_counts),
+                "total_medicines": total_medicines,
                 "mean_prescription_count": float(mean_count),
                 "std_prescription_count": 0.0,
                 "anomaly_score": 0.0,
@@ -689,19 +682,19 @@ class AIAgent:
                 "recommendation": "Prescription patterns are within normal ranges."
             }
             
-        # Step 5: Detect outliers using Isolation Forest (Scikit-learn)
-        X = medicine_counts["count"].values.reshape(-1, 1)
-        contamination_val = min(0.1, 1.0 / len(medicine_counts))
-        model = IsolationForest(contamination=contamination_val, random_state=42)
-        outliers = model.fit_predict(X)
+        variance = sum((x - mean_count) ** 2 for x in counts) / (total_medicines - 1)
+        std_count = variance ** 0.5
         
-        # Step 6: Extract flagged medicines (outliers, fitted value is -1)
-        flagged_indices = np.where(outliers == -1)[0]
-        flagged_medicines = medicine_counts.iloc[flagged_indices]["medicine"].tolist()
+        # Step 5: Detect outliers using Z-score (Threshold of 1.5 standard deviations)
+        flagged_medicines = []
+        if std_count > 0:
+            for med, count in medicine_counts.items():
+                z_score = abs(count - mean_count) / std_count
+                if z_score > 1.5:
+                    flagged_medicines.append(med)
         
         # Step 7: Calculate anomaly score (0-10)
-        # Ratio of outlier points to total points scaled to 10
-        anomaly_score = min(10.0, (len(flagged_medicines) / len(medicine_counts)) * 10.0)
+        anomaly_score = min(10.0, (len(flagged_medicines) / total_medicines) * 10.0)
         
         # Step 8: Determine pattern type
         if anomaly_score > 7.0:
@@ -721,9 +714,9 @@ class AIAgent:
         result = {
             "doctor_id": doctor_id,
             "total_prescriptions": len(prescriptions),
-            "total_medicines": len(medicine_counts),
+            "total_medicines": total_medicines,
             "mean_prescription_count": float(mean_count),
-            "std_prescription_count": float(std_count) if not pd.isna(std_count) else 0.0,
+            "std_prescription_count": float(std_count),
             "anomaly_score": float(anomaly_score),
             "pattern_type": pattern_type,
             "flagged_medicines": flagged_medicines,
