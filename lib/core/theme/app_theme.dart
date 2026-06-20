@@ -10,35 +10,39 @@ class AppTheme {
     letterSpacing: 0.2,
   );
 
-  static ThemeData get darkTheme {
+  static ThemeData get lightTheme {
     return ThemeData(
       brightness: Brightness.light,
       scaffoldBackgroundColor: AppColors.baseCanvas,
       fontFamily: 'Inter',
-      colorScheme: ColorScheme.light(
-        primary: AppColors.clinicalBlue,
-        secondary: AppColors.deepNavy,
+      colorScheme: const ColorScheme.light(
+        primary: AppColors.patientBlue,
+        secondary: AppColors.patientBlueDark,
         surface: AppColors.cardSurface,
-        error: AppColors.crimsonLockout,
+        error: AppColors.statusCritical,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.cardSurface,
         foregroundColor: AppColors.primaryText,
         elevation: 0,
+        iconTheme: IconThemeData(color: AppColors.primaryText),
       ),
       textSelectionTheme: const TextSelectionThemeData(
-        cursorColor: AppColors.clinicalBlue,
+        cursorColor: AppColors.patientBlue,
         selectionColor: Color(0x332563EB),
-        selectionHandleColor: AppColors.clinicalBlue,
+        selectionHandleColor: AppColors.patientBlue,
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.primaryText,
         contentTextStyle: const TextStyle(color: Colors.white, fontSize: 13),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
+
+  // Fallback property for backward compatibility
+  static ThemeData get darkTheme => lightTheme;
 }
 
 class GlassCard extends StatelessWidget {
@@ -67,28 +71,20 @@ class GlassCard extends StatelessWidget {
         color: backgroundColor ?? AppColors.cardSurface,
         borderRadius: BorderRadius.circular(borderRadius),
         border: border ?? Border.all(
-          color: AppColors.clinicalBlue.withValues(alpha: 0.15),
-          width: 1.2,
+          color: AppColors.borderWhite,
+          width: 1.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: Container(
-          padding: padding ?? const EdgeInsets.all(16.0),
-          child: child,
-        ),
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(16.0),
+        child: child,
       ),
     );
   }

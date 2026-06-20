@@ -1,25 +1,47 @@
-/* HealthLock — Premium Glassmorphic Medical Styling (Dark Theme) */
+/* HealthLock — Premium Light Clinical UI Styling */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --base-canvas: #0B0F19;
-  --card-surface: rgba(17, 24, 39, 0.65);
-  --deep-navy: #1E3A8A;
+  /* Canvas & surfaces */
+  --canvas: #F4F6F9;
+  --surface: #FFFFFF;
+  --surface-muted: #F1F5F9;
+  --border: #E4E9F0;
 
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-white: rgba(255, 255, 255, 0.12);
-  --dark-rim: rgba(10, 15, 30, 0.5);
+  /* Text */
+  --text-primary: #0F172A;
+  --text-muted: #64748B;
+  --text-faint: #94A3B8;
 
-  --primary-text: #F8FAFC;
-  --muted-text: #94A3B8;
+  /* Role accent colors */
+  --patient-blue: #2563EB;
+  --patient-blue-dark: #1D4ED8;
+  --doctor-teal: #0D9488;
+  --pharmacy-violet: #7C3AED;
+  --verified-emerald: #059669;
 
-  --clinical-blue: #3B82F6;
-  --emerald-accent: #10B981;
-  --amber-warning: #F59E0B;
-  --crimson-lockout: #EF4444;
+  /* Tint backgrounds */
+  --tint-blue: #E8F0FE;
+  --tint-teal: #F0FDFA;
+  --tint-violet: #F3F0FE;
+  --tint-emerald: #ECFDF5;
+  --tint-slate: #F1F5F9;
 
-  --ambient-blue: rgba(59, 130, 246, 0.18);
-  --ambient-green: rgba(16, 185, 129, 0.15);
+  /* Status */
+  --status-locked: #94A3B8;
+  --status-pending: #D97706;
+  --status-critical: #DC2626;
+
+  /* Elevation / Shadows */
+  --shadow-card: 0 4px 12px rgba(15, 23, 42, 0.04);
+  --shadow-cta: 0 4px 12px rgba(37, 99, 235, 0.2);
+  --shadow-nav: 0 2px 10px rgba(15, 23, 42, 0.05);
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-card: 16px;
+  --radius-hero: 18px;
+  --radius-pill: 20px;
 }
 
 * {
@@ -29,81 +51,56 @@
 }
 
 body {
-  background-color: var(--base-canvas);
-  color: var(--primary-text);
+  background-color: var(--canvas);
+  color: var(--text-primary);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
+  padding: 40px 20px;
   overflow-x: hidden;
   position: relative;
 }
 
-/* LAYER 1: Beautiful Glowing Ambient Blobs */
-body::before, body::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(120px);
-  z-index: 1;
-}
-
-body::before {
-  top: -100px;
-  left: -100px;
-  width: 400px;
-  height: 400px;
-  background-color: var(--ambient-blue);
-}
-
-body::after {
-  bottom: -100px;
-  right: -100px;
-  width: 450px;
-  height: 450px;
-  background-color: var(--ambient-green);
-}
-
-/* Main Container Wrapper - Expanded for spacious widescreen layout */
+/* Main Container Wrapper */
 .container {
   width: 100%;
-  max-width: 900px; /* Spacious fit for widescreen desktop pages */
-  padding: 32px 24px;
+  max-width: 960px;
+  padding: 0;
   z-index: 2;
   position: relative;
 }
 
-/* Premium Glassmorphic Cards */
+/* Premium Light Elevated Cards */
 .glass-card {
-  background: var(--card-surface);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 20px;
-  padding: 40px;
-  border: 1px solid var(--border-white);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  padding: 40px 44px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
   margin-bottom: 28px;
   transition: all 0.3s ease;
 }
 
+.glass-card:hover {
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
 /* Header typography */
 h1 {
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 800;
   letter-spacing: -0.5px;
-  margin-bottom: 8px;
-  color: var(--primary-text);
-  background: linear-gradient(135deg, #FFFFFF 0%, #94A3B8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  margin-bottom: 10px;
+  color: var(--text-primary);
 }
 
 h2 {
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: 1px;
-  color: var(--clinical-blue);
+  letter-spacing: 1.2px;
+  color: var(--patient-blue);
   text-transform: uppercase;
   margin-bottom: 20px;
   display: flex;
@@ -112,22 +109,22 @@ h2 {
 }
 
 .subheader {
-  font-size: 13px;
-  color: var(--muted-text);
+  font-size: 14px;
+  color: var(--text-muted);
   margin-bottom: 28px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 /* Form Styles */
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 22px;
   display: flex;
   flex-direction: column;
 }
 
 label {
   font-size: 11px;
-  color: var(--muted-text);
+  color: var(--text-muted);
   font-weight: 700;
   text-transform: uppercase;
   margin-bottom: 8px;
@@ -135,47 +132,45 @@ label {
 }
 
 input[type="text"], input[type="number"], select {
-  background-color: var(--dark-rim);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  background-color: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 14px 16px;
-  font-size: 14px;
-  color: var(--primary-text);
+  font-size: 15px;
+  color: var(--text-primary);
   outline: none;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
   width: 100%;
   font-family: inherit;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 input:focus {
-  border-color: var(--clinical-blue);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25), inset 0 2px 4px rgba(0, 0, 0, 0.1);
-  background-color: rgba(10, 15, 30, 0.7);
+  border-color: var(--patient-blue);
+  background-color: var(--surface);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 input:disabled {
-  color: var(--muted-text);
-  background-color: rgba(15, 23, 42, 0.4);
-  border-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-faint);
+  background-color: var(--surface-muted);
+  border-color: var(--border);
   cursor: not-allowed;
-  box-shadow: none;
 }
 
 /* Medicines Editor Row layouts */
 .medicine-row {
-  background-color: var(--dark-rim);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 20px;
+  background-color: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 22px;
   margin-bottom: 16px;
   position: relative;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
 }
 
 .medicine-row:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border-color: var(--border);
+  box-shadow: var(--shadow-card);
 }
 
 .med-grid {
@@ -188,7 +183,7 @@ input:disabled {
 .med-check-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 12px;
 }
 
@@ -199,12 +194,12 @@ input:disabled {
   font-weight: 500;
   text-transform: capitalize;
   cursor: pointer;
-  background-color: rgba(17, 24, 39, 0.5);
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  color: var(--muted-text);
-  transition: all 0.2s ease;
+  background-color: var(--surface);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  transition: all 0.25s ease;
 }
 
 .checkbox-label input {
@@ -214,21 +209,20 @@ input:disabled {
 }
 
 .checkbox-label:hover, .checkbox-label:has(input:checked) {
-  border-color: var(--clinical-blue);
-  color: var(--primary-text);
-  background-color: rgba(59, 130, 246, 0.12);
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.1);
+  border-color: var(--patient-blue);
+  color: var(--patient-blue);
+  background-color: var(--tint-blue);
 }
 
 .delete-btn {
   position: absolute;
   top: 14px;
   right: 14px;
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--tint-slate);
   border: none;
-  color: var(--crimson-lockout);
-  width: 24px;
-  height: 24px;
+  color: var(--status-critical);
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   font-size: 16px;
   cursor: pointer;
@@ -239,7 +233,8 @@ input:disabled {
 }
 
 .delete-btn:hover {
-  background: rgba(239, 68, 68, 0.2);
+  background: var(--tint-slate);
+  color: var(--status-critical);
   transform: scale(1.1);
 }
 
@@ -248,14 +243,14 @@ input:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 48px;
-  padding: 0 24px;
-  border-radius: 12px;
+  height: 52px;
+  padding: 0 28px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.5px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
   text-decoration: none;
   width: 100%;
   border: none;
@@ -263,34 +258,28 @@ input:disabled {
 }
 
 .btn-primary {
-  background-color: var(--clinical-blue);
+  background: var(--patient-blue);
   color: #FFFFFF;
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.25);
+  box-shadow: var(--shadow-cta);
 }
 
 .btn-primary:hover {
-  background-color: #2563EB;
-  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
-  transform: translateY(-1px);
-}
-
-.btn-primary:active {
-  transform: translateY(0);
+  background: var(--patient-blue-dark);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
 }
 
 .btn-secondary {
   background-color: transparent;
-  border: 1px solid var(--border-white);
-  color: var(--primary-text);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
 }
 
 .btn-secondary:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.2);
+  background-color: var(--surface-muted);
 }
 
 .btn-text {
-  color: var(--clinical-blue);
+  color: var(--patient-blue);
   background: none;
   border: none;
   font-size: 13px;
@@ -299,7 +288,7 @@ input:disabled {
   display: inline-flex;
   align-items: center;
   font-family: inherit;
-  transition: opacity 0.2s;
+  transition: all 0.2s;
 }
 
 .btn-text:hover {
@@ -309,68 +298,68 @@ input:disabled {
 
 /* Console logs & Math logs */
 .console {
-  background-color: #0A0F1D;
-  border: 1px solid var(--border-white);
-  border-radius: 14px;
-  padding: 20px;
+  background-color: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 24px;
   font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.6;
   overflow-x: auto;
   white-space: pre-wrap;
   margin-bottom: 24px;
-  color: #E2E8F0;
-  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.4);
+  color: var(--text-primary);
 }
 
 .console.success {
-  border-color: rgba(16, 185, 129, 0.4);
-  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.4), 0 0 15px rgba(16, 185, 129, 0.05);
+  border-color: var(--verified-emerald);
+  background-color: var(--tint-emerald);
 }
 
 .console.failed {
-  border-color: rgba(239, 68, 68, 0.4);
-  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.4), 0 0 15px rgba(239, 68, 68, 0.05);
+  border-color: var(--status-critical);
+  background-color: var(--tint-slate);
 }
 
 /* Receipts PDF Mock Cards */
 .pdf-receipt {
-  border: 2px dashed var(--border-white);
-  padding: 24px;
-  border-radius: 14px;
+  border: 2px dashed var(--border);
+  padding: 28px;
+  border-radius: var(--radius-card);
   margin-bottom: 24px;
+  background-color: var(--surface);
 }
 
 .pdf-header {
   display: flex;
   justify-content: space-between;
-  border-bottom: 1.5px solid var(--border-white);
-  padding-bottom: 12px;
-  margin-bottom: 16px;
+  border-bottom: 1.5px solid var(--border);
+  padding-bottom: 14px;
+  margin-bottom: 18px;
 }
 
 .pdf-meta {
-  font-size: 13px;
-  margin-bottom: 6px;
+  font-size: 14px;
+  margin-bottom: 8px;
 }
 
 .pdf-drugs {
-  margin-top: 16px;
+  margin-top: 18px;
 }
 
 .pdf-drug-item {
-  font-size: 13px;
+  font-size: 14px;
   display: flex;
   justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border-color);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
 }
 
 /* Verification alert banners */
 .banner {
-  padding: 14px 18px;
-  border-radius: 10px;
-  font-size: 13px;
+  padding: 16px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -379,15 +368,15 @@ input:disabled {
 }
 
 .banner-success {
-  background-color: rgba(16, 185, 129, 0.08);
-  color: var(--emerald-accent);
-  border-color: rgba(16, 185, 129, 0.2);
+  background-color: var(--tint-emerald);
+  color: var(--verified-emerald);
+  border-color: var(--verified-emerald);
 }
 
 .banner-failed {
-  background-color: rgba(239, 68, 68, 0.06);
-  color: var(--crimson-lockout);
-  border-color: rgba(239, 68, 68, 0.2);
+  background-color: var(--tint-slate);
+  color: var(--status-critical);
+  border-color: var(--status-critical);
 }
 
 /* Forgery switch container */
@@ -396,12 +385,86 @@ input:disabled {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  background-color: var(--dark-rim);
-  padding: 12px 18px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
+  background-color: var(--surface-muted);
+  padding: 14px 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
 }
 
 .switch-container label {
   margin-bottom: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  body {
+    padding: 20px 12px;
+  }
+
+  .glass-card {
+    padding: 28px 22px;
+    border-radius: var(--radius-card);
+  }
+
+  .meta-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .med-grid {
+    grid-template-columns: 1fr;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+}
+
+/* Doctor role overrides */
+.doctor-page h2 {
+  color: var(--doctor-teal);
+}
+.doctor-page input:focus, .doctor-page select:focus {
+  border-color: var(--doctor-teal);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+}
+.doctor-page .btn-primary {
+  background: var(--doctor-teal);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
+}
+.doctor-page .btn-primary:hover {
+  background: #0b7a70;
+  box-shadow: 0 6px 16px rgba(13, 148, 136, 0.3);
+}
+.doctor-page .btn-text {
+  color: var(--doctor-teal);
+}
+.doctor-page .checkbox-label:hover, .doctor-page .checkbox-label:has(input:checked) {
+  border-color: var(--doctor-teal);
+  color: var(--doctor-teal);
+  background-color: var(--tint-teal);
+}
+
+/* Pharmacy role overrides */
+.pharmacy-page h2 {
+  color: var(--pharmacy-violet);
+}
+.pharmacy-page input:focus, .pharmacy-page select:focus {
+  border-color: var(--pharmacy-violet);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+.pharmacy-page .btn-primary {
+  background: var(--pharmacy-violet);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+}
+.pharmacy-page .btn-primary:hover {
+  background: #6d28d9;
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.3);
+}
+.pharmacy-page .btn-text {
+  color: var(--pharmacy-violet);
+}
+.pharmacy-page .checkbox-label:hover, .pharmacy-page .checkbox-label:has(input:checked) {
+  border-color: var(--pharmacy-violet);
+  color: var(--pharmacy-violet);
+  background-color: var(--tint-violet);
 }

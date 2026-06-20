@@ -24,7 +24,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _pulseAnimation = Tween<double>(
-      begin: 0.92,
+      begin: 0.95,
       end: 1.05,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
@@ -51,44 +51,20 @@ class _SplashScreenState extends State<SplashScreen>
       body: Stack(
         alignment: Alignment.center,
         children: [
-          // Layered Radial Background Gradient
+          // Clean Light Background Gradient
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
                 gradient: RadialGradient(
                   center: Alignment.center,
-                  radius: 1.2,
+                  radius: 1.0,
                   colors: [
-                    Color(0xFFE0ECFB), // Lighter soft clinical blue center
+                    Colors.white,
                     AppColors.baseCanvas,
                   ],
                   stops: [0.0, 1.0],
                 ),
               ),
-            ),
-          ),
-
-          // Subtle background decorative glowing concentric circles (Centered)
-          Center(
-            child: AnimatedBuilder(
-              animation: _pulseAnimation,
-              builder: (context, child) {
-                return Container(
-                  width: 220 * _pulseAnimation.value,
-                  height: 220 * _pulseAnimation.value,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        AppColors.clinicalBlue.withValues(
-                          alpha: 0.08 * (2.0 - _pulseAnimation.value),
-                        ),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                );
-              },
             ),
           ),
 
@@ -109,7 +85,7 @@ class _SplashScreenState extends State<SplashScreen>
                         CustomPaint(
                           size: const Size(100, 110),
                           painter: GeometricShieldPainter(
-                            color: AppColors.clinicalBlue,
+                            color: AppColors.patientBlue,
                           ),
                         ),
                         const Positioned(
@@ -119,7 +95,7 @@ class _SplashScreenState extends State<SplashScreen>
                           child: Icon(
                             Icons.lock_rounded,
                             size: 38,
-                            color: AppColors.clinicalBlue,
+                            color: AppColors.patientBlue,
                           ),
                         ),
                       ],
@@ -130,7 +106,7 @@ class _SplashScreenState extends State<SplashScreen>
                   Text(
                     'HEALTHLOCK',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: AppColors.deepNavy,
+                      color: AppColors.primaryText,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 4.0,
                       fontSize: 22,
@@ -181,7 +157,7 @@ class GeometricShieldPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final fillPaint = Paint()
-      ..color = color.withValues(alpha: 0.06)
+      ..color = color.withValues(alpha: 0.05)
       ..style = PaintingStyle.fill;
 
     final path = Path();
@@ -214,7 +190,7 @@ class GeometricShieldPainter extends CustomPainter {
     innerPath.close();
 
     final innerPaint = Paint()
-      ..color = color.withValues(alpha: 0.35)
+      ..color = color.withValues(alpha: 0.2)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
