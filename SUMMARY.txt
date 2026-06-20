@@ -1,0 +1,46 @@
+SOVEREIGNSHIELD / HEALTHLOCK PROJECT SUMMARY & STATUS
+======================================================
+
+DEVELOPMENT STAGE: Local Sandbox & Integration Testing
+STATUS: Completed & Stable
+
+1. WHAT HAS BEEN MADE TILL NOW
+------------------------------
+We have implemented a fully-functional, secure, zero-trust patient-sovereign health ecosystem:
+
+* Flutter Patient App:
+  - Ambient design system with beautiful visual gradients and glassmorphic cards.
+  - Dedicated "Profile & Settings" page (replacing legacy dialog popups) displaying patient personal details, generated sovereign ID, server configurations, and session logout.
+  - Periodic background polling loop checking for doctor connection requests in MongoDB.
+  - Switchable tab interface displaying the "Health Vault" (prescriptions and checkout QRs) and "Notifications" (real-time audit ledger logs and connection request prompt cards).
+  
+* FastAPI backend-ai Server:
+  - Serves API routes for listing, creating, and dispensing/burning prescriptions.
+  - Stores all events dynamically in a MongoDB Atlas collection under "activity_logs".
+  - Runs clinical duplicate checks, drug interactions, and allergy screening.
+  - Bound to host 0.0.0.0:5000 to listen to both local emulators and external network devices.
+
+* Practitioner Web Portals (doctor-login.html, doctor-prescription.html):
+  - Allows doctors to request client links, sign in, and write cryptographically-signed prescriptions.
+
+* Pharmacy Web Portal (pharmacy-portal.html):
+  - Verification desk that validates prescription payload hashes and asymmetric signatures.
+  - Dispenses medications and burns tokens on database commit.
+
+
+2. TESTING & CAMERA SCANNER WORKAROUND
+--------------------------------------
+For development/testing inside local desktop environments, camera scanner input is often unavailable or fails to scan the virtual screen. We have bypassed/complemented the physical camera requirement with manual entry controls so that the entire flow remains 100% testable:
+
+* Doctor Connection:
+  - If you open the doctor portal directly (without scanning the QR), you can type the Patient's Display Name (e.g., "SRIMAAN S aids") manually and click "SEND CONNECTION REQUEST TO PATIENT".
+  - Ensure the Patient Display Name in the mobile app settings matches exactly what you enter in the browser.
+
+* Pharmacy Checkout:
+  - If you cannot scan the QR code from the wallet app, you can type the Prescription ID (e.g., "RX-9921") in the new "OR ENTER PRESCRIPTION ID MANUALLY" field on the pharmacy portal.
+  - Tapping "LOAD PRESCRIPTION" pulls the dynamic record from the database, lets you run cryptographic checksum sweeps, and burns the token.
+
+3. REPOSITORY STATUS
+--------------------
+* Submodule backend-ai removed and replaced with standard tracked folders and files directly inside the main branch.
+* Clean working tree committed and pushed to git branch: feature-sovereign.
