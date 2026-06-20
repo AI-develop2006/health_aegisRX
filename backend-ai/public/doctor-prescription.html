@@ -63,7 +63,7 @@
         </div>
 
         <div class="form-group">
-          <label>Consultation Date</label>
+          <label>Consultation Date & Time (Live)</label>
           <input type="text" id="date-display" disabled>
         </div>
 
@@ -155,8 +155,22 @@
     document.getElementById('hospital-display').value = hospitalName;
     document.getElementById('doc-id-display').value = doctorMobile;
     
-    const today = new Date();
-    document.getElementById('date-display').value = today.toISOString().substring(0,10);
+    function updateLiveClock() {
+      const now = new Date();
+      const options = { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit', 
+        hour12: false 
+      };
+      const formatted = now.toLocaleString('en-CA', options).replace(',', '');
+      document.getElementById('date-display').value = formatted;
+    }
+    updateLiveClock();
+    setInterval(updateLiveClock, 1000);
 
     // Logout
     document.getElementById('logout-btn').addEventListener('click', () => {
@@ -242,6 +256,7 @@
       // Format payload
       const tempId = `RX-${Math.floor(Math.random() * 9000) + 1000}`;
       const now = new Date();
+      const dateStr = now.toLocaleDateString('en-CA'); // YYYY-MM-DD local format
       const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       
       const payload = {
@@ -250,7 +265,7 @@
         hospitalName: hospitalName,
         patientName: patientName,
         disease: document.getElementById('diagnosis-input').value.trim(),
-        date: today.toISOString().substring(0, 10),
+        date: dateStr,
         time: timeStr,
         medicines: medicines,
         doctorSignId: doctorMobile

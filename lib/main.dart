@@ -328,18 +328,21 @@ class SimulationState extends ChangeNotifier {
         _patientVault = list
             .map((item) => Prescription.fromJson(item))
             .toList();
+      } else {
+        _patientVault = [];
       }
     } catch (e) {
-      // Gracefully handle server offline events during setup
       debugPrint('MongoDB Sync Server standby offline... ($e)');
-      if (_patientVault.isEmpty) {
+      if (_isOfflineGuest) {
         _patientVault = List.from(mockPrescriptionsList);
+      } else {
+        _patientVault = [];
       }
     } finally {
       if (_isLoading) {
         _isLoading = false;
       }
-      if (_patientVault.isEmpty) {
+      if (_patientVault.isEmpty && _isOfflineGuest) {
         _patientVault = List.from(mockPrescriptionsList);
       }
       notifyListeners();
@@ -790,12 +793,17 @@ class NotificationsView extends StatelessWidget {
                     DateTime? dt;
                     if (log['timestamp'] != null) {
                       try {
-                        dt = DateTime.parse(log['timestamp'].toString());
+                        String ts = log['timestamp'].toString();
+                        // If it doesn't end with Z and doesn't contain a timezone offset (+/-), append Z to treat it as UTC
+                        if (!ts.endsWith('Z') && !ts.contains('+') && !ts.contains('-')) {
+                          ts = '${ts}Z';
+                        }
+                        dt = DateTime.parse(ts).toLocal();
                       } catch (_) {}
                     }
                     String timeStr = 'Recent';
                     if (dt != null) {
-                      final diff = DateTime.now().difference(dt.toLocal());
+                      final diff = DateTime.now().difference(dt);
                       if (diff.inSeconds < 60) {
                         timeStr = 'Just now';
                       } else if (diff.inMinutes < 60) {

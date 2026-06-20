@@ -1,24 +1,25 @@
-/* HealthLock — Clean Professional Medical Styling */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+/* HealthLock — Premium Glassmorphic Medical Styling (Dark Theme) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --base-canvas: #F0F4F8;
-  --card-surface: #FFFFFF;
-  --deep-navy: #1E40AF;
+  --base-canvas: #0B0F19;
+  --card-surface: rgba(17, 24, 39, 0.65);
+  --deep-navy: #1E3A8A;
 
-  --border-color: #E2E8F0;
-  --dark-rim: #F1F5F9;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-white: rgba(255, 255, 255, 0.12);
+  --dark-rim: rgba(10, 15, 30, 0.5);
 
-  --primary-text: #1E293B;
-  --muted-text: #64748B;
+  --primary-text: #F8FAFC;
+  --muted-text: #94A3B8;
 
-  --clinical-blue: #2563EB;
-  --emerald-accent: #059669;
-  --amber-warning: #D97706;
-  --crimson-lockout: #DC2626;
+  --clinical-blue: #3B82F6;
+  --emerald-accent: #10B981;
+  --amber-warning: #F59E0B;
+  --crimson-lockout: #EF4444;
 
-  --ambient-blue: #DBEAFE;
-  --ambient-green: #D1FAE5;
+  --ambient-blue: rgba(59, 130, 246, 0.18);
+  --ambient-green: rgba(16, 185, 129, 0.15);
 }
 
 * {
@@ -39,77 +40,87 @@ body {
   position: relative;
 }
 
-/* LAYER 1: Soft Ambient Blobs */
+/* LAYER 1: Beautiful Glowing Ambient Blobs */
 body::before, body::after {
   content: '';
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
+  filter: blur(120px);
   z-index: 1;
 }
 
 body::before {
-  top: -80px;
-  left: -80px;
-  width: 320px;
-  height: 320px;
+  top: -100px;
+  left: -100px;
+  width: 400px;
+  height: 400px;
   background-color: var(--ambient-blue);
 }
 
 body::after {
-  bottom: -80px;
-  right: -80px;
-  width: 360px;
-  height: 360px;
+  bottom: -100px;
+  right: -100px;
+  width: 450px;
+  height: 450px;
   background-color: var(--ambient-green);
 }
 
-/* Main Container Wrapper */
+/* Main Container Wrapper - Expanded for spacious widescreen layout */
 .container {
   width: 100%;
-  max-width: 580px;
-  padding: 24px;
+  max-width: 900px; /* Spacious fit for widescreen desktop pages */
+  padding: 32px 24px;
   z-index: 2;
   position: relative;
 }
 
-/* Professional Cards */
+/* Premium Glassmorphic Cards */
 .glass-card {
   background: var(--card-surface);
-  border-radius: 16px;
-  padding: 24px;
-  border: 1px solid var(--border-color);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04), 0 1px 4px rgba(0, 0, 0, 0.02);
-  margin-bottom: 24px;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 20px;
+  padding: 40px;
+  border: 1px solid var(--border-white);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  margin-bottom: 28px;
+  transition: all 0.3s ease;
 }
 
 /* Header typography */
 h1 {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 800;
-  letter-spacing: 0.3px;
-  margin-bottom: 6px;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
   color: var(--primary-text);
+  background: linear-gradient(135deg, #FFFFFF 0%, #94A3B8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 h2 {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   color: var(--clinical-blue);
   text-transform: uppercase;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .subheader {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted-text);
-  margin-bottom: 20px;
+  margin-bottom: 28px;
+  line-height: 1.5;
 }
 
 /* Form Styles */
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   display: flex;
   flex-direction: column;
 }
@@ -117,99 +128,119 @@ h2 {
 label {
   font-size: 11px;
   color: var(--muted-text);
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  margin-bottom: 6px;
-  letter-spacing: 0.3px;
+  margin-bottom: 8px;
+  letter-spacing: 0.8px;
 }
 
 input[type="text"], input[type="number"], select {
   background-color: var(--dark-rim);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 13px;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 14px;
   color: var(--primary-text);
   outline: none;
-  transition: border-color 0.2s;
+  transition: all 0.2s ease;
   width: 100%;
   font-family: inherit;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 input:focus {
   border-color: var(--clinical-blue);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25), inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: rgba(10, 15, 30, 0.7);
 }
 
 input:disabled {
   color: var(--muted-text);
-  background-color: var(--dark-rim);
-  border-color: var(--border-color);
+  background-color: rgba(15, 23, 42, 0.4);
+  border-color: rgba(255, 255, 255, 0.05);
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* Medicines Editor Row layouts */
 .medicine-row {
   background-color: var(--dark-rim);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 12px;
-  margin-bottom: 12px;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
   position: relative;
+  transition: all 0.2s ease;
+}
+
+.medicine-row:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .med-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 .med-check-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 500;
   text-transform: capitalize;
   cursor: pointer;
-  background-color: var(--card-surface);
-  padding: 4px 8px;
-  border-radius: 6px;
+  background-color: rgba(17, 24, 39, 0.5);
+  padding: 6px 12px;
+  border-radius: 8px;
   border: 1px solid var(--border-color);
   color: var(--muted-text);
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .checkbox-label input {
-  margin-right: 6px;
+  margin-right: 8px;
+  width: 14px;
+  height: 14px;
 }
 
 .checkbox-label:hover, .checkbox-label:has(input:checked) {
   border-color: var(--clinical-blue);
   color: var(--primary-text);
-  background-color: rgba(37, 99, 235, 0.05);
+  background-color: rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.1);
 }
 
 .delete-btn {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  background: none;
+  top: 14px;
+  right: 14px;
+  background: rgba(239, 68, 68, 0.1);
   border: none;
   color: var(--crimson-lockout);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
   font-size: 16px;
   cursor: pointer;
-  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
 }
 
 .delete-btn:hover {
-  opacity: 1;
+  background: rgba(239, 68, 68, 0.2);
+  transform: scale(1.1);
 }
 
 /* Button systems */
@@ -217,14 +248,14 @@ input:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 44px;
-  padding: 0 20px;
-  border-radius: 10px;
-  font-size: 13px;
+  height: 48px;
+  padding: 0 24px;
+  border-radius: 12px;
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   text-decoration: none;
   width: 100%;
   border: none;
@@ -234,116 +265,129 @@ input:disabled {
 .btn-primary {
   background-color: var(--clinical-blue);
   color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.25);
 }
 
 .btn-primary:hover {
-  background-color: #1D4ED8;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  background-color: #2563EB;
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
 }
 
 .btn-secondary {
   background-color: transparent;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-white);
   color: var(--primary-text);
 }
 
 .btn-secondary:hover {
-  background-color: var(--dark-rim);
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .btn-text {
   color: var(--clinical-blue);
   background: none;
   border: none;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   font-family: inherit;
+  transition: opacity 0.2s;
 }
 
 .btn-text:hover {
   opacity: 0.8;
+  text-decoration: underline;
 }
 
 /* Console logs & Math logs */
 .console {
-  background-color: #1E293B;
-  border: 1.5px solid var(--border-color);
-  border-radius: 12px;
-  padding: 16px;
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 11px;
-  line-height: 1.4;
+  background-color: #0A0F1D;
+  border: 1px solid var(--border-white);
+  border-radius: 14px;
+  padding: 20px;
+  font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
+  font-size: 12px;
+  line-height: 1.5;
   overflow-x: auto;
   white-space: pre-wrap;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   color: #E2E8F0;
+  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.4);
 }
 
 .console.success {
-  border-color: var(--emerald-accent);
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.4), 0 0 15px rgba(16, 185, 129, 0.05);
 }
 
 .console.failed {
-  border-color: var(--crimson-lockout);
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.4), 0 0 15px rgba(239, 68, 68, 0.05);
 }
 
 /* Receipts PDF Mock Cards */
 .pdf-receipt {
-  border: 1px dashed var(--border-color);
-  padding: 16px;
-  border-radius: 12px;
-  margin-bottom: 20px;
+  border: 2px dashed var(--border-white);
+  padding: 24px;
+  border-radius: 14px;
+  margin-bottom: 24px;
 }
 
 .pdf-header {
   display: flex;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 10px;
-  margin-bottom: 12px;
+  border-bottom: 1.5px solid var(--border-white);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .pdf-meta {
-  font-size: 12px;
-  margin-bottom: 4px;
+  font-size: 13px;
+  margin-bottom: 6px;
 }
 
 .pdf-drugs {
-  margin-top: 12px;
+  margin-top: 16px;
 }
 
 .pdf-drug-item {
-  font-size: 12px;
+  font-size: 13px;
   display: flex;
   justify-content: space-between;
-  padding: 4px 0;
-  border-bottom: 1px solid var(--dark-rim);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
 }
 
 /* Verification alert banners */
 .banner {
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 12px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
   display: flex;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   border: 1px solid transparent;
 }
 
 .banner-success {
-  background-color: rgba(5, 150, 105, 0.08);
+  background-color: rgba(16, 185, 129, 0.08);
   color: var(--emerald-accent);
-  border-color: rgba(5, 150, 105, 0.2);
+  border-color: rgba(16, 185, 129, 0.2);
 }
 
 .banner-failed {
-  background-color: rgba(220, 38, 38, 0.06);
+  background-color: rgba(239, 68, 68, 0.06);
   color: var(--crimson-lockout);
-  border-color: rgba(220, 38, 38, 0.2);
+  border-color: rgba(239, 68, 68, 0.2);
 }
 
 /* Forgery switch container */
@@ -351,9 +395,13 @@ input:disabled {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   background-color: var(--dark-rim);
-  padding: 10px 14px;
-  border-radius: 8px;
+  padding: 12px 18px;
+  border-radius: 12px;
   border: 1px solid var(--border-color);
+}
+
+.switch-container label {
+  margin-bottom: 0;
 }
