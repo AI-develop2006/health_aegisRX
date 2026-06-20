@@ -86,10 +86,7 @@ class SimulationState extends ChangeNotifier {
   List<Prescription> _patientVault = [];
   bool _isAttendanceActive = false;
   int? _sessionStartMs;
-  String _backendUrl =
-      (defaultTargetPlatform == TargetPlatform.android && !kIsWeb)
-      ? 'http://10.0.2.2:4000'
-      : 'http://localhost:4000';
+  String _backendUrl = 'https://vortexafinal-9dca3fl5f-srimaansrimaan543-2911s-projects.vercel.app';
   bool _isLoading = false;
   Timer? _pollTimer;
   String? _activePendingRequestId;
