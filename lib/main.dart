@@ -141,23 +141,35 @@ class _SovereignShieldAppState extends State<SovereignShieldApp> {
 class SimulationState extends ChangeNotifier {
   List<Prescription> _patientVault = [];
   bool _isAttendanceActive = false;
-  String _backendUrl = 'http://localhost:5000';
+  String _backendUrl =
+      (defaultTargetPlatform == TargetPlatform.android && !kIsWeb)
+      ? 'http://10.0.2.2:5000'
+      : 'http://localhost:5000';
   bool _isLoading = false;
   Timer? _pollTimer;
   String? _activePendingRequestId;
   final Set<String> _promptedRequestIds = {};
+  List<dynamic> _activityLogs = [];
 
   // Firebase Auth variables
   User? _firebaseUser;
   bool _isOfflineGuest = false;
   StreamSubscription<User?>? _authSubscription;
   String _guestName = 'Elena Vance';
+  String _patientMobileOrId = '992818';
 
   List<Prescription> get patientVault => _patientVault;
   bool get isAttendanceActive => _isAttendanceActive;
   String get backendUrl => _backendUrl;
+  String get patientMobileOrId => _patientMobileOrId;
+  String get patientId {
+    final cleanName = patientName.replaceAll(RegExp(r'\s+'), '_');
+    return '${cleanName}_$patientMobileOrId';
+  }
+
   bool get isLoading => _isLoading;
   String? get activePendingRequestId => _activePendingRequestId;
+  List<dynamic> get activityLogs => _activityLogs;
 
   // Auth getters
   User? get firebaseUser => _firebaseUser;
@@ -192,6 +204,11 @@ class SimulationState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updatePatientMobileOrId(String newId) async {
+    _patientMobileOrId = newId;
+    notifyListeners();
+  }
+
   SimulationState() {
     try {
       // Listen to Firebase Auth state changes
@@ -212,11 +229,13 @@ class SimulationState extends ChangeNotifier {
     }
 
     fetchPrescriptions();
+    fetchActivityLogs();
     // Live polling: Sync with MongoDB backend every 3 seconds
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (isAuthenticated) {
         fetchPrescriptions(silent: true);
         checkPendingConsultations();
+        fetchActivityLogs();
       }
     });
   }
@@ -332,6 +351,20 @@ class SimulationState extends ChangeNotifier {
   Prescription? _selectedPrescription;
   Prescription? get selectedPrescriptionQR => _selectedPrescription;
 
+  Future<void> fetchActivityLogs() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_backendUrl/api/activity-logs'),
+      );
+      if (response.statusCode == 200) {
+        _activityLogs = jsonDecode(response.body);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetching activity logs: $e');
+    }
+  }
+
   Future<void> fetchPrescriptions({bool silent = false}) async {
     if (!silent && _patientVault.isEmpty) {
       _isLoading = true;
@@ -375,11 +408,12 @@ class SimulationState extends ChangeNotifier {
   }
 
   Future<void> checkPendingConsultations() async {
-    if (!_isAttendanceActive) return;
+    if (_isAttendanceActive)
+      return; // If session is already active, no need to check
     try {
       final response = await http.get(
         Uri.parse(
-          '$_backendUrl/api/consultation/pending?patient=${Uri.encodeComponent(patientName)}',
+          '$_backendUrl/api/consultation/pending?patient=${Uri.encodeComponent(patientName)}&patientId=${Uri.encodeComponent(patientMobileOrId)}',
         ),
       );
       if (response.statusCode == 200) {
@@ -420,6 +454,7 @@ class SimulationState extends ChangeNotifier {
       if (response.statusCode == 200) {
         _promptedRequestIds.add(requestId);
         _activePendingRequestId = null;
+        _isAttendanceActive = true; // Auto-activate consultation session
         notifyListeners();
       }
     } catch (e) {
@@ -446,11 +481,34 @@ class SimulationState extends ChangeNotifier {
 }
 
 // Global UI Layout scaffold for the Patient Wallet
-class PatientVaultHome extends StatelessWidget {
+// Global UI Layout scaffold for the Patient Wallet (Tab Switcher)
+class PatientVaultHome extends StatefulWidget {
   const PatientVaultHome({super.key});
 
   @override
+  State<PatientVaultHome> createState() => _PatientVaultHomeState();
+}
+
+class _PatientVaultHomeState extends State<PatientVaultHome> {
+  int _currentIndex = 0;
+
+  @override
   Widget build(BuildContext context) {
+    final state = Provider.of<SimulationState>(context);
+
+    final List<Widget> tabs = [
+      SafeArea(
+        child: PatientVault(
+          onNotificationTap: () {
+            setState(() {
+              _currentIndex = 1;
+            });
+          },
+        ),
+      ),
+      const SafeArea(child: NotificationsView()),
+    ];
+
     return Scaffold(
       backgroundColor: AppColors.baseCanvas,
       body: Stack(
@@ -487,8 +545,368 @@ class PatientVaultHome extends StatelessWidget {
             ),
           ),
 
-          // Core Patient Vault Interface
-          const SafeArea(child: PatientVault()),
+          tabs[_currentIndex],
+        ],
+      ),
+      bottomNavigationBar: Theme(
+        data: Theme.of(context).copyWith(canvasColor: AppColors.darkRimGray),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          backgroundColor: AppColors.darkRimGray,
+          selectedItemColor: AppColors.clinicalBlue,
+          unselectedItemColor: AppColors.mutedText,
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+          ),
+          unselectedLabelStyle: const TextStyle(fontSize: 10),
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          items: [
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.folder_shared_rounded),
+              label: 'HEALTH VAULT',
+            ),
+            BottomNavigationBarItem(
+              icon: Badge(
+                isLabelVisible: state.activePendingRequestId != null,
+                backgroundColor: AppColors.crimsonLockout,
+                label: const Text(
+                  '1',
+                  style: TextStyle(color: Colors.white, fontSize: 8),
+                ),
+                child: const Icon(Icons.notifications_active_rounded),
+              ),
+              label: 'NOTIFICATIONS',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Notifications View displaying Link Requests and Clinical Logs from DB
+class NotificationsView extends StatelessWidget {
+  const NotificationsView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final state = Provider.of<SimulationState>(context);
+
+    // Filter logs for relevance to the current patient
+    final allLogs = state.activityLogs;
+    final patientLogs = allLogs.where((log) {
+      final name = log['patientName']?.toString().toLowerCase() ?? '';
+      return name == 'n/a' || name.contains(state.patientName.toLowerCase());
+    }).toList();
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.clinicalBlue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.notifications_rounded,
+                  color: AppColors.clinicalBlue,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'NOTIFICATIONS',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryText,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView(
+              children: [
+                // 1. Practitioner Request Notification (if active)
+                if (state.activePendingRequestId != null) ...[
+                  GlassCard(
+                    borderRadius: 16,
+                    backgroundColor: AppColors.deepNavy,
+                    border: Border.all(
+                      color: AppColors.clinicalBlue.withValues(alpha: 0.4),
+                      width: 1.5,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.security_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'Practitioner Link Request',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'A doctor is requesting secure authorization to connect and write credentials to your patient profile.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white70,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Colors.white30),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                onPressed: () {
+                                  state.rejectConsultation(
+                                    state.activePendingRequestId!,
+                                  );
+                                },
+                                child: const Text(
+                                  'DECLINE',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.emeraldAccent,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                onPressed: () {
+                                  state.acceptConsultation(
+                                    state.activePendingRequestId!,
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Doctor access granted. Session active.',
+                                      ),
+                                      backgroundColor: AppColors.emeraldAccent,
+                                    ),
+                                  );
+                                },
+                                child: const Text(
+                                  'ACCEPT ACCESS',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // 2. Loop Dynamic Notification Items from DB
+                if (patientLogs.isEmpty && state.activePendingRequestId == null)
+                  const GlassCard(
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24.0),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.notifications_none_rounded,
+                              size: 32,
+                              color: AppColors.mutedText,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'No security logs found.',
+                              style: TextStyle(
+                                color: AppColors.mutedText,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  ...patientLogs.map((log) {
+                    final String eventType = log['eventType'] ?? 'INFO';
+                    final String details = log['details'] ?? '';
+
+                    IconData iconData = Icons.info_outline;
+                    Color iconColor = AppColors.clinicalBlue;
+                    String title = 'Ledger Event';
+
+                    if (eventType == 'CREATE_PRESCRIPTION') {
+                      iconData = Icons.medication_rounded;
+                      iconColor = AppColors.clinicalBlue;
+                      title = 'Prescription Issued';
+                    } else if (eventType == 'DISPENSE_PRESCRIPTION') {
+                      iconData = Icons.local_pharmacy_outlined;
+                      iconColor = AppColors.crimsonLockout;
+                      title = 'Medications Dispensed';
+                    } else if (eventType.contains('SCAN_PHARMACY')) {
+                      iconData = Icons.qr_code_scanner_rounded;
+                      iconColor = Colors.teal;
+                      title = 'Zero-Trust Verification';
+                    } else if (eventType == 'ACCEPT_ACCESS') {
+                      iconData = Icons.security_rounded;
+                      iconColor = AppColors.emeraldAccent;
+                      title = 'Doctor Access Authorized';
+                    } else if (eventType == 'REJECT_ACCESS') {
+                      iconData = Icons.block_outlined;
+                      iconColor = AppColors.crimsonLockout;
+                      title = 'Doctor Access Blocked';
+                    } else if (eventType.contains('LOGIN') ||
+                        eventType.contains('REGISTER')) {
+                      iconData = Icons.person_outline_rounded;
+                      iconColor = Colors.amber;
+                      title = 'Security Portal Session';
+                    }
+
+                    // Format Timeago
+                    DateTime? dt;
+                    if (log['timestamp'] != null) {
+                      try {
+                        dt = DateTime.parse(log['timestamp'].toString());
+                      } catch (_) {}
+                    }
+                    String timeStr = 'Recent';
+                    if (dt != null) {
+                      final diff = DateTime.now().difference(dt.toLocal());
+                      if (diff.inSeconds < 60) {
+                        timeStr = 'Just now';
+                      } else if (diff.inMinutes < 60) {
+                        timeStr = '${diff.inMinutes}m ago';
+                      } else if (diff.inHours < 24) {
+                        timeStr = '${diff.inHours}h ago';
+                      } else {
+                        timeStr = '${diff.inDays}d ago';
+                      }
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12.0),
+                      child: GlassCard(
+                        borderRadius: 14,
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: iconColor.withValues(alpha: 0.08),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(iconData, color: iconColor, size: 18),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          title,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.primaryText,
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        timeStr,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: AppColors.mutedText,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    details,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.mutedText,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+              ],
+            ),
+          ),
         ],
       ),
     );

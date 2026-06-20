@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -15,6 +16,12 @@ class QrDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<SimulationState>(context);
+
+    // Format QR code data as: DATA##SIGNATURE
+    // DATA is structured as: id|doctorName|hospitalName|patientName|disease|date|time|medicines_serialized|doctorSignId
+    final String medsJson = jsonEncode(prescription.medicines.map((m) => m.toJson()).toList());
+    final String rawPayload = '${prescription.id}|${prescription.doctorName}|${prescription.hospitalName}|${prescription.patientName}|${prescription.disease}|${prescription.date}|${prescription.time}|$medsJson|${prescription.doctorSignId}';
+    final String qrCodeData = '$rawPayload##${prescription.signature}';
 
     return GlassCard(
       borderRadius: 16,
@@ -50,7 +57,7 @@ class QrDrawer extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: QrImageView(
-              data: '${state.backendUrl}/pharmacy-portal?rxId=${prescription.id}',
+              data: qrCodeData,
               version: QrVersions.auto,
               size: 150,
             ),

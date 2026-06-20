@@ -6,133 +6,17 @@ import 'package:health_lock/core/theme/app_theme.dart';
 import 'package:health_lock/shared/widgets/custom_button.dart';
 import 'package:health_lock/features/patient/widgets/qr_drawer.dart';
 import 'package:health_lock/main.dart'; // To access SimulationState
+import 'package:health_lock/features/patient/screens/patient_settings.dart';
 
 class PatientVault extends StatefulWidget {
-  const PatientVault({super.key});
+  final VoidCallback? onNotificationTap;
+  const PatientVault({super.key, this.onNotificationTap});
 
   @override
   State<PatientVault> createState() => _PatientVaultState();
 }
 
 class _PatientVaultState extends State<PatientVault> {
-  final TextEditingController _urlController = TextEditingController();
-  final TextEditingController _nameController = TextEditingController();
-
-  @override
-  void dispose() {
-    _urlController.dispose();
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  void _showSettingsDialog(BuildContext context, SimulationState state) {
-    _urlController.text = state.backendUrl;
-    _nameController.text = state.patientName;
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: AppColors.cardSurface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: AppColors.borderWhite),
-          ),
-          title: const Text(
-            'PROFILE & SERVER SETTINGS',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
-              color: AppColors.primaryText,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Patient Display Name',
-                style: TextStyle(fontSize: 12, color: AppColors.mutedText),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.darkRimGray,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.borderWhite),
-                ),
-                child: TextField(
-                  controller: _nameController,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.primaryText,
-                  ),
-                  decoration: const InputDecoration(
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Backend Server URL',
-                style: TextStyle(fontSize: 12, color: AppColors.mutedText),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.darkRimGray,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.borderWhite),
-                ),
-                child: TextField(
-                  controller: _urlController,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.primaryText,
-                  ),
-                  decoration: const InputDecoration(
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'CANCEL',
-                style: TextStyle(color: AppColors.mutedText),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.clinicalBlue,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () {
-                state.updatePatientName(_nameController.text.trim());
-                state.setBackendUrl(_urlController.text.trim());
-                Navigator.pop(context);
-              },
-              child: const Text('SAVE'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<SimulationState>(context);
@@ -207,12 +91,24 @@ class _PatientVaultState extends State<PatientVault> {
                     ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(
-                      Icons.logout_rounded,
-                      color: AppColors.mutedText,
-                      size: 20,
+                    icon: Badge(
+                      isLabelVisible: state.activePendingRequestId != null,
+                      backgroundColor: AppColors.crimsonLockout,
+                      label: const Text(
+                        '1',
+                        style: TextStyle(color: Colors.white, fontSize: 8),
+                      ),
+                      child: Icon(
+                        state.activePendingRequestId != null
+                            ? Icons.notifications_active_rounded
+                            : Icons.notifications_outlined,
+                        color: state.activePendingRequestId != null
+                            ? AppColors.clinicalBlue
+                            : AppColors.mutedText,
+                        size: 20,
+                      ),
                     ),
-                    onPressed: () => state.signOut(),
+                    onPressed: widget.onNotificationTap,
                   ),
                   IconButton(
                     icon: const Icon(
@@ -220,7 +116,14 @@ class _PatientVaultState extends State<PatientVault> {
                       color: AppColors.mutedText,
                       size: 20,
                     ),
-                    onPressed: () => _showSettingsDialog(context, state),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PatientSettingsPage(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -311,119 +214,6 @@ class _PatientVaultState extends State<PatientVault> {
                 ),
                 const SizedBox(height: 20),
 
-                if (state.activePendingRequestId != null) ...[
-                  GlassCard(
-                    borderRadius: 16,
-                    backgroundColor: AppColors.deepNavy,
-                    border: Border.all(
-                      color: AppColors.clinicalBlue.withValues(alpha: 0.4),
-                      width: 1.5,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.security_rounded,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            const Expanded(
-                              child: Text(
-                                'Practitioner Link Request',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'A doctor is scanning your session QR and requesting secure authorization to view your health credentials.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white70,
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                    color: Colors.white30,
-                                  ),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                onPressed: () {
-                                  state.rejectConsultation(
-                                    state.activePendingRequestId!,
-                                  );
-                                },
-                                child: const Text(
-                                  'DECLINE',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.emeraldAccent,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  elevation: 0,
-                                ),
-                                onPressed: () {
-                                  state.acceptConsultation(
-                                    state.activePendingRequestId!,
-                                  );
-                                },
-                                child: const Text(
-                                  'ACCEPT ACCESS',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
 
                 // DOCTOR CONSULTATION SECTION
                 const Text(
