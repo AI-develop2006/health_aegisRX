@@ -30,10 +30,17 @@ CEREBRAS_API_HEADERS = {
 MOCK_CEREBRAS = os.getenv("MOCK_CEREBRAS", "True").lower() in ("true", "1", "yes")
 
 # Logging & Output Configuration
-LOG_FILE = "ai_agent.log"
-LOG_LEVEL = logging.INFO
-OUTPUT_DIR = "output"
+IS_VERCEL = os.getenv("VERCEL") == "1"
+
+if IS_VERCEL:
+    LOG_FILE = "/tmp/ai_agent.log"
+    OUTPUT_DIR = "/tmp/output"
+else:
+    LOG_FILE = "ai_agent.log"
+    OUTPUT_DIR = "output"
+
 OUTPUT_FILE = "prescription_analysis.json"
+LOG_LEVEL = logging.INFO
 
 # Ensure output directory exists
 os.makedirs(OUTPUT_DIR, exist_ok=True)
