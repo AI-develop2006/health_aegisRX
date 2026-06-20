@@ -24,9 +24,10 @@ class _PatientVaultState extends State<PatientVault> {
     final isAttendanceActive = state.isAttendanceActive;
     final selectedPrescription = state.selectedPrescriptionQR;
 
-    // Doctor login link embedded in QR
+    // Doctor login link embedded in QR — timestamp is fixed at session-start to avoid QR drift
+    final int qrTs = state.sessionStartMs ?? DateTime.now().millisecondsSinceEpoch;
     final String doctorPortalUrl =
-        '${state.backendUrl}/doctor-login?patient=${Uri.encodeComponent(state.patientName)}';
+        '${state.backendUrl}/doctor-login?patient=${Uri.encodeComponent(state.patientName)}&t=$qrTs';
 
     return Column(
       children: [
@@ -640,6 +641,132 @@ class _PatientVaultState extends State<PatientVault> {
                   const SizedBox(height: 24),
                   QrDrawer(prescription: selectedPrescription),
                 ],
+
+                const SizedBox(height: 28),
+
+                // CHAIN LEDGER ACTIVITY
+                const Text(
+                  'CHAIN LEDGER ACTIVITY',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.0,
+                    color: AppColors.mutedText,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (!state.isOfflineGuest && state.visitHistory.isEmpty)
+                  const GlassCard(
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20.0),
+                        child: Column(
+                          children: [
+                            Icon(Icons.link_rounded, size: 28, color: AppColors.mutedText),
+                            SizedBox(height: 8),
+                            Text(
+                              'No blockchain records yet.',
+                              style: TextStyle(color: AppColors.mutedText, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else if (state.isOfflineGuest)
+                  GlassCard(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        child: Text(
+                          'Log in to view your secure ledger history.',
+                          style: const TextStyle(color: AppColors.mutedText, fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: state.visitHistory.length,
+                    separatorBuilder: (context, i) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final block = state.visitHistory[index];
+                      final data = block['data'] as Map<String, dynamic>? ?? {};
+                      final ts = block['timestamp'];
+                      String timeStr = '';
+                      if (ts is int) {
+                        final dt = DateTime.fromMillisecondsSinceEpoch(ts).toLocal();
+                        timeStr = '${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')} ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
+                      }
+                      return GlassCard(
+                        borderRadius: 12,
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.clinicalBlue.withValues(alpha: 0.08),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.link_rounded, color: AppColors.clinicalBlue, size: 16),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          data['disease'] ?? 'Visit',
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.primaryText,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      Text(
+                                        '#${block['index'] ?? ''}',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontFamily: 'monospace',
+                                          color: AppColors.clinicalBlue,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    'Dr. ${data['doctor_name'] ?? ''} — ${data['hospital'] ?? ''}',
+                                    style: const TextStyle(fontSize: 11, color: AppColors.mutedText),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (timeStr.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      timeStr,
+                                      style: const TextStyle(fontSize: 10, color: AppColors.mutedText),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
+                const SizedBox(height: 32),
               ],
             ),
           ),

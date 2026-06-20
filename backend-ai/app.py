@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, status, Query
+import re
+from fastapi import FastAPI, HTTPException, status, Query, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
@@ -7,16 +8,118 @@ from contextlib import asynccontextmanager
 import uvicorn
 import hashlib
 import time
+import uuid
 from datetime import datetime
 import os
 import json
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+
+_ph = PasswordHasher()
 
 # Import core modules
 from ai_core import AIAgent
 from config import logger, COLLECTION_PRESCRIPTIONS, COLLECTION_ALLERGIES
 
-# Initialize global AI Agent instance
+# Initialize global instances
 ai_agent: Optional[AIAgent] = None
+blockchain_manager = None  # BlockchainManager (initialized after class definition)
+
+# ============================================
+# BLOCKCHAIN MANAGER
+# ============================================
+class BlockchainManager:
+    """
+    Hash-linked blockchain stored in MongoDB.
+    Each block contains: index, block_type, data, previous_hash, hash, timestamp.
+    Block types: GENESIS | ACCESS_GRANT | ACCESS_REVOKE | PRESCRIPTION | VISIT_HISTORY
+    """
+    def __init__(self, db):
+        self.db = db
+        self.col = db["blockchain"]
+        self._ensure_genesis()
+
+    def _compute_hash(self, block: dict) -> str:
+        payload = json.dumps({
+            "index": block["index"],
+            "block_type": block["block_type"],
+            "data": block["data"],
+            "previous_hash": block["previous_hash"],
+            "timestamp": block["timestamp"],  # stored as int (Unix ms) — no precision drift
+        }, sort_keys=True)
+        return sha256_hash(payload)
+
+    def _ensure_genesis(self):
+        # Reset chain if any block uses legacy datetime timestamps (not int)
+        genesis = self.col.find_one({"index": 0})
+        if genesis and not isinstance(genesis.get("timestamp"), int):
+            logger.info("Blockchain: legacy datetime timestamps detected — resetting chain.")
+            self.col.drop()
+            genesis = None
+        if genesis is None:
+            block = {
+                "index": 0,
+                "block_type": "GENESIS",
+                "data": {"message": "HealthLock Sovereign Chain — Genesis Block"},
+                "previous_hash": "0" * 64,
+                "timestamp": int(datetime.utcnow().timestamp() * 1000),
+            }
+            block["hash"] = self._compute_hash(block)
+            self.col.insert_one(block)
+            logger.info("Blockchain genesis block created.")
+
+    def add_block(self, block_type: str, data: dict) -> dict:
+        last = self.col.find_one(sort=[("index", -1)])
+        index = (last["index"] + 1) if last else 1
+        previous_hash = last["hash"] if last else "0" * 64
+        block = {
+            "index": index,
+            "block_type": block_type,
+            "data": data,
+            "previous_hash": previous_hash,
+            "timestamp": int(datetime.utcnow().timestamp() * 1000),
+        }
+        block["hash"] = self._compute_hash(block)
+        self.col.insert_one(block.copy())
+        logger.info(f"[BLOCKCHAIN] Block #{index} ({block_type}) added. Hash: {block['hash'][:16]}...")
+        return block
+
+    def get_chain(self) -> list:
+        return [serialize_doc(b) for b in self.col.find(sort=[("index", 1)])]
+
+    def verify_chain(self) -> dict:
+        blocks = list(self.col.find(sort=[("index", 1)]))
+        if not blocks:
+            return {"valid": True, "length": 0}
+        for i in range(1, len(blocks)):
+            cur, prev = blocks[i], blocks[i - 1]
+            if cur["previous_hash"] != prev["hash"]:
+                return {"valid": False, "error": f"Broken link at block #{cur['index']}", "block_index": cur["index"]}
+            if cur["hash"] != self._compute_hash(cur):
+                return {"valid": False, "error": f"Tampered hash at block #{cur['index']}", "block_index": cur["index"]}
+        return {"valid": True, "length": len(blocks)}
+
+    def get_blocks_by_type(self, block_type: str) -> list:
+        return [serialize_doc(b) for b in self.col.find({"block_type": block_type}, sort=[("index", 1)])]
+
+    def has_doctor_access(self, doctor_id: str, patient_name: str) -> bool:
+        safe = re.escape(patient_name)
+        latest = self.col.find_one(
+            {"block_type": {"$in": ["ACCESS_GRANT", "ACCESS_REVOKE"]},
+             "data.doctor_id": doctor_id,
+             "data.patient_name": {"$regex": f"^{safe}$", "$options": "i"}},
+            sort=[("index", -1)]
+        )
+        return latest is not None and latest["block_type"] == "ACCESS_GRANT"
+
+    def get_visit_history(self, patient_name: str) -> list:
+        safe = re.escape(patient_name)
+        blocks = self.col.find(
+            {"block_type": "VISIT_HISTORY",
+             "data.patient_name": {"$regex": f"^{safe}$", "$options": "i"}},
+            sort=[("index", 1)]
+        )
+        return [serialize_doc(b) for b in blocks]
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,11 +127,14 @@ async def lifespan(app: FastAPI):
     Handles startup and shutdown lifespan events.
     Ensures MongoDB connection is established on boot and closed cleanly on termination.
     """
-    global ai_agent
+    global ai_agent, blockchain_manager
     logger.info("Initializing Healthcare AI Agent server startup lifespan...")
     try:
         ai_agent = AIAgent()
         logger.info("Healthcare AI Agent initialized successfully with MongoDB.")
+        if ai_agent and ai_agent.mongo and ai_agent.mongo.db is not None:
+            blockchain_manager = BlockchainManager(ai_agent.mongo.db)
+            logger.info("Blockchain manager initialized.")
     except Exception as e:
         logger.error(f"Failed to initialize AIAgent / MongoDB: {str(e)}. Running in local datastore mode.")
         ai_agent = None
@@ -275,6 +381,18 @@ class DoctorRegisterInput(BaseModel):
     hospitalName: str
     doctorMobile: str
 
+class PatientRegisterInput(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class PatientLoginInput(BaseModel):
+    email: str
+    password: str
+
+class PatientUpdateNameInput(BaseModel):
+    name: str
+
 class VerifyScanInput(BaseModel):
     raw_payload: str
     signature: str
@@ -325,6 +443,15 @@ async def create_prescription(rx: PrescriptionInput):
     logger.info(f"Issuing prescription {rx_dict['id']}. Hash: {rx_hash}. Signed signature: {rx_dict['signature']}")
     
     db = ai_agent.mongo.db if (ai_agent and ai_agent.mongo) else None
+
+    # Check if doctor has blockchain access grant for this patient (soft check)
+    access_warning = None
+    if blockchain_manager:
+        has_access = blockchain_manager.has_doctor_access(doctor_sign_id, rx_dict["patientName"])
+        if not has_access:
+            access_warning = f"No active access grant found for doctor {doctor_sign_id} and patient {rx_dict['patientName']}. Prescription recorded with warning."
+            logger.warning(access_warning)
+
     if db is not None:
         try:
             rx_mongo = rx_dict.copy()
@@ -334,14 +461,54 @@ async def create_prescription(rx: PrescriptionInput):
                 except Exception:
                     pass
             db[COLLECTION_PRESCRIPTIONS].insert_one(rx_mongo)
-            
+
+            # Add blockchain blocks
+            if blockchain_manager:
+                blockchain_manager.add_block("PRESCRIPTION", {
+                    "rx_id": rx_dict["id"],
+                    "patient_name": rx_dict["patientName"],
+                    "doctor_id": doctor_sign_id,
+                    "doctor_name": rx_dict["doctorName"],
+                    "disease": rx_dict["disease"],
+                    "hash": rx_hash,
+                    "signature": rx_dict["signature"],
+                })
+                blockchain_manager.add_block("VISIT_HISTORY", {
+                    "patient_name": rx_dict["patientName"],
+                    "doctor_id": doctor_sign_id,
+                    "doctor_name": rx_dict["doctorName"],
+                    "hospital": rx_dict.get("hospitalName", ""),
+                    "disease": rx_dict["disease"],
+                    "rx_id": rx_dict["id"],
+                    "date": rx_dict.get("date", ""),
+                })
+                # Auto-revoke access after prescription is committed (Phase 4 spec)
+                blockchain_manager.add_block("ACCESS_REVOKE", {
+                    "patient_name": rx_dict["patientName"],
+                    "doctor_id": doctor_sign_id,
+                    "doctor_name": rx_dict["doctorName"],
+                    "revoked_at": datetime.utcnow().isoformat(),
+                    "reason": "auto_revoke_post_prescription",
+                })
+
+            # Mark the active consultation session as completed so the patient app auto-deactivates
+            safe_name = re.escape(rx_dict["patientName"])
+            db["consultation_requests"].find_one_and_update(
+                {"patientName": {"$regex": f"^{safe_name}$", "$options": "i"}, "status": "accepted"},
+                {"$set": {"status": "completed"}},
+                sort=[("createdAt", -1)],
+            )
+
             await log_activity(
-                'CREATE_PRESCRIPTION', 
-                rx_dict["patientName"], 
-                doctor_sign_id, 
+                'CREATE_PRESCRIPTION',
+                rx_dict["patientName"],
+                doctor_sign_id,
                 f"Doctor {rx_dict['doctorName']} created prescription {rx_dict['id']} for {rx_dict['disease']}."
             )
-            return serialize_doc(rx_mongo)
+            result = serialize_doc(rx_mongo)
+            if access_warning:
+                result["access_warning"] = access_warning
+            return result
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     else:
@@ -349,9 +516,9 @@ async def create_prescription(rx: PrescriptionInput):
         data.append(rx_dict)
         write_local_db(data)
         await log_activity(
-            'CREATE_PRESCRIPTION', 
-            rx_dict["patientName"], 
-            doctor_sign_id, 
+            'CREATE_PRESCRIPTION',
+            rx_dict["patientName"],
+            doctor_sign_id,
             f"Doctor {rx_dict['doctorName']} created prescription {rx_dict['id']} for {rx_dict['disease']}."
         )
         return rx_dict
@@ -370,10 +537,17 @@ async def dispense_prescription(input_data: DispenseInput):
                 return_document=True
             )
             if updated:
+                if blockchain_manager:
+                    blockchain_manager.add_block("DISPENSED", {
+                        "rx_id": rx_id,
+                        "patient_name": updated.get("patientName", ""),
+                        "doctor_id": updated.get("doctorSignId", ""),
+                        "dispensed_at": datetime.utcnow().isoformat(),
+                    })
                 await log_activity(
-                    'DISPENSE_PRESCRIPTION', 
-                    updated.get("patientName", "Unknown"), 
-                    'Pharmacy', 
+                    'DISPENSE_PRESCRIPTION',
+                    updated.get("patientName", "Unknown"),
+                    'Pharmacy',
                     f"Pharmacy dispensed medications and burned token for prescription {rx_id}."
                 )
                 return serialize_doc(updated)
@@ -388,9 +562,9 @@ async def dispense_prescription(input_data: DispenseInput):
                 rx["isDispensed"] = True
                 write_local_db(data)
                 await log_activity(
-                    'DISPENSE_PRESCRIPTION', 
-                    rx.get("patientName", "Unknown"), 
-                    'Pharmacy', 
+                    'DISPENSE_PRESCRIPTION',
+                    rx.get("patientName", "Unknown"),
+                    'Pharmacy',
                     f"Pharmacy dispensed medications and burned token for prescription {rx_id}."
                 )
                 return rx
@@ -459,34 +633,60 @@ async def verify_scan(data: VerifyScanInput):
         if not db_rx:
             logger.warning(f"Prescription with ID {rx_id} not found.")
             return {"verified": False, "error": "Prescription not found"}
-            
+
+        # Block reuse: single-use token already burned
+        if db_rx.get("isDispensed"):
+            await log_activity('PHARMACY_REUSE_BLOCKED', db_rx.get("patientName", "Unknown"), 'Pharmacy',
+                               f"Reuse attempt blocked — prescription {rx_id} already dispensed.")
+            return {
+                "verified": False,
+                "verdict": "ALREADY_DISPENSED",
+                "reason": "This prescription has already been dispensed. The single-use token is burned.",
+                "error": "Single-use token already burned",
+            }
+
         # Get signature stored inside MongoDB Atlas / local DB
         stored_signature = db_rx.get("signature")
         
         # Verify that the incoming signature matches the signature stored in MongoDB
         if signature != stored_signature:
             logger.warning(f"Verification fail: incoming signature '{signature}' does not match stored signature '{stored_signature}'")
-            return {"verified": False, "error": "Signature mismatch"}
-            
+            await log_activity('PHARMACY_VERIFY_FORGED', db_rx.get("patientName", "Unknown"), 'Pharmacy',
+                               f"FORGERY DETECTED — signature mismatch for prescription {rx_id}.")
+            return {"verified": False, "verdict": "FORGED", "reason": "Signature mismatch — prescription may have been tampered",
+                    "error": "Signature mismatch"}
+
         # Verify hash integrity
         decrypted_hash = decrypt(signature, doctor_sign_id)
         if decrypted_hash != local_hash:
-            # Let's also check if it matches the hash of json_stringify_rx(db_rx) in case of serialization formatting differences
             db_payload = json_stringify_rx(db_rx)
             db_hash = sha256_hash(db_payload)
             if decrypted_hash != db_hash:
                 logger.warning(f"Decrypted hash verification failed: decrypted '{decrypted_hash}' vs local hash '{local_hash}' or db hash '{db_hash}'")
-                return {"verified": False, "error": "Integrity check failed: payload modified after signing"}
-                
-        # Log successful scan
+                await log_activity('PHARMACY_VERIFY_FORGED', db_rx.get("patientName", "Unknown"), 'Pharmacy',
+                                   f"FORGERY DETECTED — hash mismatch for prescription {rx_id}.")
+                return {"verified": False, "verdict": "FORGED",
+                        "reason": "Hash mismatch — payload modified after signing",
+                        "error": "Integrity check failed: payload modified after signing"}
+
+        # Check blockchain for matching PRESCRIPTION block
+        chain_verified = False
+        if blockchain_manager:
+            rx_blocks = blockchain_manager.get_blocks_by_type("PRESCRIPTION")
+            chain_verified = any(b.get("data", {}).get("rx_id") == rx_id for b in rx_blocks)
+
         await log_activity(
-            'SCAN_PHARMACY', 
-            db_rx.get("patientName", "Unknown"), 
-            'Pharmacy', 
-            f"Zero-trust cross-verification succeeded for prescription {rx_id}."
+            'PHARMACY_VERIFY_GENUINE',
+            db_rx.get("patientName", "Unknown"),
+            'Pharmacy',
+            f"Zero-trust cross-verification PASSED for prescription {rx_id}. Chain record: {chain_verified}."
         )
-        
-        return {"verified": True, "prescription": serialize_doc(db_rx)}
+        return {
+            "verified": True,
+            "verdict": "GENUINE",
+            "chain_verified": chain_verified,
+            "prescription": serialize_doc(db_rx),
+        }
     except Exception as e:
         logger.error(f"Error during verification route: {str(e)}")
         return {"verified": False, "error": str(e)}
@@ -586,6 +786,27 @@ async def get_pending_consultation(patient: str, patientId: Optional[str] = None
             return serialize_doc(filtered[-1])
         return None
 
+@app.get("/api/consultation/has-active-session", tags=["Consultation Management"])
+async def has_active_consultation_session(patient: str):
+    """Returns whether there is an active (accepted, not yet completed) consultation for the patient."""
+    db = ai_agent.mongo.db if (ai_agent and ai_agent.mongo) else None
+    if db is not None:
+        try:
+            safe = re.escape(patient)
+            doc = db["consultation_requests"].find_one(
+                {"patientName": {"$regex": f"^{safe}$", "$options": "i"}, "status": "accepted"},
+                sort=[("createdAt", -1)]
+            )
+            return {"active": doc is not None}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    else:
+        active = any(
+            r.get("patientName", "").lower() == patient.lower() and r.get("status") == "accepted"
+            for r in local_consultations
+        )
+        return {"active": active}
+
 @app.post("/api/consultation/accept", tags=["Consultation Management"])
 async def accept_consultation(input_data: AcceptRejectInput):
     req_id = input_data.id
@@ -601,11 +822,19 @@ async def accept_consultation(input_data: AcceptRejectInput):
             )
             if updated:
                 await log_activity(
-                    'ACCEPT_ACCESS', 
-                    updated.get("patientName", "Unknown"), 
-                    'Patient', 
+                    'ACCEPT_ACCESS',
+                    updated.get("patientName", "Unknown"),
+                    'Patient',
                     f"Patient accepted doctor connection request {req_id}."
                 )
+                if blockchain_manager:
+                    blockchain_manager.add_block("ACCESS_GRANT", {
+                        "request_id": req_id,
+                        "patient_name": updated.get("patientName", ""),
+                        "patient_id": updated.get("patientId", ""),
+                        "doctor_id": updated.get("doctorId", updated.get("patientId", "")),
+                        "granted_at": datetime.utcnow().isoformat(),
+                    })
                 return serialize_doc(updated)
             else:
                 raise HTTPException(status_code=404, detail="Request not found")
@@ -639,11 +868,19 @@ async def reject_consultation(input_data: AcceptRejectInput):
             )
             if updated:
                 await log_activity(
-                    'REJECT_ACCESS', 
-                    updated.get("patientName", "Unknown"), 
-                    'Patient', 
+                    'REJECT_ACCESS',
+                    updated.get("patientName", "Unknown"),
+                    'Patient',
                     f"Patient rejected doctor connection request {req_id}."
                 )
+                if blockchain_manager:
+                    blockchain_manager.add_block("ACCESS_REVOKE", {
+                        "request_id": req_id,
+                        "patient_name": updated.get("patientName", ""),
+                        "patient_id": updated.get("patientId", ""),
+                        "doctor_id": updated.get("doctorId", updated.get("patientId", "")),
+                        "revoked_at": datetime.utcnow().isoformat(),
+                    })
                 return serialize_doc(updated)
             else:
                 raise HTTPException(status_code=404, detail="Request not found")
@@ -765,6 +1002,165 @@ async def doctor_register(input_data: DoctorRegisterInput):
         )
         return doc
 
+# --- Patient Auth Endpoints ---
+@app.post("/api/patient/register", tags=["Patient Auth"])
+async def patient_register(input_data: PatientRegisterInput):
+    email = input_data.email.strip().lower()
+    name = input_data.name.strip()
+    logger.info(f"Patient Registration Request. Email: {email}, Name: {name}")
+
+    db = ai_agent.mongo.db if (ai_agent and ai_agent.mongo) else None
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    try:
+        existing = db["patients"].find_one({"email": email})
+        if existing:
+            raise HTTPException(status_code=409, detail="Email already registered")
+        session_token = str(uuid.uuid4())
+        doc = {
+            "name": name,
+            "email": email,
+            "password_hash": _ph.hash(input_data.password),
+            "session_token": session_token,
+            "createdAt": datetime.utcnow(),
+        }
+        result = db["patients"].insert_one(doc)
+        await log_activity("PATIENT_REGISTER", name, email, f"New patient account created: {name}")
+        return {"_id": str(result.inserted_id), "name": name, "email": email, "token": session_token}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/patient/login", tags=["Patient Auth"])
+async def patient_login(input_data: PatientLoginInput):
+    email = input_data.email.strip().lower()
+    logger.info(f"Patient Login Request. Email: {email}")
+
+    db = ai_agent.mongo.db if (ai_agent and ai_agent.mongo) else None
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    try:
+        doc = db["patients"].find_one({"email": email})
+        try:
+            if not doc:
+                raise VerifyMismatchError()
+            _ph.verify(doc.get("password_hash", ""), input_data.password)
+        except VerifyMismatchError:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        session_token = str(uuid.uuid4())
+        db["patients"].update_one({"_id": doc["_id"]}, {"$set": {"session_token": session_token}})
+        await log_activity("PATIENT_LOGIN", doc.get("name", email), email, f"Patient signed in: {email}")
+        return {"_id": str(doc["_id"]), "name": doc.get("name", ""), "email": email, "token": session_token}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/patient/update-name", tags=["Patient Auth"])
+async def patient_update_name(
+    input_data: PatientUpdateNameInput,
+    x_session_token: str = Header(..., alias="X-Session-Token"),
+):
+    name = input_data.name.strip()
+
+    db = ai_agent.mongo.db if (ai_agent and ai_agent.mongo) else None
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    try:
+        doc = db["patients"].find_one({"session_token": x_session_token})
+        if not doc:
+            raise HTTPException(status_code=401, detail="Invalid or expired session")
+        db["patients"].update_one({"_id": doc["_id"]}, {"$set": {"name": name}})
+        return {"ok": True, "name": name}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================
+# AUTH DEPENDENCY (patient session token)
+# ============================================
+async def require_patient_session(x_session_token: str = Header(..., alias="X-Session-Token")) -> dict:
+    db = ai_agent.mongo.db if (ai_agent and ai_agent.mongo) else None
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    patient = db["patients"].find_one({"session_token": x_session_token})
+    if not patient:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    return {"name": patient.get("name", ""), "email": patient.get("email", "")}
+
+# ============================================
+# BLOCKCHAIN ENDPOINTS
+# ============================================
+
+@app.get("/api/blockchain/chain", tags=["Blockchain"])
+async def get_blockchain(caller: dict = Depends(require_patient_session)):
+    """Return chain blocks scoped to the authenticated patient."""
+    if not blockchain_manager:
+        raise HTTPException(status_code=503, detail="Blockchain not available")
+    patient_name = caller["name"].lower()
+    all_blocks = blockchain_manager.get_chain()
+    visible = [b for b in all_blocks if
+               b.get("block_type") == "GENESIS" or
+               b.get("data", {}).get("patient_name", "").lower() == patient_name]
+    return {"chain": visible, "length": len(visible)}
+
+@app.get("/api/blockchain/verify", tags=["Blockchain"])
+async def verify_blockchain():
+    """Verify full chain integrity — no PHI exposed, open to all."""
+    if not blockchain_manager:
+        raise HTTPException(status_code=503, detail="Blockchain not available")
+    return blockchain_manager.verify_chain()
+
+@app.get("/api/blockchain/blocks", tags=["Blockchain"])
+async def get_blocks_by_type(
+    block_type: str = Query(..., description="GENESIS | ACCESS_GRANT | ACCESS_REVOKE | PRESCRIPTION | VISIT_HISTORY"),
+    caller: dict = Depends(require_patient_session),
+):
+    """Filter chain blocks by type, scoped to the authenticated patient."""
+    if not blockchain_manager:
+        raise HTTPException(status_code=503, detail="Blockchain not available")
+    patient_name = caller["name"].lower()
+    all_blocks = blockchain_manager.get_blocks_by_type(block_type)
+    if block_type == "GENESIS":
+        visible = all_blocks
+    else:
+        visible = [b for b in all_blocks if
+                   b.get("data", {}).get("patient_name", "").lower() == patient_name]
+    return {"blocks": visible}
+
+@app.get("/api/access/status", tags=["Blockchain"])
+async def check_doctor_access(doctor_id: str = Query(...), patient_name: str = Query(...)):
+    """Check whether a doctor currently has an active ACCESS_GRANT for a patient."""
+    if not blockchain_manager:
+        raise HTTPException(status_code=503, detail="Blockchain not available")
+    has_access = blockchain_manager.has_doctor_access(doctor_id, patient_name)
+    return {"doctor_id": doctor_id, "patient_name": patient_name, "access_granted": has_access}
+
+@app.get("/api/visit-history/{patient_name}", tags=["Blockchain"])
+async def get_visit_history(patient_name: str, caller: dict = Depends(require_patient_session)):
+    """
+    Return VISIT_HISTORY blocks for a patient.
+    Caller must be the patient themselves (session token must match patient_name).
+    """
+    if caller["name"].lower() != patient_name.lower():
+        raise HTTPException(status_code=403, detail="Access denied: you can only view your own visit history")
+
+    if not blockchain_manager:
+        db = ai_agent.mongo.db if (ai_agent and ai_agent.mongo) else None
+        if db is None:
+            return {"visits": []}
+        safe = re.escape(patient_name)
+        rxs = list(db[COLLECTION_PRESCRIPTIONS].find(
+            {"patientName": {"$regex": f"^{safe}$", "$options": "i"}},
+            sort=[("date", -1)]
+        ))
+        return {"visits": serialize_list(rxs), "source": "prescriptions_fallback"}
+
+    visits = blockchain_manager.get_visit_history(patient_name)
+    return {"visits": visits, "source": "blockchain", "total": len(visits)}
+
 # --- Ledger & Activity Logs ---
 @app.get("/api/activity-logs", tags=["Ledger logs"])
 async def get_activity_logs():
@@ -813,6 +1209,14 @@ async def duplicate_check(req: DuplicateRequest):
             new_medicine=req.new_medicine,
             new_dosage=req.new_dosage
         )
+        # Enrich with blockchain visit history for Doctor 2 alert
+        is_duplicate = result.get("is_duplicate", False) or result.get("duplicate_found", False)
+        visits = []
+        if blockchain_manager and is_duplicate:
+            patient_name = req.patient_id.replace("_", " ").rsplit(" ", 1)[0]
+            visits = blockchain_manager.get_visit_history(patient_name)
+        result["alert_doctor_2"] = is_duplicate
+        result["previous_visits"] = visits[:5]  # last 5 visits for context
         return result
     except Exception as e:
         logger.error(f"Error executing duplicate-check endpoint: {str(e)}")
@@ -904,6 +1308,6 @@ async def serve_style_css():
     )
 
 if __name__ == "__main__":
-    logger.info("Starting local development server on port 5000...")
+    logger.info("Starting local development server on port 4000...")
     # Listen on all network interfaces
-    uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=4000, reload=True)

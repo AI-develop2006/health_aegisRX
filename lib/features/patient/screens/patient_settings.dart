@@ -16,7 +16,6 @@ class PatientSettingsPage extends StatefulWidget {
 class _PatientSettingsPageState extends State<PatientSettingsPage> {
   late TextEditingController _nameController;
   late TextEditingController _idController;
-  late TextEditingController _urlController;
 
   @override
   void initState() {
@@ -24,14 +23,12 @@ class _PatientSettingsPageState extends State<PatientSettingsPage> {
     final state = Provider.of<SimulationState>(context, listen: false);
     _nameController = TextEditingController(text: state.patientName);
     _idController = TextEditingController(text: state.patientMobileOrId);
-    _urlController = TextEditingController(text: state.backendUrl);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _idController.dispose();
-    _urlController.dispose();
     super.dispose();
   }
 
@@ -293,35 +290,6 @@ class _PatientSettingsPageState extends State<PatientSettingsPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Backend URL
-                  const Text(
-                    'Backend Server URL',
-                    style: TextStyle(fontSize: 12, color: AppColors.mutedText),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.darkRimGray,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.borderWhite),
-                    ),
-                    child: TextField(
-                      controller: _urlController,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.primaryText,
-                      ),
-                      decoration: const InputDecoration(
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        border: InputBorder.none,
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-
                   const SizedBox(height: 32),
 
                   // SAVE BUTTON
@@ -342,9 +310,7 @@ class _PatientSettingsPageState extends State<PatientSettingsPage> {
                         state.updatePatientMobileOrId(
                           _idController.text.trim(),
                         );
-                        state.setBackendUrl(_urlController.text.trim());
-
-                        ScaffoldMessenger.of(context).showSnackBar(
+ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Settings saved successfully'),
                             backgroundColor: AppColors.clinicalBlue,

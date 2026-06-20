@@ -112,11 +112,24 @@
   </div>
 
   <script>
-    const baseUrl = window.location.protocol === 'file:' ? 'http://127.0.0.1:5000' : '';
+    const baseUrl = window.location.protocol === 'file:' ? 'http://127.0.0.1:4000' : '';
 
     // Extract Patient from URL query param
     const urlParams = new URLSearchParams(window.location.search);
     const patientName = urlParams.get('patient');
+
+    // QR expiry check — tokens are valid for 15 minutes
+    const qrTs = parseInt(urlParams.get('t') || '0', 10);
+    if (qrTs > 0 && Date.now() - qrTs > 15 * 60 * 1000) {
+      document.getElementById('login-card').innerHTML = `
+        <h1>HealthLock</h1>
+        <div class="banner banner-failed" style="display:flex;">
+          ⏰ QR CODE EXPIRED — This consultation session token is more than 15 minutes old.
+          Please ask the patient to open HealthLock and generate a fresh QR code.
+        </div>
+      `;
+      throw new Error('QR expired');
+    }
 
     const patientDisplay = document.getElementById('patient-display');
     const loginForm = document.getElementById('login-form');

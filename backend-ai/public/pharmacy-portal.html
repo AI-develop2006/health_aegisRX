@@ -239,7 +239,7 @@
     }
   </style>
   <script>
-    const baseUrl = window.location.protocol === 'file:' ? 'http://127.0.0.1:5000' : '';
+    const baseUrl = window.location.protocol === 'file:' ? 'http://127.0.0.1:4000' : '';
     // JS implementation of character-shift decryption matching Dart
     const hexChars = '0123456789abcdef';
 
@@ -486,17 +486,25 @@
 
         const result = await response.json();
 
+        if (!response.ok && result.verdict === 'ALREADY_DISPENSED') {
+          // Amber warning for reuse attempt — not forgery, just already burned
+          const verifyCardElem = document.getElementById('verify-card');
+          verifyCardElem.style.border = '2px solid #F59E0B';
+          logs.push(`\nRESULT: TOKEN ALREADY BURNED. This prescription was previously dispensed.`);
+          consoleLog.className = 'console';
+          consoleLog.style.borderColor = '#F59E0B';
+          consoleLog.innerText = logs.join('\n');
+          statusBanner.className = 'banner';
+          statusBanner.style.background = 'rgba(245, 158, 11, 0.1)';
+          statusBanner.style.border = '1px solid rgba(245, 158, 11, 0.3)';
+          statusBanner.style.color = '#F59E0B';
+          statusBanner.innerText = '⚠️ SINGLE-USE TOKEN BURNED: This prescription has already been dispensed and cannot be reused.';
+          receiptBlock.style.display = 'none';
+          return;
+        }
+
         if (response.ok && result.verified) {
           activePrescription = result.prescription;
-          if (activePrescription.isDispensed) {
-            alert('This prescription checkout token has already been dispensed & burned!');
-            if (window.location.protocol === 'file:') {
-              window.location.href = 'pharmacy-portal.html';
-            } else {
-              window.location.href = '/pharmacy-portal';
-            }
-            return;
-          }
 
           // Emerald Green flash validation
           const verifyCardElem = document.getElementById('verify-card');

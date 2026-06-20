@@ -2,15 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:health_lock/firebase_options.dart';
-
-import 'package:flutter/foundation.dart';
 import 'package:health_lock/core/constants/app_colors.dart';
 import 'package:health_lock/core/theme/app_theme.dart';
 import 'package:health_lock/shared/models/prescription.dart';
@@ -20,58 +14,8 @@ import 'package:health_lock/core/constants/mock_prescriptions.dart';
 import 'package:health_lock/features/patient/screens/onboarding_screen.dart';
 import 'package:health_lock/features/patient/screens/splash_screen.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    debugPrint('Could not load .env file: $e');
-  }
-
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (e) {
-    debugPrint(
-      'Firebase initialization with currentPlatform failed: $e. Trying fallback options...',
-    );
-    FirebaseOptions? options;
-    final apiKey = dotenv.env['FIREBASE_API_KEY'];
-    final appId = dotenv.env['FIREBASE_APP_ID'];
-    final projectId = dotenv.env['FIREBASE_PROJECT_ID'];
-    final messagingSenderId = dotenv.env['FIREBASE_MESSAGING_SENDER_ID'];
-    final storageBucket = dotenv.env['FIREBASE_STORAGE_BUCKET'];
-
-    if (apiKey != null &&
-        apiKey.isNotEmpty &&
-        apiKey != 'your-api-key-here' &&
-        appId != null &&
-        appId.isNotEmpty &&
-        appId != '1:1234567890:web:1234567890abcdef') {
-      options = FirebaseOptions(
-        apiKey: apiKey,
-        appId: appId,
-        messagingSenderId: messagingSenderId ?? '',
-        projectId: projectId ?? '',
-        storageBucket: storageBucket,
-        iosBundleId: dotenv.env['FIREBASE_IOS_BUNDLE_ID'],
-      );
-    }
-
-    try {
-      if (options != null) {
-        await Firebase.initializeApp(options: options);
-      } else {
-        await Firebase.initializeApp();
-      }
-    } catch (e2) {
-      debugPrint(
-        'Firebase fallback initialization failed: $e2. Running in Offline Mock mode.',
-      );
-    }
-  }
   runApp(
     ChangeNotifierProvider(
       create: (_) => SimulationState(),
@@ -141,25 +85,28 @@ class _SovereignShieldAppState extends State<SovereignShieldApp> {
 class SimulationState extends ChangeNotifier {
   List<Prescription> _patientVault = [];
   bool _isAttendanceActive = false;
+  int? _sessionStartMs;
   String _backendUrl =
       (defaultTargetPlatform == TargetPlatform.android && !kIsWeb)
-      ? 'http://10.0.2.2:5000'
-      : 'http://localhost:5000';
+      ? 'http://10.0.2.2:4000'
+      : 'http://localhost:4000';
   bool _isLoading = false;
   Timer? _pollTimer;
   String? _activePendingRequestId;
   final Set<String> _promptedRequestIds = {};
   List<dynamic> _activityLogs = [];
+  List<dynamic> _visitHistory = [];
 
-  // Firebase Auth variables
-  User? _firebaseUser;
+  // Auth state
+  Map<String, dynamic>? _currentPatient;
   bool _isOfflineGuest = false;
-  StreamSubscription<User?>? _authSubscription;
   String _guestName = 'Elena Vance';
   String _patientMobileOrId = '992818';
 
   List<Prescription> get patientVault => _patientVault;
   bool get isAttendanceActive => _isAttendanceActive;
+  int? get sessionStartMs => _sessionStartMs;
+  List<dynamic> get visitHistory => _visitHistory;
   String get backendUrl => _backendUrl;
   String get patientMobileOrId => _patientMobileOrId;
   String get patientId {
@@ -172,33 +119,39 @@ class SimulationState extends ChangeNotifier {
   List<dynamic> get activityLogs => _activityLogs;
 
   // Auth getters
-  User? get firebaseUser => _firebaseUser;
   bool get isOfflineGuest => _isOfflineGuest;
-  bool get isAuthenticated => _firebaseUser != null || _isOfflineGuest;
+  bool get isAuthenticated => _currentPatient != null || _isOfflineGuest;
 
   String get patientName {
-    if (_firebaseUser != null) {
-      return _firebaseUser!.displayName ?? _guestName;
+    if (_currentPatient != null) {
+      return _currentPatient!['name'] as String? ?? _guestName;
     }
     return _isOfflineGuest ? _guestName : 'Guest';
   }
 
   String get patientEmailOrId {
-    if (_firebaseUser != null) {
-      return _firebaseUser!.email ?? _firebaseUser!.uid;
+    if (_currentPatient != null) {
+      return _currentPatient!['email'] as String? ?? 'patient@healthlock.org';
     }
     return _isOfflineGuest ? 'elena.vance@healthlock.org' : 'Guest User ID';
   }
 
   Future<void> updatePatientName(String newName) async {
     _guestName = newName;
-    if (_firebaseUser != null) {
+    if (_currentPatient != null) {
       try {
-        await _firebaseUser!.updateDisplayName(newName);
-        await _firebaseUser!.reload();
-        _firebaseUser = FirebaseAuth.instance.currentUser;
+        final token = _currentPatient!['token'] as String? ?? '';
+        await http.post(
+          Uri.parse('$_backendUrl/api/patient/update-name'),
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Session-Token': token,
+          },
+          body: jsonEncode({'name': newName}),
+        );
+        _currentPatient = {..._currentPatient!, 'name': newName};
       } catch (e) {
-        debugPrint('Failed to update Firebase display name: $e');
+        debugPrint('Failed to update patient name: $e');
       }
     }
     notifyListeners();
@@ -210,39 +163,21 @@ class SimulationState extends ChangeNotifier {
   }
 
   SimulationState() {
-    try {
-      // Listen to Firebase Auth state changes
-      _authSubscription = FirebaseAuth.instance.authStateChanges().listen((
-        user,
-      ) {
-        _firebaseUser = user;
-        if (user != null) {
-          _isOfflineGuest = false;
-          fetchPrescriptions();
-        }
-        notifyListeners();
-      });
-    } catch (e) {
-      debugPrint(
-        'Firebase Auth not initialized: $e. Operating in sandbox mode.',
-      );
-    }
-
     fetchPrescriptions();
     fetchActivityLogs();
-    // Live polling: Sync with MongoDB backend every 3 seconds
+    fetchVisitHistory();
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (isAuthenticated) {
         fetchPrescriptions(silent: true);
         checkPendingConsultations();
         fetchActivityLogs();
+        fetchVisitHistory();
       }
     });
   }
 
   @override
   void dispose() {
-    _authSubscription?.cancel();
     _pollTimer?.cancel();
     super.dispose();
   }
@@ -254,74 +189,57 @@ class SimulationState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<String?> loginWithGoogle() async {
-    try {
-      // Google Sign-In package does not natively support Windows Desktop.
-      // Guard against running on Windows and suggest testing on Android, iOS, or Web.
-      if (defaultTargetPlatform == TargetPlatform.windows && !kIsWeb) {
-        return 'Google Sign-In is not supported on Windows Desktop. Please test on Android, iOS, or Web.';
-      }
-
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        return 'Google sign in aborted by user';
-      }
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      return null;
-    } on FirebaseAuthException catch (e) {
-      return e.message ?? 'Google authentication failed';
-    } catch (e) {
-      final errStr = e.toString();
-      if (errStr.contains('MissingPluginException')) {
-        return 'Google Sign-In native plugin not compiled. Please stop the app completely and run "flutter run" again to perform a full build.';
-      }
-      return errStr;
-    }
-  }
-
   Future<String?> loginWithEmail(String email, String password) async {
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
+      final response = await http.post(
+        Uri.parse('$_backendUrl/api/patient/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email.trim(), 'password': password}),
       );
-      return null;
-    } on FirebaseAuthException catch (e) {
-      return e.message ?? 'Authentication failed';
+      if (response.statusCode == 200) {
+        _currentPatient = jsonDecode(response.body) as Map<String, dynamic>;
+        _isOfflineGuest = false;
+        fetchPrescriptions();
+        fetchVisitHistory();
+        notifyListeners();
+        return null;
+      }
+      final detail = jsonDecode(response.body)['detail'] ?? 'Login failed';
+      return detail as String;
     } catch (e) {
-      return e.toString();
+      return 'Cannot reach server. Check your connection.';
     }
   }
 
-  Future<String?> signUpWithEmail(String email, String password) async {
+  Future<String?> signUpWithEmail(String email, String password, {String name = ''}) async {
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
+      final response = await http.post(
+        Uri.parse('$_backendUrl/api/patient/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email.trim(),
+          'password': password,
+          'name': name.isNotEmpty ? name : email.split('@').first,
+        }),
       );
-      return null;
-    } on FirebaseAuthException catch (e) {
-      return e.message ?? 'Registration failed';
+      if (response.statusCode == 200) {
+        _currentPatient = jsonDecode(response.body) as Map<String, dynamic>;
+        _isOfflineGuest = false;
+        fetchPrescriptions();
+        fetchVisitHistory();
+        notifyListeners();
+        return null;
+      }
+      final detail = jsonDecode(response.body)['detail'] ?? 'Registration failed';
+      return detail as String;
     } catch (e) {
-      return e.toString();
+      return 'Cannot reach server. Check your connection.';
     }
   }
 
-  Future<void> signOut() async {
-    try {
-      await FirebaseAuth.instance.signOut();
-      await GoogleSignIn().signOut();
-    } catch (e) {
-      debugPrint('Firebase sign out failed: $e');
-    }
+  void signOut() {
+    _currentPatient = null;
     _isOfflineGuest = false;
-    _firebaseUser = null;
     _patientVault = [];
     _selectedPrescription = null;
     notifyListeners();
@@ -335,11 +253,33 @@ class SimulationState extends ChangeNotifier {
 
   void setAttendance(bool value) {
     _isAttendanceActive = value;
-    if (!value) {
+    if (value) {
+      _sessionStartMs = DateTime.now().millisecondsSinceEpoch;
+    } else {
       _activePendingRequestId = null;
       _promptedRequestIds.clear();
+      _sessionStartMs = null;
     }
     notifyListeners();
+  }
+
+  Future<void> fetchVisitHistory() async {
+    if (_currentPatient == null) return;
+    try {
+      final token = _currentPatient!['token'] as String? ?? '';
+      final name = Uri.encodeComponent(patientName);
+      final response = await http.get(
+        Uri.parse('$_backendUrl/api/visit-history/$name'),
+        headers: {'X-Session-Token': token},
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        _visitHistory = data['visits'] as List<dynamic>? ?? [];
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetching visit history: $e');
+    }
   }
 
   void selectPrescription(Prescription? rx) {
@@ -408,8 +348,25 @@ class SimulationState extends ChangeNotifier {
   }
 
   Future<void> checkPendingConsultations() async {
-    if (_isAttendanceActive)
-      return; // If session is already active, no need to check
+    // When attendance is active, check if the doctor submitted a prescription (session auto-completed)
+    if (_isAttendanceActive) {
+      try {
+        final response = await http.get(
+          Uri.parse('$_backendUrl/api/consultation/has-active-session?patient=${Uri.encodeComponent(patientName)}'),
+        );
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          if (data['active'] == false) {
+            _isAttendanceActive = false;
+            await fetchPrescriptions(); // Refresh vault to show new prescription
+            notifyListeners();
+          }
+        }
+      } catch (e) {
+        debugPrint('Error checking active session: $e');
+      }
+      return;
+    }
     try {
       final response = await http.get(
         Uri.parse(

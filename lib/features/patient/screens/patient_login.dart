@@ -20,11 +20,13 @@ class _PatientLoginState extends State<PatientLogin> {
   bool _isRegisterMode = false;
   bool _isLoading = false;
   String? _errorMessage;
+  final _nameController = TextEditingController();
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -41,26 +43,10 @@ class _PatientLoginState extends State<PatientLogin> {
     String? error;
 
     if (_isRegisterMode) {
-      error = await state.signUpWithEmail(email, password);
+      error = await state.signUpWithEmail(email, password, name: _nameController.text.trim());
     } else {
       error = await state.loginWithEmail(email, password);
     }
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = error;
-      });
-    }
-  }
-
-  Future<void> _handleGoogleAuth(SimulationState state) async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    final error = await state.loginWithGoogle();
 
     if (mounted) {
       setState(() {
@@ -207,6 +193,35 @@ class _PatientLoginState extends State<PatientLogin> {
                               const SizedBox(height: 16),
                             ],
 
+                            // Name field (register only)
+                            if (_isRegisterMode) ...[
+                              const Text('Full Name', style: TextStyle(fontSize: 11, color: AppColors.mutedText, fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 6),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.darkRimGray,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: AppColors.borderWhite),
+                                ),
+                                child: TextFormField(
+                                  controller: _nameController,
+                                  style: const TextStyle(fontSize: 13, color: AppColors.primaryText),
+                                  validator: (value) {
+                                    if (_isRegisterMode && (value == null || value.trim().isEmpty)) return 'Enter your name';
+                                    return null;
+                                  },
+                                  decoration: const InputDecoration(
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    hintText: 'Jane Doe',
+                                    hintStyle: TextStyle(color: AppColors.mutedText, fontSize: 13),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+
                             // Email input field
                             const Text('Email Address', style: TextStyle(fontSize: 11, color: AppColors.mutedText, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 6),
@@ -284,17 +299,6 @@ class _PatientLoginState extends State<PatientLogin> {
                                         textColor: Colors.white,
                                         onPressed: () => _handleAuth(state),
                                       ),
-                                      if (!_isRegisterMode) ...[
-                                        const SizedBox(height: 12),
-                                        CustomButton(
-                                          text: 'SIGN IN WITH GOOGLE',
-                                          icon: Icons.g_mobiledata_rounded,
-                                          backgroundColor: AppColors.cardSurface,
-                                          borderColor: AppColors.borderWhite,
-                                          textColor: AppColors.primaryText,
-                                          onPressed: () => _handleGoogleAuth(state),
-                                        ),
-                                      ],
                                     ],
                                   ),
                             const SizedBox(height: 16),

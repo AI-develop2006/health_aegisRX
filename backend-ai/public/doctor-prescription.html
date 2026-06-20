@@ -67,6 +67,18 @@
           <input type="text" id="date-display" disabled>
         </div>
 
+        <!-- Patient Prescription History Panel -->
+        <div style="margin: 4px 0 20px 0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <label style="margin-bottom:0;font-size:11px;font-weight:700;color:var(--muted-text);letter-spacing:0.5px;">PATIENT PRESCRIPTION HISTORY</label>
+            <button type="button" id="toggle-history-btn" class="btn-text" style="font-size:11px;">▼ SHOW</button>
+          </div>
+          <div id="history-content" style="display:none;">
+            <div id="history-loading" style="text-align:center;padding:12px;color:var(--muted-text);font-size:12px;">Loading...</div>
+            <div id="history-list"></div>
+          </div>
+        </div>
+
         <div class="form-group">
           <label>Clinical Diagnosis / Disease</label>
           <input type="text" id="diagnosis-input" placeholder="e.g. Hypertension Control" required>
@@ -127,7 +139,7 @@
     const hospitalName = sessionStorage.getItem('hospitalName');
     const doctorMobile = sessionStorage.getItem('doctorMobile');
     
-    const baseUrl = window.location.protocol === 'file:' ? 'http://127.0.0.1:5000' : '';
+    const baseUrl = window.location.protocol === 'file:' ? 'http://127.0.0.1:4000' : '';
 
     if (!patientName || !doctorName || !hospitalName || !doctorMobile) {
       if (window.location.protocol === 'file:') {
@@ -354,6 +366,84 @@
         modal.style.display = 'none';
       };
     }
+
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    let historyLoaded = false;
+    async function loadPatientHistory() {
+      if (historyLoaded) return;
+      historyLoaded = true;
+      const loading = document.getElementById('history-loading');
+      const list = document.getElementById('history-list');
+      try {
+        const res = await fetch(baseUrl + `/api/prescriptions?patient=${encodeURIComponent(patientName)}`);
+        loading.style.display = 'none';
+        if (!res.ok) { list.innerHTML = '<p style="color:var(--muted-text);font-size:12px;text-align:center;padding:8px;">Could not load history.</p>'; return; }
+        const rxs = await res.json();
+        if (rxs.length === 0) {
+          list.innerHTML = '<p style="color:var(--muted-text);font-size:12px;text-align:center;padding:8px;">No previous prescriptions on record.</p>';
+          return;
+        }
+        list.innerHTML = '';
+        rxs.forEach(rx => {
+          // badge is static markup — no user data interpolated
+          const badge = rx.isDispensed
+            ? '<span style="color:#34D399;font-size:10px;font-weight:700;">✓ DISPENSED</span>'
+            : '<span style="color:var(--clinical-blue);font-size:10px;font-weight:600;">ACTIVE</span>';
+
+          const div = document.createElement('div');
+          div.style.cssText = 'border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:rgba(0,0,0,0.2);';
+
+          // Header row: disease + date + status badge
+          const header = document.createElement('div');
+          header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;';
+          const diseaseEl = document.createElement('strong');
+          diseaseEl.style.cssText = 'font-size:12px;color:var(--primary-text);';
+          diseaseEl.textContent = rx.disease || 'Unknown Condition';
+          const metaSpan = document.createElement('span');
+          metaSpan.style.cssText = 'display:flex;gap:8px;align-items:center;';
+          const dateSpan = document.createElement('span');
+          dateSpan.style.cssText = 'font-size:10px;color:var(--muted-text);';
+          dateSpan.textContent = rx.date || '';
+          metaSpan.appendChild(dateSpan);
+          metaSpan.innerHTML += badge; // badge is static, safe
+          header.appendChild(diseaseEl);
+          header.appendChild(metaSpan);
+          div.appendChild(header);
+
+          // Doctor + hospital row
+          const docRow = document.createElement('div');
+          docRow.style.cssText = 'font-size:11px;color:var(--muted-text);margin-bottom:6px;';
+          docRow.textContent = `Dr. ${rx.doctorName} — ${rx.hospitalName}`;
+          div.appendChild(docRow);
+
+          // Medicine chips — each chip uses textContent, never innerHTML
+          const medsRow = document.createElement('div');
+          medsRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px;';
+          (rx.medicines || []).forEach(m => {
+            const chip = document.createElement('span');
+            chip.style.cssText = 'font-family:monospace;font-size:10px;background:rgba(37,99,235,0.08);color:var(--clinical-blue);padding:1px 6px;border-radius:3px;margin:1px 2px;';
+            chip.textContent = m.name; // textContent — not parsed as HTML
+            medsRow.appendChild(chip);
+          });
+          div.appendChild(medsRow);
+
+          list.appendChild(div);
+        });
+      } catch(err) {
+        loading.style.display = 'none';
+        list.innerHTML = '<p style="color:var(--muted-text);font-size:12px;text-align:center;padding:8px;">Unable to reach server.</p>';
+      }
+    }
+
+    document.getElementById('toggle-history-btn').addEventListener('click', () => {
+      const content = document.getElementById('history-content');
+      const btn = document.getElementById('toggle-history-btn');
+      const isOpen = content.style.display !== 'none';
+      content.style.display = isOpen ? 'none' : 'block';
+      btn.innerText = isOpen ? '▼ SHOW' : '▲ HIDE';
+      if (!isOpen) loadPatientHistory();
+    });
 
     async function commitPrescription(payload) {
       try {
