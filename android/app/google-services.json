@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "326383469529",
+    "project_id": "healthlock-39390",
+    "storage_bucket": "healthlock-39390.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:326383469529:android:cb78050d70de2e2857cfc8",
+        "android_client_info": {
+          "package_name": "com.example.health_lock"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "326383469529-sen1notvpsa5fu9j68bvp29gouilps0s.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.health_lock",
+            "certificate_hash": "2ff712ddc61c41abe89e52f1c96d5e16faaeeb09"
+          }
+        },
+        {
+          "client_id": "326383469529-lkhig65bq3smj0u9juqdhhn1seegianh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCC62Icg_Ff2Y0oEExFnueI5GZs6MMVIus"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "326383469529-lkhig65bq3smj0u9juqdhhn1seegianh.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "326383469529-c8qrllavnhnv7cnfr19c553svj2r5cbn.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.healthLock"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
