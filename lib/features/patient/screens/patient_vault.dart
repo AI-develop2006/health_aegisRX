@@ -22,7 +22,6 @@ class _PatientVaultState extends State<PatientVault> {
     final state = Provider.of<SimulationState>(context);
     final vault = state.patientVault;
     final isAttendanceActive = state.isAttendanceActive;
-    final selectedPrescription = state.selectedPrescriptionQR;
 
     // Doctor login link embedded in QR — timestamp is fixed at session-start to avoid QR drift
     final int qrTs = state.sessionStartMs ?? DateTime.now().millisecondsSinceEpoch;
@@ -33,6 +32,7 @@ class _PatientVaultState extends State<PatientVault> {
       children: [
         // App header
         Container(
+          color: AppColors.cardSurface,
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -40,14 +40,17 @@ class _PatientVaultState extends State<PatientVault> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.clinicalBlue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      color: AppColors.tintBlue,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.patientBlue.withValues(alpha: 0.2),
+                      ),
                     ),
                     child: const Icon(
                       Icons.local_hospital_rounded,
-                      color: AppColors.clinicalBlue,
+                      color: AppColors.patientBlue,
                       size: 20,
                     ),
                   ),
@@ -69,7 +72,7 @@ class _PatientVaultState extends State<PatientVault> {
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.clinicalBlue,
+                          color: AppColors.patientBlue,
                           letterSpacing: 0.3,
                         ),
                       ),
@@ -86,7 +89,7 @@ class _PatientVaultState extends State<PatientVault> {
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.clinicalBlue,
+                          AppColors.patientBlue,
                         ),
                       ),
                     ),
@@ -94,7 +97,7 @@ class _PatientVaultState extends State<PatientVault> {
                   IconButton(
                     icon: Badge(
                       isLabelVisible: state.activePendingRequestId != null,
-                      backgroundColor: AppColors.crimsonLockout,
+                      backgroundColor: AppColors.statusCritical,
                       label: const Text(
                         '1',
                         style: TextStyle(color: Colors.white, fontSize: 8),
@@ -104,7 +107,7 @@ class _PatientVaultState extends State<PatientVault> {
                             ? Icons.notifications_active_rounded
                             : Icons.notifications_outlined,
                         color: state.activePendingRequestId != null
-                            ? AppColors.clinicalBlue
+                            ? AppColors.patientBlue
                             : AppColors.mutedText,
                         size: 20,
                       ),
@@ -138,79 +141,102 @@ class _PatientVaultState extends State<PatientVault> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Medical Identity Card
-                GlassCard(
-                  borderRadius: 20,
-                  backgroundColor: const Color.fromARGB(255, 46, 108, 243),
-                  border: Border.all(color: Colors.transparent),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: const Color.fromARGB(
-                          255,
-                          255,
-                          255,
-                          255,
-                        ),
-                        child: Text(
-                          state.patientName.length >= 2
-                              ? state.patientName.substring(0, 2).toUpperCase()
-                              : 'PT',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
+                // Medical Identity Card — Solid Blue Gradient
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.patientBlue,
+                        AppColors.patientBlueDark,
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.patientBlue.withValues(alpha: 0.25),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              state.patientName,
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: CircleAvatar(
+                            radius: 26,
+                            backgroundColor: Colors.white.withValues(alpha: 0.15),
+                            child: Text(
+                              state.patientName.length >= 2
+                                  ? state.patientName.substring(0, 2).toUpperCase()
+                                  : 'PT',
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              state.patientEmailOrId,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white70,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.emeraldAccent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                const Text(
-                                  'Identity Verified',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                state.patientName,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                state.patientEmailOrId,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.verifiedEmerald,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Identity Verified',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.white.withValues(alpha: 0.9),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -237,14 +263,23 @@ class _PatientVaultState extends State<PatientVault> {
                         children: [
                           Row(
                             children: [
-                              Icon(
-                                isAttendanceActive
-                                    ? Icons.lock_open_rounded
-                                    : Icons.lock_rounded,
-                                color: isAttendanceActive
-                                    ? AppColors.emeraldAccent
-                                    : AppColors.mutedText,
-                                size: 20,
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: isAttendanceActive
+                                      ? AppColors.tintTeal
+                                      : AppColors.tintSlate,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  isAttendanceActive
+                                      ? Icons.lock_open_rounded
+                                      : Icons.lock_rounded,
+                                  color: isAttendanceActive
+                                      ? AppColors.doctorTeal
+                                      : AppColors.statusLocked,
+                                  size: 20,
+                                ),
                               ),
                               const SizedBox(width: 10),
                               Column(
@@ -275,26 +310,29 @@ class _PatientVaultState extends State<PatientVault> {
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+                              horizontal: 10,
+                              vertical: 5,
                             ),
                             decoration: BoxDecoration(
                               color: isAttendanceActive
-                                  ? AppColors.emeraldAccent.withValues(
-                                      alpha: 0.1,
-                                    )
-                                  : AppColors.darkRimGray,
-                              borderRadius: BorderRadius.circular(6),
+                                  ? AppColors.tintTeal
+                                  : AppColors.tintSlate,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isAttendanceActive
+                                    ? AppColors.doctorTeal.withValues(alpha: 0.2)
+                                    : AppColors.borderWhite,
+                              ),
                             ),
                             child: Text(
                               isAttendanceActive ? 'ACTIVE' : 'LOCKED',
                               style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: isAttendanceActive
-                                    ? AppColors.emeraldAccent
-                                    : AppColors.mutedText,
-                              ),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: isAttendanceActive
+                                      ? AppColors.doctorTeal
+                                      : AppColors.statusLocked,
+                                ),
                             ),
                           ),
                         ],
@@ -304,11 +342,8 @@ class _PatientVaultState extends State<PatientVault> {
                         CustomButton(
                           text: 'START DOCTOR CONSULTATION',
                           icon: Icons.qr_code_2_rounded,
-                          backgroundColor: AppColors.clinicalBlue.withValues(
-                            alpha: 0.08,
-                          ),
-                          borderColor: AppColors.clinicalBlue,
-                          textColor: AppColors.clinicalBlue,
+                          backgroundColor: AppColors.doctorTeal,
+                          textColor: Colors.white,
                           onPressed: () {
                             state.setAttendance(true);
                           },
@@ -321,11 +356,15 @@ class _PatientVaultState extends State<PatientVault> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: AppColors.darkRimGray,
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: AppColors.borderWhite,
-                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.doctorTeal.withValues(alpha: 0.15),
+                                      blurRadius: 20,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
                                 ),
                                 child: QrImageView(
                                   data: doctorPortalUrl,
@@ -358,11 +397,8 @@ class _PatientVaultState extends State<PatientVault> {
                         CustomButton(
                           text: 'END CONSULTATION SESSION',
                           icon: Icons.cancel_outlined,
-                          backgroundColor: AppColors.crimsonLockout.withValues(
-                            alpha: 0.06,
-                          ),
-                          borderColor: AppColors.crimsonLockout,
-                          textColor: AppColors.crimsonLockout,
+                          backgroundColor: AppColors.statusCritical,
+                          textColor: Colors.white,
                           onPressed: () {
                             state.endSession();
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -370,7 +406,7 @@ class _PatientVaultState extends State<PatientVault> {
                                 content: Text(
                                   'Consultation ended. Doctor access revoked.',
                                 ),
-                                backgroundColor: AppColors.crimsonLockout,
+                                backgroundColor: AppColors.statusCritical,
                               ),
                             );
                           },
@@ -434,213 +470,203 @@ class _PatientVaultState extends State<PatientVault> {
                         const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final rx = vault[index];
-                      final isSelected = selectedPrescription?.id == rx.id;
 
-                      return InkWell(
-                        onTap: () {
-                          state.selectPrescription(rx);
-                        },
-                        child: Container(
-                          decoration: isSelected
-                              ? BoxDecoration(
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: AppColors.clinicalBlue.withValues(
-                                      alpha: 0.4,
-                                    ),
-                                    width: 1.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.clinicalBlue.withValues(
-                                        alpha: 0.06,
-                                      ),
-                                      blurRadius: 6,
-                                      spreadRadius: 1,
-                                    ),
-                                  ],
-                                )
-                              : null,
-                          child: GlassCard(
-                            borderRadius: 14,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
+                      return GlassCard(
+                        borderRadius: 14,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        child: Row(
+                          children: [
+                            // Colored accent bar (Left edge indicator)
+                            Container(
+                              width: 4,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(2),
+                                color: rx.isDispensed
+                                    ? AppColors.verifiedEmerald
+                                    : AppColors.doctorTeal,
+                              ),
                             ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: rx.isDispensed
-                                        ? AppColors.darkRimGray
-                                        : AppColors.clinicalBlue.withValues(
-                                            alpha: 0.08,
-                                          ),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Icon(
-                                    rx.isDispensed
-                                        ? Icons.inventory_2_outlined
-                                        : Icons.medication_rounded,
-                                    color: rx.isDispensed
-                                        ? AppColors.mutedText
-                                        : AppColors.clinicalBlue,
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                            const SizedBox(width: 14),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: rx.isDispensed
+                                    ? AppColors.tintSlate
+                                    : AppColors.tintTeal,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                rx.isDispensed
+                                    ? Icons.inventory_2_outlined
+                                    : Icons.medication_rounded,
+                                color: rx.isDispensed
+                                    ? AppColors.mutedText
+                                    : AppColors.doctorTeal,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  // Disease Title + Date/Time Row
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      // Disease Title + Date/Time Row
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              rx.disease,
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                                color: rx.isDispensed
-                                                    ? AppColors.mutedText
-                                                    : AppColors.primaryText,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
+                                      Expanded(
+                                        child: Text(
+                                          rx.disease,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: rx.isDispensed
+                                                ? AppColors.mutedText
+                                                : AppColors.primaryText,
                                           ),
-                                          const SizedBox(width: 8),
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(
-                                                Icons.access_time_rounded,
-                                                size: 11,
-                                                color: AppColors.mutedText,
-                                              ),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                '${rx.date} ${rx.time}',
-                                                style: const TextStyle(
-                                                  fontSize: 10,
-                                                  color: AppColors.mutedText,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
-                                      const SizedBox(height: 6),
-
-                                      // Doctor + Clinic Details Row
+                                      const SizedBox(width: 8),
                                       Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           const Icon(
-                                            Icons.person_outline_rounded,
-                                            size: 13,
+                                            Icons.access_time_rounded,
+                                            size: 11,
                                             color: AppColors.mutedText,
                                           ),
-                                          const SizedBox(width: 4),
+                                          const SizedBox(width: 3),
                                           Text(
-                                            rx.doctorName,
+                                            '${rx.date} ${rx.time}',
                                             style: const TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppColors.primaryText,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          const Icon(
-                                            Icons.local_hospital_outlined,
-                                            size: 13,
-                                            color: AppColors.mutedText,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Text(
-                                              rx.hospitalName,
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                color: AppColors.mutedText,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
+                                              fontSize: 10,
+                                              color: AppColors.mutedText,
+                                              fontWeight: FontWeight.w500,
                                             ),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 4),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
 
-                                      // Medications count
+                                  // Doctor + Clinic Details Row
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.person_outline_rounded,
+                                        size: 13,
+                                        color: AppColors.mutedText,
+                                      ),
+                                      const SizedBox(width: 4),
                                       Text(
-                                        'Medications: ${rx.medicines.length} item(s)',
+                                        rx.doctorName,
                                         style: const TextStyle(
                                           fontSize: 11,
-                                          color: AppColors.mutedText,
-                                          fontWeight: FontWeight.w500,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.primaryText,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      const Icon(
+                                        Icons.local_hospital_outlined,
+                                        size: 13,
+                                        color: AppColors.mutedText,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          rx.hospitalName,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: AppColors.mutedText,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
-                                const SizedBox(width: 14),
+                                  const SizedBox(height: 4),
 
-                                // QR Scanner button or Dispensed badge at the right end
-                                Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    if (!rx.isDispensed)
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.qr_code_scanner_rounded,
-                                          color: AppColors.clinicalBlue,
-                                          size: 24,
-                                        ),
-                                        onPressed: () {
-                                          state.selectPrescription(rx);
-                                        },
-                                      )
-                                    else
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
-                                        ),
+                                  // Medications count
+                                  Text(
+                                    'Medications: ${rx.medicines.length} item(s)',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.mutedText,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+
+                            // QR Scanner button — opens popup, or Dispensed badge
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (!rx.isDispensed)
+                                  Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(10),
+                                      onTap: () {
+                                        showQrPopup(context, rx);
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
-                                          color: AppColors.emeraldAccent
-                                              .withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(
-                                            4,
+                                          color: AppColors.tintTeal,
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(
+                                            color: AppColors.doctorTeal.withValues(alpha: 0.2),
                                           ),
                                         ),
-                                        child: const Text(
-                                          'DISPENSED',
-                                          style: TextStyle(
-                                            fontSize: 8,
-                                            fontWeight: FontWeight.bold,
-                                            color: AppColors.emeraldAccent,
-                                          ),
+                                        child: const Icon(
+                                          Icons.qr_code_scanner_rounded,
+                                          color: AppColors.doctorTeal,
+                                          size: 22,
                                         ),
                                       ),
-                                  ],
-                                ),
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.tintEmerald,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: AppColors.verifiedEmerald.withValues(alpha: 0.2),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'DISPENSED',
+                                      style: TextStyle(
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.verifiedEmerald,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
-                          ),
+                          ],
                         ),
                       );
                     },
                   ),
-
-                if (selectedPrescription != null &&
-                    !selectedPrescription.isDispensed) ...[
-                  const SizedBox(height: 24),
-                  QrDrawer(prescription: selectedPrescription),
-                ],
 
                 const SizedBox(height: 28),
 
@@ -698,8 +724,8 @@ class _PatientVaultState extends State<PatientVault> {
                       final ts = block['timestamp'];
                       String timeStr = '';
                       if (ts is int) {
-                        final dt = DateTime.fromMillisecondsSinceEpoch(ts).toLocal();
-                        timeStr = '${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')} ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
+                         final dt = DateTime.fromMillisecondsSinceEpoch(ts).toLocal();
+                         timeStr = '${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')} ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
                       }
                       return GlassCard(
                         borderRadius: 12,
@@ -709,11 +735,11 @@ class _PatientVaultState extends State<PatientVault> {
                           children: [
                             Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.clinicalBlue.withValues(alpha: 0.08),
+                              decoration: const BoxDecoration(
+                                color: AppColors.tintEmerald,
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.link_rounded, color: AppColors.clinicalBlue, size: 16),
+                              child: const Icon(Icons.link_rounded, color: AppColors.verifiedEmerald, size: 16),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -739,7 +765,7 @@ class _PatientVaultState extends State<PatientVault> {
                                         style: const TextStyle(
                                           fontSize: 10,
                                           fontFamily: 'monospace',
-                                          color: AppColors.clinicalBlue,
+                                          color: AppColors.verifiedEmerald,
                                         ),
                                       ),
                                     ],

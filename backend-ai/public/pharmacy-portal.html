@@ -12,10 +12,10 @@
     .scanner-line {
       height: 3px;
       width: 100%;
-      background-color: var(--clinical-blue);
+      background-color: var(--pharmacy-violet);
       position: absolute;
       animation: scan 2s linear infinite;
-      box-shadow: 0 0 8px var(--clinical-blue);
+      box-shadow: 0 0 8px var(--pharmacy-violet);
     }
 
     @keyframes scan {
@@ -34,15 +34,15 @@
 
     .hud {
       position: relative;
-      height: 180px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background-color: rgba(0, 0, 0, 0.4);
-      border-radius: 12px;
+      height: 200px;
+      border: 1px solid var(--border);
+      background-color: var(--surface-muted);
+      border-radius: 16px;
       overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
 
     /* Print-ready clinical prescription paper styling */
@@ -50,10 +50,10 @@
       background: #FFFFFF !important;
       color: #1E293B !important;
       border: 1.5px solid #E2E8F0 !important;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 20px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 24px;
       font-family: 'Inter', sans-serif;
       position: relative;
     }
@@ -108,7 +108,7 @@
   </style>
 </head>
 
-<body>
+<body class="pharmacy-page">
   <div class="container">
     <!-- Standby Card -->
     <div class="glass-card" id="standby-card" style="display: none;">

@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:health_lock/core/constants/app_colors.dart';
@@ -478,78 +476,53 @@ class _PatientVaultHomeState extends State<PatientVaultHome> {
 
     return Scaffold(
       backgroundColor: AppColors.baseCanvas,
-      body: Stack(
-        children: [
-          // Ambient Layer Shaders (Deep visual backlights)
-          Positioned(
-            top: -60,
-            left: -60,
-            child: Container(
-              width: 320,
-              height: 320,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.ambientBlue.withValues(alpha: 0.6),
+      body: tabs[_currentIndex],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.cardSurface,
+          border: Border(
+            top: BorderSide(
+              color: AppColors.borderWhite,
+              width: 1,
+            ),
+          ),
+        ),
+        child: Theme(
+          data: Theme.of(context).copyWith(canvasColor: AppColors.cardSurface),
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            backgroundColor: AppColors.cardSurface,
+            selectedItemColor: AppColors.patientBlue,
+            unselectedItemColor: AppColors.textFaint,
+            selectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+            unselectedLabelStyle: const TextStyle(fontSize: 10),
+            onTap: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            items: [
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.folder_shared_rounded),
+                label: 'HEALTH VAULT',
               ),
-            ),
-          ),
-          Positioned(
-            bottom: 60,
-            right: -80,
-            child: Container(
-              width: 360,
-              height: 360,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.ambientGreen.withValues(alpha: 0.5),
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 80.0, sigmaY: 80.0),
-              child: Container(color: Colors.transparent),
-            ),
-          ),
-
-          tabs[_currentIndex],
-        ],
-      ),
-      bottomNavigationBar: Theme(
-        data: Theme.of(context).copyWith(canvasColor: AppColors.darkRimGray),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          backgroundColor: AppColors.darkRimGray,
-          selectedItemColor: AppColors.clinicalBlue,
-          unselectedItemColor: AppColors.mutedText,
-          selectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 11,
-          ),
-          unselectedLabelStyle: const TextStyle(fontSize: 10),
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          items: [
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.folder_shared_rounded),
-              label: 'HEALTH VAULT',
-            ),
-            BottomNavigationBarItem(
-              icon: Badge(
-                isLabelVisible: state.activePendingRequestId != null,
-                backgroundColor: AppColors.crimsonLockout,
-                label: const Text(
-                  '1',
-                  style: TextStyle(color: Colors.white, fontSize: 8),
+              BottomNavigationBarItem(
+                icon: Badge(
+                  isLabelVisible: state.activePendingRequestId != null,
+                  backgroundColor: AppColors.statusCritical,
+                  label: const Text(
+                    '1',
+                    style: TextStyle(color: Colors.white, fontSize: 8),
+                  ),
+                  child: const Icon(Icons.notifications_active_rounded),
                 ),
-                child: const Icon(Icons.notifications_active_rounded),
+                label: 'NOTIFICATIONS',
               ),
-              label: 'NOTIFICATIONS',
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -579,14 +552,17 @@ class NotificationsView extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.clinicalBlue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: AppColors.tintBlue,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.patientBlue.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: const Icon(
                   Icons.notifications_rounded,
-                  color: AppColors.clinicalBlue,
+                  color: AppColors.patientBlue,
                   size: 20,
                 ),
               ),
@@ -610,9 +586,9 @@ class NotificationsView extends StatelessWidget {
                 if (state.activePendingRequestId != null) ...[
                   GlassCard(
                     borderRadius: 16,
-                    backgroundColor: AppColors.deepNavy,
+                    backgroundColor: AppColors.tintTeal,
                     border: Border.all(
-                      color: AppColors.clinicalBlue.withValues(alpha: 0.4),
+                      color: AppColors.doctorTeal.withValues(alpha: 0.3),
                       width: 1.5,
                     ),
                     child: Column(
@@ -622,13 +598,13 @@ class NotificationsView extends StatelessWidget {
                           children: [
                             Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.1),
+                              decoration: const BoxDecoration(
+                                color: AppColors.cardSurface,
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
                                 Icons.security_rounded,
-                                color: Colors.white,
+                                color: AppColors.doctorTeal,
                                 size: 20,
                               ),
                             ),
@@ -639,7 +615,7 @@ class NotificationsView extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: AppColors.primaryText,
                                 ),
                               ),
                             ),
@@ -650,7 +626,7 @@ class NotificationsView extends StatelessWidget {
                           'A doctor is requesting secure authorization to connect and write credentials to your patient profile.',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white70,
+                            color: AppColors.mutedText,
                             height: 1.4,
                           ),
                         ),
@@ -660,8 +636,8 @@ class NotificationsView extends StatelessWidget {
                             Expanded(
                               child: OutlinedButton(
                                 style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: Colors.white30),
-                                  foregroundColor: Colors.white,
+                                  side: const BorderSide(color: AppColors.borderWhite),
+                                  foregroundColor: AppColors.mutedText,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 12,
                                   ),
@@ -687,7 +663,7 @@ class NotificationsView extends StatelessWidget {
                             Expanded(
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.emeraldAccent,
+                                  backgroundColor: AppColors.doctorTeal,
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 12,
@@ -706,7 +682,7 @@ class NotificationsView extends StatelessWidget {
                                       content: Text(
                                         'Doctor access granted. Session active.',
                                       ),
-                                      backgroundColor: AppColors.emeraldAccent,
+                                      backgroundColor: AppColors.verifiedEmerald,
                                     ),
                                   );
                                 },
@@ -759,33 +735,40 @@ class NotificationsView extends StatelessWidget {
                     final String details = log['details'] ?? '';
 
                     IconData iconData = Icons.info_outline;
-                    Color iconColor = AppColors.clinicalBlue;
+                    Color iconColor = AppColors.patientBlue;
+                    Color tintColor = AppColors.tintBlue;
                     String title = 'Ledger Event';
 
                     if (eventType == 'CREATE_PRESCRIPTION') {
                       iconData = Icons.medication_rounded;
-                      iconColor = AppColors.clinicalBlue;
+                      iconColor = AppColors.doctorTeal;
+                      tintColor = AppColors.tintTeal;
                       title = 'Prescription Issued';
                     } else if (eventType == 'DISPENSE_PRESCRIPTION') {
                       iconData = Icons.local_pharmacy_outlined;
-                      iconColor = AppColors.crimsonLockout;
+                      iconColor = AppColors.pharmacyViolet;
+                      tintColor = AppColors.tintViolet;
                       title = 'Medications Dispensed';
                     } else if (eventType.contains('SCAN_PHARMACY')) {
                       iconData = Icons.qr_code_scanner_rounded;
-                      iconColor = Colors.teal;
+                      iconColor = AppColors.pharmacyViolet;
+                      tintColor = AppColors.tintViolet;
                       title = 'Zero-Trust Verification';
                     } else if (eventType == 'ACCEPT_ACCESS') {
                       iconData = Icons.security_rounded;
-                      iconColor = AppColors.emeraldAccent;
+                      iconColor = AppColors.verifiedEmerald;
+                      tintColor = AppColors.tintEmerald;
                       title = 'Doctor Access Authorized';
                     } else if (eventType == 'REJECT_ACCESS') {
                       iconData = Icons.block_outlined;
-                      iconColor = AppColors.crimsonLockout;
+                      iconColor = AppColors.statusCritical;
+                      tintColor = AppColors.tintSlate;
                       title = 'Doctor Access Blocked';
                     } else if (eventType.contains('LOGIN') ||
                         eventType.contains('REGISTER')) {
                       iconData = Icons.person_outline_rounded;
-                      iconColor = Colors.amber;
+                      iconColor = AppColors.patientBlue;
+                      tintColor = AppColors.tintBlue;
                       title = 'Security Portal Session';
                     }
 
@@ -794,7 +777,6 @@ class NotificationsView extends StatelessWidget {
                     if (log['timestamp'] != null) {
                       try {
                         String ts = log['timestamp'].toString();
-                        // If it doesn't end with Z and doesn't contain a timezone offset (+/-), append Z to treat it as UTC
                         if (!ts.endsWith('Z') && !ts.contains('+') && !ts.contains('-')) {
                           ts = '${ts}Z';
                         }
@@ -826,7 +808,7 @@ class NotificationsView extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: iconColor.withValues(alpha: 0.08),
+                                color: tintColor,
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(iconData, color: iconColor, size: 18),
@@ -884,3 +866,4 @@ class NotificationsView extends StatelessWidget {
     );
   }
 }
+
