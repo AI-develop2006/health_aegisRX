@@ -84,7 +84,8 @@ class SimulationState extends ChangeNotifier {
   List<Prescription> _patientVault = [];
   bool _isAttendanceActive = false;
   int? _sessionStartMs;
-  String _backendUrl = 'https://vortexafinal-9dca3fl5f-srimaansrimaan543-2911s-projects.vercel.app';
+  String _backendUrl =
+      'https://vortexafinal-9dca3fl5f-srimaansrimaan543-2911s-projects.vercel.app';
   bool _isLoading = false;
   Timer? _pollTimer;
   String? _activePendingRequestId;
@@ -211,7 +212,11 @@ class SimulationState extends ChangeNotifier {
     }
   }
 
-  Future<String?> signUpWithEmail(String email, String password, {String name = ''}) async {
+  Future<String?> signUpWithEmail(
+    String email,
+    String password, {
+    String name = '',
+  }) async {
     try {
       final response = await http.post(
         Uri.parse('$_backendUrl/api/patient/register'),
@@ -360,7 +365,9 @@ class SimulationState extends ChangeNotifier {
     if (_isAttendanceActive) {
       try {
         final response = await http.get(
-          Uri.parse('$_backendUrl/api/consultation/has-active-session?patient=${Uri.encodeComponent(patientName)}'),
+          Uri.parse(
+            '$_backendUrl/api/consultation/has-active-session?patient=${Uri.encodeComponent(patientName)}',
+          ),
         );
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -481,10 +488,7 @@ class _PatientVaultHomeState extends State<PatientVaultHome> {
         decoration: const BoxDecoration(
           color: AppColors.cardSurface,
           border: Border(
-            top: BorderSide(
-              color: AppColors.borderWhite,
-              width: 1,
-            ),
+            top: BorderSide(color: AppColors.borderWhite, width: 1),
           ),
         ),
         child: Theme(
@@ -636,7 +640,9 @@ class NotificationsView extends StatelessWidget {
                             Expanded(
                               child: OutlinedButton(
                                 style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: AppColors.borderWhite),
+                                  side: const BorderSide(
+                                    color: AppColors.borderWhite,
+                                  ),
                                   foregroundColor: AppColors.mutedText,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 12,
@@ -682,7 +688,8 @@ class NotificationsView extends StatelessWidget {
                                       content: Text(
                                         'Doctor access granted. Session active.',
                                       ),
-                                      backgroundColor: AppColors.verifiedEmerald,
+                                      backgroundColor:
+                                          AppColors.verifiedEmerald,
                                     ),
                                   );
                                 },
@@ -777,7 +784,9 @@ class NotificationsView extends StatelessWidget {
                     if (log['timestamp'] != null) {
                       try {
                         String ts = log['timestamp'].toString();
-                        if (!ts.endsWith('Z') && !ts.contains('+') && !ts.contains('-')) {
+                        if (!ts.endsWith('Z') &&
+                            !ts.contains('+') &&
+                            !ts.contains('-')) {
                           ts = '${ts}Z';
                         }
                         dt = DateTime.parse(ts).toLocal();
@@ -866,4 +875,3 @@ class NotificationsView extends StatelessWidget {
     );
   }
 }
-
