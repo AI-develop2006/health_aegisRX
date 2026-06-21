@@ -356,7 +356,14 @@
           }
         };
 
-        const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+        const config = { 
+          fps: 20, 
+          qrbox: (width, height) => { 
+            const min = Math.min(width, height);
+            return { width: min * 0.7, height: min * 0.7 }; 
+          },
+          aspectRatio: 1.0 
+        };
         html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
           .catch(err => {
             console.error("Camera start error:", err);
