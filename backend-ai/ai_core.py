@@ -405,9 +405,9 @@ class AIAgent:
         Technology: MongoDB query + Simple String Matching
         Why: Fast, no ML needed for exact matches
         Args:
-            patient_id: Patient ID (e.g., "Priya_123")
-            new_medicine: New medicine name (e.g., "Metformin")
-            new_dosage: New dosage (e.g., "500mg")
+            patient_id: Patient ID/Name
+            new_medicine: New medicine name
+            new_dosage: New dosage
         Returns:
             dict: Duplicate detection result
         """
@@ -416,32 +416,33 @@ class AIAgent:
         # Step 1: Calculate date threshold (DUPLICATE_TOLERANCE_DAYS days ago)
         date_threshold = datetime.now() - timedelta(days=DUPLICATE_TOLERANCE_DAYS)
         
-        # Step 2: Query MongoDB for existing prescriptions
+        # Step 2: Query MongoDB for existing prescriptions matching patientName and medicine name
         prescriptions_collection = self.mongo.get_prescriptions_collection()
         duplicate = prescriptions_collection.find_one({
-            "patient_id": patient_id,
-            "medicine": new_medicine,
-            "dosage": new_dosage,
+            "patientName": {"$regex": f"^{patient_id}$", "$options": "i"},
+            "medicines.name": {"$regex": f"^{new_medicine}$", "$options": "i"},
             "date": {"$gte": date_threshold}
         })
         
         # Step 3: Check if duplicate found
         if duplicate:
-            logger.info(f"DUPLICATE FOUND: {new_medicine} {new_dosage} prescribed by {duplicate['doctor_id']} on {duplicate['date']}")
-            # Format datetime for JSON responsiveness
+            # Find the matched medicine from the list
+            matched_med = next((m for m in duplicate.get("medicines", []) if new_medicine.lower() in m.get("name", "").lower()), {})
+            logger.info(f"DUPLICATE FOUND: {new_medicine} prescribed by {duplicate.get('doctorName', 'Unknown')} on {duplicate.get('date')}")
+            
             dup_date = duplicate["date"].isoformat() if isinstance(duplicate["date"], datetime) else str(duplicate["date"])
             result = {
                 "is_duplicate": True,
                 "duplicate_medicine": new_medicine,
                 "duplicate_dosage": new_dosage,
                 "existing_prescription": {
-                    "doctor_id": duplicate["doctor_id"],
+                    "doctor_id": duplicate.get("doctorSignId", duplicate.get("doctorName", "Unknown")),
                     "date": dup_date,
-                    "dosage": duplicate["dosage"],
-                    "frequency": duplicate.get("frequency", "Unknown")
+                    "dosage": matched_med.get("name", new_medicine),
+                    "frequency": matched_med.get("interval", "Unknown")
                 },
                 "alert_level": "MEDIUM",
-                "alert_message": f"⚠ DUPLICATE: {new_medicine} {new_dosage} already prescribed within the last {DUPLICATE_TOLERANCE_DAYS} days.",
+                "alert_message": f"⚠ DUPLICATE: {new_medicine} already prescribed within the last {DUPLICATE_TOLERANCE_DAYS} days.",
                 "recommendation": f"Continue existing {new_medicine} prescription. Do not prescribe duplicate."
             }
         else:
@@ -519,16 +520,21 @@ class AIAgent:
         Technology: MongoDB query + Rule-Based Engine
         Why: Simple IF medicine IN allergies THEN alert, no ML needed
         Args:
-            patient_id: Patient ID
+            patient_id: Patient ID / Name
             new_medicine: New medicine name
         Returns:
             dict: Allergy conflict check result
         """
         logger.info(f"Checking allergy conflict for patient {patient_id}: {new_medicine}")
         
-        # Step 1: Get patient's allergies from MongoDB
+        # Step 1: Get patient's allergies from MongoDB supporting both patient_id and patientName
         allergies_collection = self.mongo.get_allergies_collection()
-        allergies = list(allergies_collection.find({"patient_id": patient_id}))
+        allergies = list(allergies_collection.find({
+            "$or": [
+                {"patient_id": {"$regex": f"^{patient_id}$", "$options": "i"}},
+                {"patientName": {"$regex": f"^{patient_id}$", "$options": "i"}}
+            ]
+        }))
         allergy_list = [allergy["allergy_name"].lower() for allergy in allergies]
         
         # Step 2: Extract medicine name (remove dosage)
@@ -642,9 +648,15 @@ class AIAgent:
         """
         logger.info(f"Analyzing prescription pattern for doctor {doctor_id}")
         
-        # Step 1: Query MongoDB for doctor's prescription history
+        # Step 1: Query MongoDB for doctor's prescription history using multiple identifiers
         prescriptions_collection = self.mongo.get_prescriptions_collection()
-        prescriptions = list(prescriptions_collection.find({"doctor_id": doctor_id}))
+        prescriptions = list(prescriptions_collection.find({
+            "$or": [
+                {"doctorSignId": {"$regex": f"^{doctor_id}$", "$options": "i"}},
+                {"doctorName": {"$regex": f"^{doctor_id}$", "$options": "i"}},
+                {"doctor_id": {"$regex": f"^{doctor_id}$", "$options": "i"}}
+            ]
+        }))
         
         if len(prescriptions) == 0:
             logger.warning(f"No prescriptions found for doctor {doctor_id}")
@@ -655,12 +667,13 @@ class AIAgent:
                 "recommendation": "No prescription data available"
             }
             
-        # Step 2 & 3: Aggregate medicine counts in pure Python
+        # Step 2 & 3: Aggregate medicine counts in pure Python from medicines array
         medicine_counts = {}
         for p in prescriptions:
-            med = p.get("medicine")
-            if med:
-                medicine_counts[med] = medicine_counts.get(med, 0) + 1
+            for med in p.get("medicines", []):
+                med_name = med.get("name")
+                if med_name:
+                    medicine_counts[med_name] = medicine_counts.get(med_name, 0) + 1
         
         total_medicines = len(medicine_counts)
         counts = list(medicine_counts.values())
@@ -732,7 +745,7 @@ class AIAgent:
         """
         Get patient's current medicines from MongoDB
         Args:
-            patient_id: Patient ID
+            patient_id: Patient ID / Name
             days: Days to look back (default: 90)
         Returns:
             list: List of current medicines (e.g. ["Metformin 500mg", "Aspirin 75mg"])
@@ -741,27 +754,33 @@ class AIAgent:
         
         prescriptions_collection = self.mongo.get_prescriptions_collection()
         prescriptions = prescriptions_collection.find({
-            "patient_id": patient_id,
+            "patientName": {"$regex": f"^{patient_id}$", "$options": "i"},
             "date": {"$gte": date_threshold}
         })
         
         medicines = []
         for presc in prescriptions:
-            medicine_string = f"{presc['medicine']} {presc['dosage']}"
-            if medicine_string not in medicines:
-                medicines.append(medicine_string)
+            for med in presc.get("medicines", []):
+                med_name = med.get("name", "")
+                if med_name and med_name not in medicines:
+                    medicines.append(med_name)
         return medicines
 
     def get_patient_allergies(self, patient_id: str) -> list:
         """
         Get patient's allergies from MongoDB
         Args:
-            patient_id: Patient ID
+            patient_id: Patient ID / Name
         Returns:
             list: List of allergies (e.g. ["Penicillin", "Aspirin"])
         """
         allergies_collection = self.mongo.get_allergies_collection()
-        allergies = allergies_collection.find({"patient_id": patient_id})
+        allergies = allergies_collection.find({
+            "$or": [
+                {"patient_id": {"$regex": f"^{patient_id}$", "$options": "i"}},
+                {"patientName": {"$regex": f"^{patient_id}$", "$options": "i"}}
+            ]
+        })
         allergy_list = [allergy["allergy_name"] for allergy in allergies]
         return allergy_list
 
