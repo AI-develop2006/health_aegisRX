@@ -225,13 +225,26 @@ class SimulationState extends ChangeNotifier {
     }
   }
 
+  int _pollTicks = 0;
+
   SimulationState() {
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (isAuthenticated) {
-        fetchPrescriptions(silent: true);
+        _pollTicks++;
+        
+        // Critical: check doctor connection requests every 3s
         checkPendingConsultations();
-        fetchActivityLogs();
-        fetchVisitHistory();
+        
+        // Less critical: fetch prescriptions and activity logs every 6s
+        if (_pollTicks % 2 == 0) {
+          fetchPrescriptions(silent: true);
+          fetchActivityLogs();
+        }
+        
+        // Least critical: fetch visit history every 12s
+        if (_pollTicks % 4 == 0) {
+          fetchVisitHistory();
+        }
       }
     });
   }
