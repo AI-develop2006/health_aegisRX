@@ -93,6 +93,8 @@ class SimulationState extends ChangeNotifier {
   List<Prescription> _patientVault = [];
   bool _isAttendanceActive = false;
   int? _sessionStartMs;
+  final DateTime _welcomeTime = DateTime.now();
+  DateTime get welcomeTime => _welcomeTime;
   String _backendUrl =
       'https://vortexafinal-9dca3fl5f-srimaansrimaan543-2911s-projects.vercel.app';
   bool _isLoading = false;
@@ -618,19 +620,19 @@ class NotificationsView extends StatelessWidget {
       final name = log['patientName']?.toString().toLowerCase().trim() ?? '';
       final currentName = state.patientName.toLowerCase().trim();
       final eventType = log['eventType']?.toString() ?? '';
-      
+
       // Exclude generic doctor or portal registration/login events
       if (name == 'n/a') return false;
       if (eventType.contains('LOGIN') || eventType.contains('REGISTER')) {
         return false;
       }
-      
+
       return name == currentName;
     }).toList();
 
     if (patientLogs.isEmpty) {
       patientLogs.add({
-        'timestamp': DateTime.now().toUtc().toIso8601String(),
+        'timestamp': state.welcomeTime.toUtc().toIso8601String(),
         'eventType': 'WELCOME',
         'patientName': state.patientName,
         'actorId': 'SYSTEM',
@@ -882,9 +884,14 @@ class NotificationsView extends StatelessWidget {
                       try {
                         String ts = log['timestamp'].toString().trim();
                         ts = ts.replaceAll(' ', 'T');
-                        if (!ts.endsWith('Z') &&
-                            !ts.contains('+') &&
-                            !ts.contains('-')) {
+                        bool hasTimeZone =
+                            ts.endsWith('Z') ||
+                            (ts.contains('T') &&
+                                (ts.substring(ts.indexOf('T')).contains('+') ||
+                                    ts
+                                        .substring(ts.indexOf('T'))
+                                        .contains('-')));
+                        if (!hasTimeZone) {
                           ts = '${ts}Z';
                         }
                         dt = DateTime.parse(ts).toLocal();
