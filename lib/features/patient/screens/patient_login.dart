@@ -20,6 +20,7 @@ class _PatientLoginState extends State<PatientLogin> {
   bool _isLoading = false;
   String? _errorMessage;
   final _nameController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -55,7 +56,7 @@ class _PatientLoginState extends State<PatientLogin> {
     }
   }
 
-  InputDecoration _inputDecoration(String hint) {
+  InputDecoration _inputDecoration(String hint, {Widget? suffixIcon}) {
     return InputDecoration(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: InputBorder.none,
@@ -65,6 +66,7 @@ class _PatientLoginState extends State<PatientLogin> {
         color: AppColors.textFaint,
         fontSize: 13,
       ),
+      suffixIcon: suffixIcon,
     );
   }
 
@@ -249,13 +251,27 @@ class _PatientLoginState extends State<PatientLogin> {
                           child: TextFormField(
                             controller: _passwordController,
                             style: const TextStyle(fontSize: 13, color: AppColors.primaryText),
-                            obscureText: true,
+                            obscureText: _obscurePassword,
                             validator: (value) {
                               if (value == null || value.isEmpty) return 'Enter your password';
                               if (value.length < 6) return 'Password must be at least 6 characters';
                               return null;
                             },
-                            decoration: _inputDecoration('••••••••'),
+                            decoration: _inputDecoration(
+                              '••••••••',
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                  color: AppColors.textFaint,
+                                  size: 18,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 24),
