@@ -544,6 +544,12 @@ async def create_prescription(rx: PrescriptionInput):
         data = read_local_db()
         data.append(rx_dict)
         write_local_db(data)
+        
+        # Mark local consultation session as completed
+        for r in local_consultations:
+            if r.get("patientName", "").lower() == rx_dict["patientName"].lower() and r.get("status") == "accepted":
+                r["status"] = "completed"
+
         await log_activity(
             'CREATE_PRESCRIPTION',
             rx_dict["patientName"],

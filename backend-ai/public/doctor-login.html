@@ -65,10 +65,17 @@
         </button>
       </div>
 
-      <button id="scan-qr-btn" class="btn btn-secondary"
-        style="display: none; margin-top: 16px; width: 100%; justify-content: center; align-items: center; gap: 8px;">
-        📷 SCAN PATIENT CONSULTATION QR
-      </button>
+      <div id="qr-buttons-container" style="display: none; flex-direction: column; gap: 10px; margin-top: 16px;">
+        <button type="button" id="scan-qr-btn" class="btn btn-secondary"
+          style="width: 100%; justify-content: center; align-items: center; gap: 8px;">
+          📷 SCAN PATIENT CONSULTATION QR (CAMERA)
+        </button>
+        <button type="button" id="upload-qr-btn" class="btn btn-secondary"
+          style="width: 100%; justify-content: center; align-items: center; gap: 8px; background-color: var(--surface-muted); color: var(--text-primary); border-color: var(--border);">
+          📁 UPLOAD QR CODE IMAGE / SCREENSHOT
+        </button>
+        <input type="file" id="qr-file-input" accept="image/*" style="display: none;">
+      </div>
 
       <form id="login-form">
         <div class="form-group">
@@ -154,13 +161,16 @@
       const scanBtn = document.getElementById('scan-qr-btn');
       const stopBtn = document.getElementById('stop-scan-btn');
       const scannerContainer = document.getElementById('scanner-container');
+      const qrBtnsContainer = document.getElementById('qr-buttons-container');
+      const uploadQrBtn = document.getElementById('upload-qr-btn');
+      const qrFileInput = document.getElementById('qr-file-input');
 
-      scanBtn.style.display = 'flex';
+      qrBtnsContainer.style.display = 'flex';
 
       let html5QrCode = null;
 
       scanBtn.addEventListener('click', () => {
-        scanBtn.style.display = 'none';
+        qrBtnsContainer.style.display = 'none';
         scannerContainer.style.display = 'block';
 
         html5QrCode = new Html5Qrcode("reader");
@@ -193,7 +203,7 @@
             patientLabel.innerText = 'Patient Name (Verified QR)';
             
             // Hide scanner
-            scanBtn.style.display = 'none';
+            qrBtnsContainer.style.display = 'none';
             scannerContainer.style.display = 'none';
             
             // Initiate consultation request automatically
@@ -218,9 +228,56 @@
           .catch(err => {
             console.error("Camera start error:", err);
             alert("Could not start camera scanner: " + err);
-            scanBtn.style.display = 'flex';
+            qrBtnsContainer.style.display = 'flex';
             scannerContainer.style.display = 'none';
           });
+      });
+
+      uploadQrBtn.addEventListener('click', () => {
+        qrFileInput.click();
+      });
+
+      qrFileInput.addEventListener('change', async (e) => {
+        if (e.target.files.length === 0) return;
+        const file = e.target.files[0];
+        
+        const tempQrCode = new Html5Qrcode("reader");
+        try {
+          const decodedText = await tempQrCode.scanFile(file, false);
+          let scannedPatient = decodedText;
+          
+          if (decodedText.includes('patient=')) {
+            try {
+              const url = new URL(decodedText);
+              scannedPatient = url.searchParams.get('patient');
+            } catch (e) {
+              const match = decodedText.match(/patient=([^&]+)/);
+              if (match) scannedPatient = decodeURIComponent(match[1]);
+            }
+          }
+          
+          if (scannedPatient) {
+            activePatientName = scannedPatient;
+            patientDisplay.value = scannedPatient;
+            patientDisplay.disabled = true;
+            patientLabel.innerText = 'Patient Name (Verified QR File)';
+            
+            qrBtnsContainer.style.display = 'none';
+            scannerContainer.style.display = 'none';
+            
+            // Initiate consultation request automatically
+            loginForm.style.display = 'none';
+            waitingCard.style.display = 'block';
+            startConsultationRequest(activePatientName);
+          } else {
+            alert("Invalid QR Code content in image.");
+          }
+        } catch (err) {
+          console.error("QR file scanning error:", err);
+          alert("Could not read QR code from the selected image. Please make sure the image contains a clear QR code.");
+        } finally {
+          tempQrCode.clear();
+        }
       });
 
       stopBtn.addEventListener('click', async () => {
@@ -231,7 +288,7 @@
           } catch (e) {
             console.error(e);
           }
-          scanBtn.style.display = 'flex';
+          qrBtnsContainer.style.display = 'flex';
           scannerContainer.style.display = 'none';
         }
       });

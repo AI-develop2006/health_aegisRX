@@ -92,9 +92,11 @@ class _SovereignShieldAppState extends State<SovereignShieldApp> {
 class SimulationState extends ChangeNotifier {
   List<Prescription> _patientVault = [];
   bool _isAttendanceActive = false;
+  bool _isDoctorConnected = false;
   int? _sessionStartMs;
   final DateTime _welcomeTime = DateTime.now();
   DateTime get welcomeTime => _welcomeTime;
+  bool get isDoctorConnected => _isDoctorConnected;
   String _backendUrl =
       'https://vortexafinal-9dca3fl5f-srimaansrimaan543-2911s-projects.vercel.app';
   bool _isLoading = false;
@@ -185,6 +187,8 @@ class SimulationState extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _hasCompletedOnboarding = prefs.getBool('completed_onboarding') ?? false;
+      _backendUrl = prefs.getString('backend_url') ??
+          'https://vortexafinal-9dca3fl5f-srimaansrimaan543-2911s-projects.vercel.app';
 
       final patientJson = prefs.getString('session_patient');
       if (patientJson != null) {
@@ -220,18 +224,32 @@ class SimulationState extends ChangeNotifier {
       await prefs.setString('patient_mobile_or_id', _patientMobileOrId);
       await prefs.setString('guest_name', _guestName);
       await prefs.setBool('completed_onboarding', _hasCompletedOnboarding);
+      await prefs.setString('backend_url', _backendUrl);
     } catch (e) {
       debugPrint('Failed to persist session: $e');
     }
   }
 
+  int _pollTicks = 0;
+
   SimulationState() {
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (isAuthenticated) {
-        fetchPrescriptions(silent: true);
+        _pollTicks++;
+        
+        // Critical: check doctor connection requests every 3s
         checkPendingConsultations();
-        fetchActivityLogs();
-        fetchVisitHistory();
+        
+        // Less critical: fetch prescriptions and activity logs every 6s
+        if (_pollTicks % 2 == 0) {
+          fetchPrescriptions(silent: true);
+          fetchActivityLogs();
+        }
+        
+        // Least critical: fetch visit history every 12s
+        if (_pollTicks % 4 == 0) {
+          fetchVisitHistory();
+        }
       }
     });
   }
@@ -330,6 +348,7 @@ class SimulationState extends ChangeNotifier {
 
   void setBackendUrl(String url) {
     _backendUrl = url;
+    _persistSession();
     fetchPrescriptions();
     notifyListeners();
   }
@@ -342,6 +361,7 @@ class SimulationState extends ChangeNotifier {
       _activePendingRequestId = null;
       _promptedRequestIds.clear();
       _sessionStartMs = null;
+      _isDoctorConnected = false;
     }
     notifyListeners();
   }
@@ -434,8 +454,8 @@ class SimulationState extends ChangeNotifier {
   }
 
   Future<void> checkPendingConsultations() async {
-    // When attendance is active, check if the doctor submitted a prescription (session auto-completed)
-    if (_isAttendanceActive) {
+    // When attendance is active and doctor is connected, check if the doctor submitted a prescription (session auto-completed)
+    if (_isAttendanceActive && _isDoctorConnected) {
       try {
         final response = await http.get(
           Uri.parse(
@@ -444,9 +464,14 @@ class SimulationState extends ChangeNotifier {
         );
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
-          if (data['active'] == false) {
+          bool isActive = data['active'] == true;
+          
+          if (!isActive) {
             _isAttendanceActive = false;
+            _isDoctorConnected = false;
             await fetchPrescriptions(); // Refresh vault to show new prescription
+            await fetchActivityLogs();
+            await fetchVisitHistory();
             notifyListeners();
           }
         }
@@ -500,6 +525,7 @@ class SimulationState extends ChangeNotifier {
         _promptedRequestIds.add(requestId);
         _activePendingRequestId = null;
         _isAttendanceActive = true; // Auto-activate consultation session
+        _isDoctorConnected = true;
         notifyListeners();
       }
     } catch (e) {
