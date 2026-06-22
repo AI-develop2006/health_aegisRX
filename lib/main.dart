@@ -617,7 +617,15 @@ class NotificationsView extends StatelessWidget {
     final patientLogs = allLogs.where((log) {
       final name = log['patientName']?.toString().toLowerCase().trim() ?? '';
       final currentName = state.patientName.toLowerCase().trim();
-      return name == 'n/a' || name == currentName;
+      final eventType = log['eventType']?.toString() ?? '';
+      
+      // Exclude generic doctor or portal registration/login events
+      if (name == 'n/a') return false;
+      if (eventType.contains('LOGIN') || eventType.contains('REGISTER')) {
+        return false;
+      }
+      
+      return name == currentName;
     }).toList();
 
     if (patientLogs.isEmpty) {
