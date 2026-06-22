@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:health_lock/core/constants/app_colors.dart';
 import 'package:health_lock/core/theme/app_theme.dart';
 import 'package:health_lock/shared/models/prescription.dart';
@@ -31,7 +32,17 @@ class SovereignShieldApp extends StatefulWidget {
 
 class _SovereignShieldAppState extends State<SovereignShieldApp> {
   bool _showSplash = true;
-  bool _showOnboarding = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initSession();
+  }
+
+  Future<void> _initSession() async {
+    final state = Provider.of<SimulationState>(context, listen: false);
+    await state.loadPersistedSession();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,13 +58,11 @@ class _SovereignShieldAppState extends State<SovereignShieldApp> {
           });
         },
       );
-    } else if (_showOnboarding) {
+    } else if (!state.hasCompletedOnboarding) {
       homeWidget = OnboardingScreen(
         key: const ValueKey('onboarding'),
         onFinished: () {
-          setState(() {
-            _showOnboarding = false;
-          });
+          state.completeOnboarding();
         },
       );
     } else {
@@ -98,6 +107,9 @@ class SimulationState extends ChangeNotifier {
   bool _isOfflineGuest = false;
   String _guestName = 'Elena Vance';
   String _patientMobileOrId = '992818';
+  bool _hasCompletedOnboarding = false;
+
+  bool get hasCompletedOnboarding => _hasCompletedOnboarding;
 
   List<Prescription> get patientVault => _patientVault;
   bool get isAttendanceActive => _isAttendanceActive;
@@ -150,18 +162,68 @@ class SimulationState extends ChangeNotifier {
         debugPrint('Failed to update patient name: $e');
       }
     }
+    _persistSession();
     notifyListeners();
   }
 
   Future<void> updatePatientMobileOrId(String newId) async {
     _patientMobileOrId = newId;
+    _persistSession();
     notifyListeners();
   }
 
+  Future<void> completeOnboarding() async {
+    _hasCompletedOnboarding = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('completed_onboarding', true);
+    notifyListeners();
+  }
+
+  Future<void> loadPersistedSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _hasCompletedOnboarding = prefs.getBool('completed_onboarding') ?? false;
+      
+      final patientJson = prefs.getString('session_patient');
+      if (patientJson != null) {
+        _currentPatient = jsonDecode(patientJson) as Map<String, dynamic>;
+        _isOfflineGuest = false;
+      } else {
+        _isOfflineGuest = prefs.getBool('session_offline_guest') ?? false;
+      }
+      
+      _patientMobileOrId = prefs.getString('patient_mobile_or_id') ?? '992818';
+      _guestName = prefs.getString('guest_name') ?? 'Elena Vance';
+      
+      if (isAuthenticated) {
+        await fetchPrescriptions(silent: true);
+        await fetchActivityLogs();
+        await fetchVisitHistory();
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to load persisted session: $e');
+    }
+  }
+
+  Future<void> _persistSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_currentPatient != null) {
+        await prefs.setString('session_patient', jsonEncode(_currentPatient));
+      } else {
+        await prefs.remove('session_patient');
+      }
+      await prefs.setBool('session_offline_guest', _isOfflineGuest);
+      await prefs.setString('patient_mobile_or_id', _patientMobileOrId);
+      await prefs.setString('guest_name', _guestName);
+      await prefs.setBool('completed_onboarding', _hasCompletedOnboarding);
+    } catch (e) {
+      debugPrint('Failed to persist session: $e');
+    }
+  }
+
   SimulationState() {
-    fetchPrescriptions();
-    fetchActivityLogs();
-    fetchVisitHistory();
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (isAuthenticated) {
         fetchPrescriptions(silent: true);
@@ -181,7 +243,9 @@ class SimulationState extends ChangeNotifier {
   // Auth actions
   void loginOfflineGuest() {
     _isOfflineGuest = true;
+    _hasCompletedOnboarding = true;
     fetchPrescriptions();
+    _persistSession();
     notifyListeners();
   }
 
@@ -195,8 +259,10 @@ class SimulationState extends ChangeNotifier {
       if (response.statusCode == 200) {
         _currentPatient = jsonDecode(response.body) as Map<String, dynamic>;
         _isOfflineGuest = false;
+        _hasCompletedOnboarding = true;
         fetchPrescriptions();
         fetchVisitHistory();
+        _persistSession();
         notifyListeners();
         return null;
       }
@@ -230,8 +296,10 @@ class SimulationState extends ChangeNotifier {
       if (response.statusCode == 200) {
         _currentPatient = jsonDecode(response.body) as Map<String, dynamic>;
         _isOfflineGuest = false;
+        _hasCompletedOnboarding = true;
         fetchPrescriptions();
         fetchVisitHistory();
+        _persistSession();
         notifyListeners();
         return null;
       }
@@ -247,11 +315,14 @@ class SimulationState extends ChangeNotifier {
     }
   }
 
-  void signOut() {
+  Future<void> signOut() async {
     _currentPatient = null;
     _isOfflineGuest = false;
     _patientVault = [];
     _selectedPrescription = null;
+    _hasCompletedOnboarding = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
     notifyListeners();
   }
 
