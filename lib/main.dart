@@ -183,7 +183,7 @@ class SimulationState extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _hasCompletedOnboarding = prefs.getBool('completed_onboarding') ?? false;
-      
+
       final patientJson = prefs.getString('session_patient');
       if (patientJson != null) {
         _currentPatient = jsonDecode(patientJson) as Map<String, dynamic>;
@@ -191,10 +191,10 @@ class SimulationState extends ChangeNotifier {
       } else {
         _isOfflineGuest = prefs.getBool('session_offline_guest') ?? false;
       }
-      
+
       _patientMobileOrId = prefs.getString('patient_mobile_or_id') ?? '992818';
       _guestName = prefs.getString('guest_name') ?? 'Elena Vance';
-      
+
       if (isAuthenticated) {
         await fetchPrescriptions(silent: true);
         await fetchActivityLogs();
@@ -617,7 +617,15 @@ class NotificationsView extends StatelessWidget {
     final patientLogs = allLogs.where((log) {
       final name = log['patientName']?.toString().toLowerCase().trim() ?? '';
       final currentName = state.patientName.toLowerCase().trim();
-      return name == 'n/a' || name == currentName;
+      final eventType = log['eventType']?.toString() ?? '';
+      
+      // Exclude generic doctor or portal registration/login events
+      if (name == 'n/a') return false;
+      if (eventType.contains('LOGIN') || eventType.contains('REGISTER')) {
+        return false;
+      }
+      
+      return name == currentName;
     }).toList();
 
     if (patientLogs.isEmpty) {
@@ -626,8 +634,9 @@ class NotificationsView extends StatelessWidget {
         'eventType': 'WELCOME',
         'patientName': state.patientName,
         'actorId': 'SYSTEM',
-        'details': 'Welcome to HealthLock! Your cryptographic vault is active. Future activity logs will show here.',
-        'hash': 'genesis'
+        'details':
+            'Welcome to HealthLock! Your cryptographic vault is active. Future activity logs will show here.',
+        'hash': 'genesis',
       });
     }
 
@@ -871,7 +880,8 @@ class NotificationsView extends StatelessWidget {
                     DateTime? dt;
                     if (log['timestamp'] != null) {
                       try {
-                        String ts = log['timestamp'].toString();
+                        String ts = log['timestamp'].toString().trim();
+                        ts = ts.replaceAll(' ', 'T');
                         if (!ts.endsWith('Z') &&
                             !ts.contains('+') &&
                             !ts.contains('-')) {
@@ -883,7 +893,8 @@ class NotificationsView extends StatelessWidget {
                     String timeStr = 'Recent';
                     if (dt != null) {
                       final diff = DateTime.now().difference(dt);
-                      if (diff.inSeconds < 60) {
+                      final seconds = diff.inSeconds;
+                      if (seconds < 60) {
                         timeStr = 'Just now';
                       } else if (diff.inMinutes < 60) {
                         timeStr = '${diff.inMinutes}m ago';
