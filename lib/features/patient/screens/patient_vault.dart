@@ -261,53 +261,59 @@ class _PatientVaultState extends State<PatientVault> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: isAttendanceActive
-                                      ? AppColors.tintTeal
-                                      : AppColors.tintSlate,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  isAttendanceActive
-                                      ? Icons.lock_open_rounded
-                                      : Icons.lock_rounded,
-                                  color: isAttendanceActive
-                                      ? AppColors.doctorTeal
-                                      : AppColors.statusLocked,
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    isAttendanceActive
-                                        ? 'Consultation Active'
-                                        : 'Consultation Inactive',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.primaryText,
-                                    ),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: isAttendanceActive
+                                        ? AppColors.tintTeal
+                                        : AppColors.tintSlate,
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                  Text(
+                                  child: Icon(
                                     isAttendanceActive
-                                        ? 'Scan QR with doctor\'s device to begin'
-                                        : 'Start a new consultation session',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.mutedText,
-                                    ),
+                                        ? Icons.lock_open_rounded
+                                        : Icons.lock_rounded,
+                                    color: isAttendanceActive
+                                        ? AppColors.doctorTeal
+                                        : AppColors.statusLocked,
+                                    size: 20,
                                   ),
-                                ],
-                              ),
-                            ],
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        isAttendanceActive
+                                            ? 'Consultation Active'
+                                            : 'Consultation Inactive',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.primaryText,
+                                        ),
+                                      ),
+                                      Text(
+                                        isAttendanceActive
+                                            ? 'Scan QR with doctor\'s device to begin'
+                                            : 'Start a new consultation session',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.mutedText,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
