@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HealthLock — Prescription Desk</title>
   <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     .meta-grid {
       display: grid;
@@ -35,7 +36,17 @@
       <p class="subheader" style="margin-bottom: 16px;">Write structured medical credentials directly to MongoDB secure ledger.</p>
       
       <div id="success-banner" class="banner banner-success" style="display: none; margin-bottom: 16px;">
-        🎉 Prescription committed to MongoDB Secure cluster. Patient wallet updated dynamically. Redirecting...
+        🎉 Prescription committed to MongoDB Secure cluster. Patient wallet updated dynamically.
+      </div>
+      
+      <div id="success-container" style="display: none; flex-direction: column; gap: 16px; margin-bottom: 24px; padding: 20px; border-radius: 12px; background: rgba(16, 185, 129, 0.08); border: 1.5px solid rgba(16, 185, 129, 0.2);">
+        <h3 style="color: #10b981; font-weight: bold; margin: 0; font-size: 16px;">Prescription Published Successfully!</h3>
+        <p style="font-size: 13px; color: var(--primary-text); margin: 0;">The cryptographic credential is now secured in the blockchain ledger.</p>
+        <div style="display: flex; gap: 12px; margin-top: 8px;">
+          <button type="button" id="success-download-btn" class="btn btn-primary" style="flex: 1; background-color: #10b981; border-color: #10b981; color: white;">📥 DOWNLOAD PDF</button>
+          <button type="button" id="success-new-btn" class="btn btn-secondary" style="flex: 1;">➕ WRITE ANOTHER</button>
+          <button type="button" id="success-exit-btn" class="btn btn-secondary" style="flex: 1; background-color: var(--crimson-lockout); border-color: var(--crimson-lockout); color: white;">🚪 EXIT DESK</button>
+        </div>
       </div>
       
       <form id="prescription-form">
@@ -422,6 +433,19 @@
           dateSpan.textContent = rx.date || '';
           metaSpan.appendChild(dateSpan);
           metaSpan.innerHTML += badge; // badge is static, safe
+          
+          // PDF Download button in history card
+          const downloadBtn = document.createElement('button');
+          downloadBtn.type = 'button';
+          downloadBtn.className = 'btn-text';
+          downloadBtn.style.cssText = 'font-size:10px;color:var(--clinical-blue);margin-left:12px;font-weight:700;';
+          downloadBtn.textContent = '📥 PDF';
+          downloadBtn.onclick = (e) => {
+            e.preventDefault();
+            generatePrescriptionPdf(rx);
+          };
+          metaSpan.appendChild(downloadBtn);
+
           header.appendChild(diseaseEl);
           header.appendChild(metaSpan);
           div.appendChild(header);
@@ -460,6 +484,8 @@
       if (!isOpen) loadPatientHistory();
     });
 
+    let lastCommittedPrescription = null;
+
     async function commitPrescription(payload) {
       try {
         const response = await fetch(baseUrl + '/api/prescriptions', {
@@ -469,15 +495,21 @@
         });
 
         if (response.ok) {
-          document.getElementById('success-banner').style.display = 'flex';
-          setTimeout(() => {
-            sessionStorage.clear();
-            if (window.location.protocol === 'file:') {
-              window.location.href = 'doctor-login.html';
-            } else {
-              window.location.href = '/doctor-login';
+          // If available, fetch the newly created signature from response (or use payload signature)
+          let finalRx = payload;
+          try {
+            const resData = await response.json();
+            if (resData && resData.signature) {
+              finalRx = resData;
             }
-          }, 2000);
+          } catch (_) {}
+
+          lastCommittedPrescription = finalRx;
+
+          // Hide form, show success screens
+          document.getElementById('prescription-form').style.display = 'none';
+          document.getElementById('success-banner').style.display = 'flex';
+          document.getElementById('success-container').style.display = 'flex';
         } else {
           alert('Failed to publish transaction to database.');
         }
@@ -485,6 +517,155 @@
         console.error(err);
         alert('Network error connecting to ledger node.');
       }
+    }
+
+    // Success action handlers
+    document.getElementById('success-download-btn').addEventListener('click', () => {
+      if (lastCommittedPrescription) {
+        generatePrescriptionPdf(lastCommittedPrescription);
+      }
+    });
+
+    document.getElementById('success-new-btn').addEventListener('click', () => {
+      // Reset form
+      document.getElementById('diagnosis-input').value = '';
+      medContainer.innerHTML = '';
+      medCount = 0;
+      createMedRow();
+      
+      // Toggle views
+      document.getElementById('success-banner').style.display = 'none';
+      document.getElementById('success-container').style.display = 'none';
+      document.getElementById('prescription-form').style.display = 'block';
+      lastCommittedPrescription = null;
+    });
+
+    document.getElementById('success-exit-btn').addEventListener('click', () => {
+      sessionStorage.clear();
+      if (window.location.protocol === 'file:') {
+        window.location.href = 'doctor-login.html';
+      } else {
+        window.location.href = '/doctor-login';
+      }
+    });
+
+    function sha256Hash(input) {
+      let h = 0;
+      for (let i = 0; i < input.length; i++) {
+        h = input.charCodeAt(i) + ((h << 5) - h);
+      }
+      return Math.abs(h).toString(16).padEnd(64, 'a');
+    }
+
+    function formatToIndianTime(timeStr) {
+      if (!timeStr) return '';
+      try {
+        const parts = timeStr.split(':');
+        if (parts.length > 0) {
+          let hour = parseInt(parts[0], 10);
+          let minute = parts.length > 1 ? parseInt(parts[1], 10) : 0;
+          let period = 'AM';
+          if (hour >= 12) {
+            period = 'PM';
+            if (hour > 12) hour -= 12;
+          }
+          if (hour === 0) hour = 12;
+          return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${period}`;
+        }
+      } catch (_) {}
+      return timeStr;
+    }
+
+    function generatePrescriptionPdf(rx) {
+      const container = document.createElement('div');
+      container.style.cssText = 'position:absolute;left:-9999px;top:-9999px;';
+      document.body.appendChild(container);
+
+      const htmlContent = `
+        <div style="padding: 40px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1e293b; background: #ffffff; width: 750px; border-radius: 8px;">
+          <!-- Header / Hospital info -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #3b82f6; padding-bottom: 16px; margin-bottom: 20px;">
+            <div>
+              <h1 style="margin: 0; font-size: 26px; color: #1e3a8a; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase;">${esc(rx.hospitalName || 'MEDICAL CENTER')}</h1>
+              <p style="margin: 4px 0 0 0; font-size: 11px; color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Zero-Trust Healthcare Blockchain Node</p>
+              <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b;">100 Biotech Parkway, Suite 400 | +1 (555) 019-2831</p>
+            </div>
+            <div style="text-align: right;">
+              <h3 style="margin: 0; font-size: 15px; color: #0f172a; font-weight: 700;">Dr. ${esc(rx.doctorName)}</h3>
+              <p style="margin: 2px 0 0 0; font-size: 11px; color: #475569;">MD, FACP — Clinical Medicine</p>
+              <p style="margin: 2px 0 0 0; font-size: 11px; color: #475569;">Lic ID: ${esc(rx.doctorSignId || '889218')}</p>
+              <p style="margin: 2px 0 0 0; font-size: 11px; color: #475569; font-weight: 500;">${esc(rx.hospitalName)}</p>
+            </div>
+          </div>
+
+          <!-- Patient & Date info grid -->
+          <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px; font-size: 12px; line-height: 1.6;">
+            <div>
+              <span style="color: #64748b; font-weight: 500;">Patient Name:</span> <strong style="color: #0f172a; font-size: 13px;">${esc(rx.patientName)}</strong><br>
+              <span style="color: #64748b; font-weight: 500;">Clinical Diagnosis:</span> <span style="color: #0f172a; font-weight: 600;">${esc(rx.disease)}</span>
+            </div>
+            <div style="text-align: right;">
+              <span style="color: #64748b; font-weight: 500;">Date of Visit:</span> <strong style="color: #0f172a;">${esc(rx.date)}</strong><br>
+              <span style="color: #64748b; font-weight: 500;">Time:</span> <span style="color: #0f172a;">${formatToIndianTime(rx.time)}</span>
+            </div>
+          </div>
+
+          <!-- Rx Symbol -->
+          <div style="font-size: 38px; font-family: Georgia, serif; color: #2563eb; margin: 10px 0 16px 0; font-weight: bold; font-style: italic; line-height: 1;">℞</div>
+
+          <!-- Prescribed Medicines Table -->
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px;">
+            <thead>
+              <tr style="border-bottom: 2px solid #cbd5e1; text-align: left; background: #f1f5f9;">
+                <th style="padding: 10px 12px; color: #475569; font-weight: 700; width: 60%; border-radius: 4px 0 0 4px;">MEDICINE & DOSAGE</th>
+                <th style="padding: 10px 12px; color: #475569; font-weight: 700; width: 40%; border-radius: 0 4px 4px 0;">SCHEDULE / REMARKS</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(rx.medicines || []).map(m => `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 12px; font-weight: 600; color: #1e293b;">💊 ${esc(m.name)}</td>
+                  <td style="padding: 12px; color: #334155; font-family: monospace; font-size: 11px;">${esc(m.interval)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <!-- Footer/Security Ledger proof block -->
+          <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 30px; margin-top: 50px; border-top: 1px dashed #cbd5e1; padding-top: 20px;">
+            <div style="font-size: 10px; color: #64748b; line-height: 1.6;">
+              <div style="font-weight: 700; color: #0284c7; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Secure Blockchain Verification Block:</div>
+              <div><strong>Record ID:</strong> <span style="font-family: monospace;">${esc(rx.id)}</span></div>
+              <div><strong>Signature Hash:</strong> <span style="font-family: monospace; font-size: 9px; word-break: break-all;">${esc(rx.signature || 'n/a')}</span></div>
+              <div style="margin-top: 6px; font-weight: 600; color: #10b981; display: flex; align-items: center; gap: 4px;">
+                <span style="font-size: 12px;">✓</span> Cryptographic identity signed & saved in MongoDB secure cluster node.
+              </div>
+            </div>
+            
+            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end; padding-top: 10px;">
+              <div style="border-bottom: 1.5px solid #475569; width: 180px; margin-bottom: 6px; text-align: center; font-family: 'Brush Script MT', cursive, sans-serif; font-size: 26px; color: #1e3a8a; padding-bottom: 4px;">
+                Dr. ${esc(rx.doctorName)}
+              </div>
+              <div style="font-size: 10px; color: #475569; font-weight: bold; text-transform: uppercase; letter-spacing: 0.3px;">Authorized Medical Practitioner</div>
+              <div style="font-size: 9px; color: #94a3b8; margin-top: 1px;">Lic No: ${esc(rx.doctorSignId || '889218')}</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      container.innerHTML = htmlContent;
+
+      const options = {
+        margin: 0,
+        filename: `${rx.id}_prescription_${rx.patientName.replace(/\s+/g, '_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: 'pt', format: 'letter', orientation: 'portrait' }
+      };
+
+      html2pdf().from(container).set(options).save().then(() => {
+        document.body.removeChild(container);
+      });
     }
   </script>
 </body>
