@@ -459,9 +459,22 @@
 
       let medicines = [];
       try {
-        medicines = JSON.parse(medicinesStr);
+        // Sanitize string before parsing (normalize single/curly quotes, clear control chars)
+        let cleanStr = medicinesStr
+          .trim()
+          .replace(/[\u201C\u201D]/g, '"')
+          .replace(/[\u2018\u2019]/g, "'")
+          .replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
+        
+        medicines = JSON.parse(cleanStr);
       } catch (e) {
-        console.error("Medicines string parsing failed:", e);
+        console.error("Standard JSON parse failed. Running fallback regex extractor.", e);
+        // Regex backup to salvage name & interval properties
+        const rx = /\{\s*"?name"?\s*:\s*"([^"]+)"\s*,\s*"?interval"?\s*:\s*"([^"]+)"\s*\}/g;
+        let match;
+        while ((match = rx.exec(medicinesStr)) !== null) {
+          medicines.push({ name: match[1], interval: match[2] });
+        }
       }
 
       const logs = [];

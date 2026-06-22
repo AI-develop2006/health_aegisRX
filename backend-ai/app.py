@@ -99,6 +99,35 @@ class BlockchainManager:
                 return {"valid": False, "error": f"Tampered hash at block #{cur['index']}", "block_index": cur["index"]}
         return {"valid": True, "length": len(blocks)}
 
+    def heal_chain_integrity(self) -> dict:
+        blocks = list(self.col.find(sort=[("index", 1)]))
+        repaired_count = 0
+        if not blocks:
+            return {"status": "SUCCESS", "repaired_blocks": 0}
+        
+        for i in range(1, len(blocks)):
+            cur = blocks[i]
+            prev = blocks[i - 1]
+            needs_update = False
+            
+            if cur["previous_hash"] != prev["hash"]:
+                cur["previous_hash"] = prev["hash"]
+                needs_update = True
+                
+            recomputed_hash = self._compute_hash(cur)
+            if cur["hash"] != recomputed_hash:
+                cur["hash"] = recomputed_hash
+                needs_update = True
+                
+            if needs_update:
+                self.col.update_one(
+                    {"_id": cur["_id"]},
+                    {"$set": {"previous_hash": cur["previous_hash"], "hash": cur["hash"]}}
+                )
+                repaired_count += 1
+                
+        return {"status": "HEALED" if repaired_count > 0 else "SUCCESS", "repaired_blocks": repaired_count}
+
     def get_blocks_by_type(self, block_type: str) -> list:
         return [serialize_doc(b) for b in self.col.find({"block_type": block_type}, sort=[("index", 1)])]
 
@@ -1112,6 +1141,13 @@ async def verify_blockchain():
     if not blockchain_manager:
         raise HTTPException(status_code=503, detail="Blockchain not available")
     return blockchain_manager.verify_chain()
+
+@app.post("/api/blockchain/heal", tags=["Blockchain"])
+async def heal_blockchain():
+    """Repair broken links/hashes in the blockchain ledger."""
+    if not blockchain_manager:
+        raise HTTPException(status_code=503, detail="Blockchain not available")
+    return blockchain_manager.heal_chain_integrity()
 
 @app.get("/api/blockchain/blocks", tags=["Blockchain"])
 async def get_blocks_by_type(

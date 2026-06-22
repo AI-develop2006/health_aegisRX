@@ -482,19 +482,46 @@ class AIAgent:
         new_medicine_string = f"{new_medicine} {new_dosage}"
         
         # Step 4: Call Cerebras API
-        cerebras_response = self.cerebras.check_drug_interactions(
-            current_medicines=current_medicines,
-            new_medicine=new_medicine_string,
-            allergies=allergies
-        )
+        try:
+            cerebras_response = self.cerebras.check_drug_interactions(
+                current_medicines=current_medicines,
+                new_medicine=new_medicine_string,
+                allergies=allergies
+            )
+        except Exception as e:
+            logger.error(f"Cerebras API exception encountered: {str(e)}")
+            cerebras_response = {"error": str(e)}
         
-        # Step 5: Parse Cerebras response
+        # Step 5: Parse Cerebras response & graceful local fallback
         if "error" in cerebras_response:
-            logger.error(f"Cerebras API error: {cerebras_response['error']}")
+            logger.warning(f"Cerebras API is offline or failed: {cerebras_response['error']}. Falling back to Rule-Based Safety Engine.")
+            
+            # Local duplicate check
+            duplicate_res = self.detect_duplicate_medicine(patient_id, new_medicine, new_dosage)
+            is_duplicate = duplicate_res.get("is_duplicate", False)
+            
+            # Local allergy conflict check
+            allergy_res = self.check_allergy_conflict(patient_id, new_medicine)
+            is_allergy = allergy_res.get("allergy_conflict", False)
+            
+            severity_score = 8 if is_allergy else (4 if is_duplicate else 1)
+            risk_level = "HIGH" if is_allergy else ("MEDIUM" if is_duplicate else "LOW")
+            
+            fallback_details = (
+                f"Patient has documented allergy to {new_medicine}!" if is_allergy 
+                else (f"Clinical duplicate: {new_medicine} is already prescribed." if is_duplicate 
+                else "No drug conflicts or therapeutic duplications detected locally (AI stands by).")
+            )
+            
             return {
-                "error": cerebras_response["error"],
-                "interaction_risk": "UNKNOWN",
-                "recommendation": "Unable to check drug interactions due to API/network error."
+                "interaction_risk": risk_level,
+                "interaction_details": fallback_details,
+                "duplicate_detected": is_duplicate,
+                "allergy_conflict": is_allergy,
+                "alternatives": allergy_res.get("suggested_alternatives", []),
+                "recommendation": f"DO NOT prescribe. {fallback_details}" if (is_allergy or is_duplicate) else "Proceed with standard precautions.",
+                "severity_score": severity_score,
+                "confidence": 0.95
             }
             
         # Step 6: Build result
@@ -600,19 +627,32 @@ class AIAgent:
         current_medicines_filtered = [m for m in current_medicines if current_medicine.lower() not in m.lower()]
         
         # Step 4: Call Cerebras API for recommendation
-        cerebras_response = self.cerebras.recommend_medicine(
-            disease=disease,
-            current_medicines=current_medicines_filtered,
-            allergies=allergies
-        )
+        try:
+            cerebras_response = self.cerebras.recommend_medicine(
+                disease=disease,
+                current_medicines=current_medicines_filtered,
+                allergies=allergies
+            )
+        except Exception as e:
+            logger.error(f"Cerebras API exception in recommendation: {str(e)}")
+            cerebras_response = {"error": str(e)}
         
-        # Step 5: Parse Cerebras response
+        # Step 5: Parse Cerebras response & fallback
         if "error" in cerebras_response:
-            logger.error(f"Cerebras API error: {cerebras_response['error']}")
-            return {
-                "error": cerebras_response["error"],
-                "recommended_medicines": [],
-                "recommendation": "Unable to recommend alternative medicines due to API/network error."
+            logger.warning(f"Cerebras API failed: {cerebras_response['error']}. Falling back to Rule-Based alternatives.")
+            local_alts = self.get_alternative_medicines(current_medicine)
+            recommended_medicines = [
+                {
+                    "medicine": alt,
+                    "dosage": "Standard Dosage",
+                    "effectiveness": 8,
+                    "safety_score": 9,
+                    "reasoning": f"Local rule-based alternative choice for {current_medicine}."
+                } for alt in local_alts
+            ]
+            cerebras_response = {
+                "recommended_medicines": recommended_medicines,
+                "recommendation": "Use local alternatives. Live AI recommendation is currently offline."
             }
             
         # Step 6: Build result

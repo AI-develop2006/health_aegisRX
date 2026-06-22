@@ -292,10 +292,22 @@
     }
 
     function pollRequestStatus(reqId) {
+      let attempts = 0;
+      let consecutiveErrors = 0;
+      const maxAttempts = 40; // 40 attempts * 1.5 seconds = 60 seconds timeout
+      
       const interval = setInterval(async () => {
+        attempts++;
+        if (attempts > maxAttempts) {
+          clearInterval(interval);
+          showAccessError("⏱ Session authorization request timed out. Please try sending request again.");
+          return;
+        }
+        
         try {
           const response = await fetch(baseUrl + `/api/consultation/status/${reqId}`);
           if (response.ok) {
+            consecutiveErrors = 0; // reset error counter
             const data = await response.json();
             if (data.status === 'accepted') {
               clearInterval(interval);
@@ -307,16 +319,22 @@
               patientDisplay.disabled = true;
             } else if (data.status === 'rejected') {
               clearInterval(interval);
-              showAccessError("Access rejected by patient.");
+              showAccessError("❌ Access request was rejected by the patient.");
             }
           } else {
-            clearInterval(interval);
-            showAccessError("Error checking authorization status.");
+            consecutiveErrors++;
+            if (consecutiveErrors >= 5) {
+              clearInterval(interval);
+              showAccessError("⚠️ Remote gateway returned an error status repeatedly.");
+            }
           }
         } catch (err) {
-          console.error(err);
-          clearInterval(interval);
-          showAccessError("Network connection lost during authorization check.");
+          console.warn("Polling network error:", err);
+          consecutiveErrors++;
+          if (consecutiveErrors >= 5) {
+            clearInterval(interval);
+            showAccessError("🔌 Network connection to backend is currently offline. Retrying stopped.");
+          }
         }
       }, 1500);
     }
