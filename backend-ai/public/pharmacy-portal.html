@@ -134,10 +134,17 @@
           </button>
         </div>
 
-        <button id="scan-qr-btn" class="btn btn-secondary"
-          style="margin: 0 auto; width: 80%; display: flex; justify-content: center; align-items: center; gap: 8px;">
-          📷 SCAN PATIENT CHECKOUT QR
-        </button>
+        <div id="qr-buttons-container" style="display: flex; flex-direction: column; gap: 10px; width: 80%; margin: 0 auto;">
+          <button type="button" id="scan-qr-btn" class="btn btn-secondary"
+            style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px;">
+            📷 SCAN PATIENT CHECKOUT QR (CAMERA)
+          </button>
+          <button type="button" id="upload-qr-btn" class="btn btn-secondary"
+            style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; background-color: var(--surface-muted); color: var(--text-primary); border-color: var(--border);">
+            📁 UPLOAD QR CODE IMAGE / SCREENSHOT
+          </button>
+          <input type="file" id="qr-file-input" accept="image/*" style="display: none;">
+        </div>
 
         <div class="form-group" style="margin-top: 24px; text-align: left; padding: 0 10%; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 20px;">
           <label style="font-size: 11px; font-weight: bold; color: var(--muted-text);">OR ENTER PRESCRIPTION ID MANUALLY</label>
@@ -300,9 +307,12 @@
       const scanBtn = document.getElementById('scan-qr-btn');
       const stopBtn = document.getElementById('stop-scan-btn');
       const scannerContainer = document.getElementById('scanner-container');
+      const qrBtnsContainer = document.getElementById('qr-buttons-container');
+      const uploadQrBtn = document.getElementById('upload-qr-btn');
+      const qrFileInput = document.getElementById('qr-file-input');
 
       scanBtn.addEventListener('click', () => {
-        scanBtn.style.display = 'none';
+        qrBtnsContainer.style.display = 'none';
         scannerContainer.style.display = 'block';
 
         html5QrCode = new Html5Qrcode("reader");
@@ -323,42 +333,7 @@
             readerElem.style.border = '3px solid #F59E0B';
           }
 
-          // Regex/Delimiter parsing: DATA##SIGNATURE
-          if (decodedText.includes('##')) {
-            const parts = decodedText.split('##');
-            const rawPayload = parts[0];
-            const signature = parts[1];
-
-            // Bypass login: transition UI to verify screen directly
-            standbyCard.style.display = 'none';
-            verifyCard.style.display = 'block';
-
-            // Run zero-trust cryptographic signature validation
-            runVerification(rawPayload, signature);
-          } else if (decodedText.includes('rxId=')) {
-            // URL fallback support
-            let scannedRxId = '';
-            try {
-              const url = new URL(decodedText);
-              scannedRxId = url.searchParams.get('rxId');
-            } catch (e) {
-              const match = decodedText.match(/rxId=([^&]+)/);
-              if (match) scannedRxId = decodeURIComponent(match[1]);
-            }
-            if (scannedRxId) {
-              if (window.location.protocol === 'file:') {
-                window.location.href = `pharmacy-portal.html?rxId=${encodeURIComponent(scannedRxId)}`;
-              } else {
-                window.location.href = `/pharmacy-portal?rxId=${encodeURIComponent(scannedRxId)}`;
-              }
-            } else {
-              alert("Invalid URL QR scanned.");
-              location.reload();
-            }
-          } else {
-            alert("Unrecognized QR Code format. Please scan a patient prescription checkout QR.");
-            location.reload();
-          }
+          handleDecodedQr(decodedText);
         };
 
         const config = { 
@@ -373,10 +348,69 @@
           .catch(err => {
             console.error("Camera start error:", err);
             alert("Could not start camera scanner: " + err);
-            scanBtn.style.display = 'block';
+            qrBtnsContainer.style.display = 'flex';
             scannerContainer.style.display = 'none';
           });
       });
+
+      uploadQrBtn.addEventListener('click', () => {
+        qrFileInput.click();
+      });
+
+      qrFileInput.addEventListener('change', async (e) => {
+        if (e.target.files.length === 0) return;
+        const file = e.target.files[0];
+        
+        const tempQrCode = new Html5Qrcode("reader");
+        try {
+          const decodedText = await tempQrCode.scanFile(file, false);
+          handleDecodedQr(decodedText);
+        } catch (err) {
+          console.error("QR file scanning error:", err);
+          alert("Could not read QR code from the selected image. Please make sure the image contains a clear checkout QR code.");
+        } finally {
+          tempQrCode.clear();
+        }
+      });
+
+      function handleDecodedQr(decodedText) {
+        // Regex/Delimiter parsing: DATA##SIGNATURE
+        if (decodedText.includes('##')) {
+          const parts = decodedText.split('##');
+          const rawPayload = parts[0];
+          const signature = parts[1];
+
+          // Bypass login: transition UI to verify screen directly
+          standbyCard.style.display = 'none';
+          verifyCard.style.display = 'block';
+
+          // Run zero-trust cryptographic signature validation
+          runVerification(rawPayload, signature);
+        } else if (decodedText.includes('rxId=')) {
+          // URL fallback support
+          let scannedRxId = '';
+          try {
+            const url = new URL(decodedText);
+            scannedRxId = url.searchParams.get('rxId');
+          } catch (e) {
+            const match = decodedText.match(/rxId=([^&]+)/);
+            if (match) scannedRxId = decodeURIComponent(match[1]);
+          }
+          if (scannedRxId) {
+            if (window.location.protocol === 'file:') {
+              window.location.href = `pharmacy-portal.html?rxId=${encodeURIComponent(scannedRxId)}`;
+            } else {
+              window.location.href = `/pharmacy-portal?rxId=${encodeURIComponent(scannedRxId)}`;
+            }
+          } else {
+            alert("Invalid URL QR scanned.");
+            location.reload();
+          }
+        } else {
+          alert("Unrecognized QR Code format. Please scan a patient prescription checkout QR.");
+          location.reload();
+        }
+      }
 
       stopBtn.addEventListener('click', async () => {
         if (html5QrCode) {
@@ -386,7 +420,7 @@
           } catch (e) {
             console.error(e);
           }
-          scanBtn.style.display = 'block';
+          qrBtnsContainer.style.display = 'flex';
           scannerContainer.style.display = 'none';
         }
       });

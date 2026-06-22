@@ -391,7 +391,7 @@ class _PatientVaultState extends State<PatientVault> {
                             state.setAttendance(true);
                           },
                         ),
-                      ] else ...[
+                      ] else if (!state.isDoctorConnected) ...[
                         const SizedBox(height: 16),
                         Center(
                           child: Column(
@@ -438,6 +438,66 @@ class _PatientVaultState extends State<PatientVault> {
                             ],
                           ),
                         ),
+                      ] else ...[
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.tintTeal,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.doctorTeal.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.verifiedEmerald,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'PRACTITIONER CONNECTED',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.doctorTeal,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              const Text(
+                                'Your session is live. The doctor is currently formulating your digital credentials.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.primaryText,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Status: Awaiting prescription publication...',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.mutedText,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (isAttendanceActive) ...[
                         const SizedBox(height: 16),
                         CustomButton(
                           text: 'END CONSULTATION SESSION',
