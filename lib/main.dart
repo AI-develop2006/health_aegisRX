@@ -544,9 +544,21 @@ class NotificationsView extends StatelessWidget {
     // Filter logs for relevance to the current patient
     final allLogs = state.activityLogs;
     final patientLogs = allLogs.where((log) {
-      final name = log['patientName']?.toString().toLowerCase() ?? '';
-      return name == 'n/a' || name.contains(state.patientName.toLowerCase());
+      final name = log['patientName']?.toString().toLowerCase().trim() ?? '';
+      final currentName = state.patientName.toLowerCase().trim();
+      return name == 'n/a' || name == currentName;
     }).toList();
+
+    if (patientLogs.isEmpty) {
+      patientLogs.add({
+        'timestamp': DateTime.now().toUtc().toIso8601String(),
+        'eventType': 'WELCOME',
+        'patientName': state.patientName,
+        'actorId': 'SYSTEM',
+        'details': 'Welcome to HealthLock! Your cryptographic vault is active. Future activity logs will show here.',
+        'hash': 'genesis'
+      });
+    }
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -771,6 +783,11 @@ class NotificationsView extends StatelessWidget {
                       iconColor = AppColors.statusCritical;
                       tintColor = AppColors.tintSlate;
                       title = 'Doctor Access Blocked';
+                    } else if (eventType == 'WELCOME') {
+                      iconData = Icons.celebration_rounded;
+                      iconColor = AppColors.patientBlue;
+                      tintColor = AppColors.tintBlue;
+                      title = 'Welcome to HealthLock';
                     } else if (eventType.contains('LOGIN') ||
                         eventType.contains('REGISTER')) {
                       iconData = Icons.person_outline_rounded;
