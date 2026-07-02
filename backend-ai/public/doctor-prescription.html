@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +13,7 @@
       gap: 12px;
       margin-bottom: 16px;
     }
+
     .warning-item {
       padding: 10px 12px;
       border-radius: 8px;
@@ -24,20 +26,22 @@
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <div class="glass-card" id="prescription-card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <h1>HealthLock</h1>
-        <button id="logout-btn" class="btn-text">LOGOUT PRACTITIONER</button>
+        <button id="logout-btn" class="btn-text">LOGOUT DOCTOR ID </button>
       </div>
       <h2>Prescription Formulation Desk</h2>
-      <p class="subheader" style="margin-bottom: 16px;">Write structured medical credentials directly to MongoDB secure ledger.</p>
-      
+      <p class="subheader" style="margin-bottom: 16px;">Write structured medical credentials directly to MongoDB secure
+        ledger.</p>
+
       <div id="success-banner" class="banner banner-success" style="display: none; margin-bottom: 16px;">
         🎉 Prescription committed to MongoDB Secure cluster. Patient wallet updated dynamically. Redirecting...
       </div>
-      
+
       <form id="prescription-form">
         <!-- Practitioner & Patient Metadata (Pre-filled) -->
         <div class="meta-grid">
@@ -50,7 +54,7 @@
             <input type="text" id="hospital-display" disabled>
           </div>
         </div>
-        
+
         <div class="meta-grid">
           <div class="form-group">
             <label>Patient Name</label>
@@ -71,13 +75,13 @@
           <label>Clinical Diagnosis / Disease</label>
           <input type="text" id="diagnosis-input" placeholder="e.g. Hypertension Control" required>
         </div>
-        
+
         <!-- Dynamic Medications -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0 10px 0;">
           <label style="margin-bottom: 0;">Prescribed Medications</label>
           <button type="button" id="add-med-btn" class="btn-text">+ ADD MEDICINE</button>
         </div>
-        
+
         <div id="medicines-container">
           <!-- Dynamic rows inserted here -->
         </div>
@@ -85,7 +89,7 @@
         <!-- Submit Button containing loading indicator -->
         <div id="submit-box" style="margin-top: 16px;">
           <button type="submit" id="submit-btn" class="btn btn-primary">
-            PUBLISH TRANSACTION TO MONGO-DB
+            ADD PRESCRIPTIONS
           </button>
         </div>
       </form>
@@ -93,24 +97,32 @@
   </div>
 
   <!-- AI Clinical Audit Modal -->
-  <div id="audit-modal" style="display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); align-items: center; justify-content: center;">
-    <div class="glass-card" style="max-width: 500px; width: 90%; padding: 24px; border: 1.5px solid var(--border-white); box-shadow: 0 10px 30px rgba(0,0,0,0.12);">
-      <h2 style="color: var(--crimson-lockout); font-weight: 800; display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+  <div id="audit-modal"
+    style="display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); align-items: center; justify-content: center;">
+    <div class="glass-card"
+      style="max-width: 500px; width: 90%; padding: 24px; border: 1.5px solid var(--border-white); box-shadow: 0 10px 30px rgba(0,0,0,0.12);">
+      <h2
+        style="color: var(--crimson-lockout); font-weight: 800; display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
         ⚠️ AI Clinical Audit Alerts
       </h2>
-      <p class="subheader" style="margin-bottom: 16px;">The Healthcare AI Agent detected potential clinical issues with this prescription:</p>
-      
-      <div id="audit-warnings-list" style="margin-bottom: 16px; max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+      <p class="subheader" style="margin-bottom: 16px;">The Healthcare AI Agent detected potential clinical issues with
+        this prescription:</p>
+
+      <div id="audit-warnings-list"
+        style="margin-bottom: 16px; max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
         <!-- Warnings dynamic injection -->
       </div>
 
-      <div id="audit-alternatives-box" style="display: none; padding: 12px; border-radius: 8px; background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.15); margin-bottom: 20px;">
-        <h3 style="font-size: 11px; font-weight: bold; color: var(--clinical-blue); margin-bottom: 6px;">AI RECOMMENDED ALTERNATIVES (CEREBRAS API):</h3>
+      <div id="audit-alternatives-box"
+        style="display: none; padding: 12px; border-radius: 8px; background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.15); margin-bottom: 20px;">
+        <h3 style="font-size: 11px; font-weight: bold; color: var(--clinical-blue); margin-bottom: 6px;">AI RECOMMENDED
+          ALTERNATIVES (CEREBRAS API):</h3>
         <div id="audit-alternatives-list" style="font-size: 11px; color: var(--primary-text); line-height: 1.5;"></div>
       </div>
 
       <div style="display: flex; gap: 12px; margin-top: 20px;">
-        <button id="audit-proceed-btn" class="btn" style="background-color: var(--crimson-lockout); border-color: var(--crimson-lockout); color: white; flex: 1;">
+        <button id="audit-proceed-btn" class="btn"
+          style="background-color: var(--crimson-lockout); border-color: var(--crimson-lockout); color: white; flex: 1;">
           OVERRULE & PUBLISH
         </button>
         <button id="audit-cancel-btn" class="btn btn-secondary" style="flex: 1;">
@@ -126,7 +138,7 @@
     const doctorName = sessionStorage.getItem('doctorName');
     const hospitalName = sessionStorage.getItem('hospitalName');
     const doctorMobile = sessionStorage.getItem('doctorMobile');
-    
+
     const baseUrl = window.location.protocol === 'file:' ? 'http://127.0.0.1:5000' : '';
 
     if (!patientName || !doctorName || !hospitalName || !doctorMobile) {
@@ -142,9 +154,13 @@
     document.getElementById('doc-name-display').value = doctorName;
     document.getElementById('hospital-display').value = hospitalName;
     document.getElementById('doc-id-display').value = doctorMobile;
-    
+
     const today = new Date();
-    document.getElementById('date-display').value = today.toISOString().substring(0,10);
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const localDateStr = `${year}-${month}-${day}`;
+    document.getElementById('date-display').value = localDateStr;
 
     // Logout
     document.getElementById('logout-btn').addEventListener('click', () => {
@@ -204,18 +220,18 @@
     // Form Submission containing AI Audit loop
     document.getElementById('prescription-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       const rows = medContainer.getElementsByClassName('medicine-row');
       const medicines = [];
-      
+
       for (let row of rows) {
         const nameVal = row.querySelector('.med-name').value.trim();
         const rangeVal = row.querySelector('.med-interval').value.trim();
-        
+
         const timeChks = row.querySelectorAll('.time-chk:checked');
         const times = Array.from(timeChks).map(chk => chk.value);
         const timeDisplay = times.length > 0 ? `[${times.join(', ')}]` : '';
-        
+
         medicines.push({
           name: nameVal,
           interval: `${timeDisplay} ${rangeVal}`.trim()
@@ -230,15 +246,19 @@
       // Format payload
       const tempId = `RX-${Math.floor(Math.random() * 9000) + 1000}`;
       const now = new Date();
+      const nYear = now.getFullYear();
+      const nMonth = String(now.getMonth() + 1).padStart(2, '0');
+      const nDay = String(now.getDate()).padStart(2, '0');
+      const payloadDateStr = `${nYear}-${nMonth}-${nDay}`;
       const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      
+
       const payload = {
         id: tempId,
         doctorName: doctorName,
         hospitalName: hospitalName,
         patientName: patientName,
         disease: document.getElementById('diagnosis-input').value.trim(),
-        date: today.toISOString().substring(0, 10),
+        date: payloadDateStr,
         time: timeStr,
         medicines: medicines,
         doctorSignId: doctorMobile
@@ -301,7 +321,7 @@
               warnings.push(`🩺 PRESCRIBING ANOMALY: Doctor history flag is "${pattern.pattern_type}". ${pattern.recommendation}`);
             }
           }
-        } catch(err) {
+        } catch (err) {
           console.warn("AI Agent Core API offline. Proceeding to bypass audit.", err);
         }
       }
@@ -383,4 +403,5 @@
     }
   </script>
 </body>
+
 </html>

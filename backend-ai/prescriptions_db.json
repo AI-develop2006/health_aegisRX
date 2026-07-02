@@ -1,0 +1,90 @@
+[
+  {
+    "id": "RX-9921",
+    "doctorName": "Dr. Marcus Vance",
+    "hospitalName": "OmniHealth Clinic",
+    "patientName": "Elenavan",
+    "disease": "Asthma Treatment Plan",
+    "date": "2026-06-19",
+    "time": "14:20",
+    "medicines": [
+      {
+        "name": "Albuterol 90mcg Inhaler",
+        "interval": "2 puffs every 4 hours"
+      },
+      {
+        "name": "Prednisone 10mg",
+        "interval": "Once daily (With Breakfast)"
+      }
+    ],
+    "doctorSignId": "992818",
+    "isDispensed": false,
+    "signature": "d93ba372da99f3f312e7ebf75e15aa90eb58a82593f10190a1cb96ce7af56602"
+  },
+  {
+    "id": "RX-4253",
+    "doctorName": "Dr. Sarah Jenkins",
+    "hospitalName": "Metro Heart Clinic",
+    "patientName": "Elenavan",
+    "disease": "Hypertension Control",
+    "date": "2026-06-20",
+    "time": "09:30",
+    "medicines": [
+      {
+        "name": "Lisinopril 10mg",
+        "interval": "Once daily (Morning)"
+      },
+      {
+        "name": "Amlodipine 5mg",
+        "interval": "Once daily (Evening)"
+      }
+    ],
+    "doctorSignId": "42537",
+    "isDispensed": false,
+    "signature": "1beb028970df1f6fc41f4dbb8419b52fa19bf0f7b5d9c8e861bc6dc94e0f5d39"
+  },
+  {
+    "id": "RX-3104",
+    "doctorName": "Dr. Robert Chen",
+    "hospitalName": "St. Jude Medical",
+    "patientName": "Elenavan",
+    "disease": "Acute Bronchitis",
+    "date": "2026-06-18",
+    "time": "11:15",
+    "medicines": [
+      {
+        "name": "Amoxicillin 500mg",
+        "interval": "Three times daily (10 days)"
+      },
+      {
+        "name": "Cough Syrup 10ml",
+        "interval": "Every 6 hours as needed"
+      }
+    ],
+    "doctorSignId": "31049",
+    "isDispensed": true,
+    "signature": "ebeb4deeb59470c58f510ce2e63a965214d350f17b0b52c2559cce3c413edf85"
+  },
+  {
+    "id": "RX-1182",
+    "doctorName": "Dr. Emily Taylor",
+    "hospitalName": "Oakridge Practice",
+    "patientName": "Elenavan",
+    "disease": "Allergic Rhinitis",
+    "date": "2026-06-20",
+    "time": "16:05",
+    "medicines": [
+      {
+        "name": "Montelukast 10mg",
+        "interval": "Once daily at bedtime"
+      },
+      {
+        "name": "Fluticasone Nasal Spray",
+        "interval": "1 spray in each nostril daily"
+      }
+    ],
+    "doctorSignId": "11824",
+    "isDispensed": false,
+    "signature": "2a7f59716e6e85d6a211bf40ae7bf7ec176923d7174d3f1c8a6af9da57ab2401"
+  }
+]

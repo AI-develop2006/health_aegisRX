@@ -174,10 +174,8 @@
 
       <!-- Verification Proof Console -->
       <div id="console-block" style="display: none;">
-        <h2>MATH PROOF CONSOLE LOG</h2>
-        <div id="console-log" class="console"></div>
 
-        <div id="status-banner" class="banner"></div>
+        <div id="status-banner" class="banner" style="margin-bottom: 20px;"></div>
 
         <!-- Clinical Dispense Slip -->
         <div id="receipt-block" style="display: none;">
@@ -200,6 +198,10 @@
               <div id="pdf-drugs-list"></div>
             </div>
           </div>
+
+          <button id="download-pdf-btn" class="btn btn-secondary" style="margin-bottom: 12px; background-color: var(--clinical-blue); border-color: var(--clinical-blue); color: white; display: flex; justify-content: center; align-items: center; gap: 8px;">
+            📥 DOWNLOAD CLINICAL PDF RECEIPT
+          </button>
 
           <button id="dispense-btn" class="btn btn-primary">
             DISPENSE PHARMACEUTICALS & BURN TOKEN
@@ -281,7 +283,6 @@
     const verifyCard = document.getElementById('verify-card');
     const verifyBtn = document.getElementById('verify-btn');
     const consoleBlock = document.getElementById('console-block');
-    const consoleLog = document.getElementById('console-log');
     const statusBanner = document.getElementById('status-banner');
     const receiptBlock = document.getElementById('receipt-block');
     const tamperCheck = document.getElementById('tamper-check');
@@ -306,8 +307,9 @@
 
           // Clear scanning session immediately to prevent race conditions or double-firing
           try {
-            await html5QrCode.stop();
-            html5QrCode.clear();
+            if (html5QrCode && typeof html5QrCode.stop === 'function') {
+              await html5QrCode.stop();
+            }
           } catch (e) {
             console.warn("Error stopping scanner:", e);
           }
@@ -429,8 +431,6 @@
     async function runVerification(rawPayload, signature) {
       verifyBtn.style.display = 'none';
       consoleBlock.style.display = 'block';
-      consoleLog.className = 'console';
-      consoleLog.innerText = 'Analyzing QR stream payload...\nInitiating Zero-Trust sweep...\n';
 
       const isTampered = tamperCheck.checked;
       let targetPayload = rawPayload;
@@ -471,7 +471,7 @@
       logs.push(`\nVerifying Asymmetric Signature Block:`);
       logs.push(`  Signature   : ${signature}`);
 
-      consoleLog.innerText = logs.join('\n') + '\n\nQuerying FastAPI verify-scan endpoint...';
+      console.log(logs.join('\n') + '\n\nQuerying FastAPI verify-scan endpoint...');
 
       try {
         const response = await fetch(baseUrl + '/api/prescriptions/verify-scan', {
@@ -504,8 +504,7 @@
           verifyCardElem.style.animation = 'flash-emerald 0.8s ease-in-out';
 
           logs.push(`\nRESULT: CRYPTO CHECK PASSED. Payload matches signature in MongoDB Atlas ledger.`);
-          consoleLog.className = 'console success';
-          consoleLog.innerText = logs.join('\n');
+          console.log(logs.join('\n'));
 
           statusBanner.className = 'banner banner-success';
           statusBanner.innerText = '✅ SIGNATURE VALID. Secure ledger verified.';
@@ -570,9 +569,7 @@
 
       logs.push(`\nRESULT: CRYPTO ERROR MISMATCH! Invalid signature block.`);
       logs.push(`[CRITICAL ERROR]: ${errorMsg}`);
-
-      consoleLog.className = 'console failed';
-      consoleLog.innerText = logs.join('\n');
+      console.error(logs.join('\n'));
 
       statusBanner.className = 'banner banner-failed';
       statusBanner.innerText = `❌ FORGERY ALERT: Hex hash verification failed. Transaction blocked.`;
@@ -595,6 +592,63 @@
       }
       return Math.abs(h).toString(16).padEnd(64, 'a');
     }
+
+    // PDF Download/Print receipt handler
+    const downloadPdfBtn = document.getElementById('download-pdf-btn');
+    downloadPdfBtn.addEventListener('click', () => {
+      const receiptHtml = document.querySelector('.pdf-receipt').outerHTML;
+      const printWindow = window.open('', '_blank', 'width=800,height=600');
+      printWindow.document.write(`
+        <html>
+        <head>
+          <title>Clinical Prescription Receipt</title>
+          <link rel="stylesheet" href="css/style.css">
+          <style>
+            body {
+              background: #FFFFFF !important;
+              color: #1E293B !important;
+              padding: 40px;
+              font-family: 'Inter', sans-serif;
+            }
+            .pdf-receipt {
+              border: none !important;
+              box-shadow: none !important;
+              padding: 0 !important;
+            }
+            .pdf-meta {
+              color: #334155 !important;
+              margin-bottom: 8px;
+              font-size: 14px;
+            }
+            .pdf-header {
+              border-bottom: 2px solid #E2E8F0 !important;
+              margin-bottom: 20px;
+              padding-bottom: 12px;
+            }
+            .pdf-drug-item {
+              font-size: 14px;
+              padding: 10px 0 !important;
+              border-bottom: 1px solid #E2E8F0 !important;
+            }
+            @media print {
+              body { padding: 0; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          ${receiptHtml}
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(() => window.close(), 500);
+            };
+          <\/script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    });
 
     // Dispense medication trigger
     const dispenseBtn = document.getElementById('dispense-btn');

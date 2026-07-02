@@ -29,6 +29,22 @@ async def lifespan(app: FastAPI):
     try:
         ai_agent = AIAgent()
         logger.info("Healthcare AI Agent initialized successfully with MongoDB.")
+        
+        # Seed MongoDB prescriptions collection if it's empty
+        db = ai_agent.mongo.db if (ai_agent and ai_agent.mongo) else None
+        if db is not None:
+            if db[COLLECTION_PRESCRIPTIONS].count_documents({}) == 0:
+                logger.info("MongoDB prescriptions collection is empty. Seeding with mock prescriptions...")
+                mock_list = read_local_db()
+                for rx in mock_list:
+                    rx_mongo = rx.copy()
+                    if "date" in rx_mongo and isinstance(rx_mongo["date"], str):
+                        try:
+                            rx_mongo["date"] = datetime.fromisoformat(rx_mongo["date"])
+                        except Exception:
+                            pass
+                    db[COLLECTION_PRESCRIPTIONS].insert_one(rx_mongo)
+                logger.info("Successfully seeded MongoDB prescriptions collection.")
     except Exception as e:
         logger.error(f"Failed to initialize AIAgent / MongoDB: {str(e)}. Running in local datastore mode.")
         ai_agent = None
@@ -134,27 +150,78 @@ local_activity_logs = []
 
 def read_local_db() -> list:
     if not os.path.exists(DB_FILE):
-        demo_rx = {
-            "id": "RX-9921",
-            "doctorName": "Marcus Vance",
-            "hospitalName": "OmniHealth Clinic",
-            "patientName": "Elena Vance",
-            "disease": "Asthma Treatment",
-            "date": "2026-06-19",
-            "time": "14:20",
-            "medicines": [
-                { "name": "Albuterol 90mcg Inhaler", "interval": "2 puffs every 4 hours" },
-                { "name": "Prednisone 10mg", "interval": "Once daily (With Breakfast)" }
-            ],
-            "signature": "",
-            "doctorSignId": "99281",
-            "isDispensed": False
-        }
-        payload_str = json_stringify_rx(demo_rx)
-        rx_hash = sha256_hash(payload_str)
-        demo_rx["signature"] = sign(rx_hash, "99281")
-        write_local_db([demo_rx])
-        return [demo_rx]
+        demo_rx_list = [
+            {
+                "id": "RX-9921",
+                "doctorName": "Dr. Marcus Vance",
+                "hospitalName": "OmniHealth Clinic",
+                "patientName": "Elenavan",
+                "disease": "Asthma Treatment Plan",
+                "date": "2026-06-19",
+                "time": "14:20",
+                "medicines": [
+                    { "name": "Albuterol 90mcg Inhaler", "interval": "2 puffs every 4 hours" },
+                    { "name": "Prednisone 10mg", "interval": "Once daily (With Breakfast)" }
+                ],
+                "signature": "",
+                "doctorSignId": "992818",
+                "isDispensed": False
+            },
+            {
+                "id": "RX-4253",
+                "doctorName": "Dr. Sarah Jenkins",
+                "hospitalName": "Metro Heart Clinic",
+                "patientName": "Elenavan",
+                "disease": "Hypertension Control",
+                "date": "2026-06-20",
+                "time": "09:30",
+                "medicines": [
+                    { "name": "Lisinopril 10mg", "interval": "Once daily (Morning)" },
+                    { "name": "Amlodipine 5mg", "interval": "Once daily (Evening)" }
+                ],
+                "signature": "",
+                "doctorSignId": "42537",
+                "isDispensed": False
+            },
+            {
+                "id": "RX-3104",
+                "doctorName": "Dr. Robert Chen",
+                "hospitalName": "St. Jude Medical",
+                "patientName": "Elenavan",
+                "disease": "Acute Bronchitis",
+                "date": "2026-06-18",
+                "time": "11:15",
+                "medicines": [
+                    { "name": "Amoxicillin 500mg", "interval": "Three times daily (10 days)" },
+                    { "name": "Cough Syrup 10ml", "interval": "Every 6 hours as needed" }
+                ],
+                "signature": "",
+                "doctorSignId": "31049",
+                "isDispensed": True
+            },
+            {
+                "id": "RX-1182",
+                "doctorName": "Dr. Emily Taylor",
+                "hospitalName": "Oakridge Practice",
+                "patientName": "Elenavan",
+                "disease": "Allergic Rhinitis",
+                "date": "2026-06-20",
+                "time": "16:05",
+                "medicines": [
+                    { "name": "Montelukast 10mg", "interval": "Once daily at bedtime" },
+                    { "name": "Fluticasone Nasal Spray", "interval": "1 spray in each nostril daily" }
+                ],
+                "signature": "",
+                "doctorSignId": "11824",
+                "isDispensed": False
+            }
+        ]
+        for demo_rx in demo_rx_list:
+            payload_str = json_stringify_rx(demo_rx)
+            rx_hash = sha256_hash(payload_str)
+            demo_rx["signature"] = sign(rx_hash, demo_rx["doctorSignId"])
+        write_local_db(demo_rx_list)
+        return demo_rx_list
     try:
         with open(DB_FILE, "r") as f:
             return json.load(f)
@@ -178,6 +245,8 @@ def serialize_doc(doc: dict) -> Optional[dict]:
         if isinstance(value, datetime):
             if value.hour == 0 and value.minute == 0 and value.second == 0:
                 doc_copy[key] = value.strftime("%Y-%m-%d")
+            elif value.tzinfo is None:
+                doc_copy[key] = value.isoformat() + "Z"
             else:
                 doc_copy[key] = value.isoformat()
         elif isinstance(value, list):
@@ -295,7 +364,7 @@ async def root():
 
 # --- Core Prescription Endpoints ---
 @app.get("/api/prescriptions", tags=["Prescription Management"])
-async def get_prescriptions(patient: str = "Elena Vance"):
+async def get_prescriptions(patient: str = "Elenavan"):
     db = ai_agent.mongo.db if (ai_agent and ai_agent.mongo) else None
     if db is not None:
         try:
@@ -551,6 +620,7 @@ async def get_consultation_status(req_id: str):
 
 @app.get("/api/consultation/pending", tags=["Consultation Management"])
 async def get_pending_consultation(patient: str, patientId: Optional[str] = None):
+    logger.info(f"GET /api/consultation/pending patient={patient} patientId={patientId}")
     db = ai_agent.mongo.db if (ai_agent and ai_agent.mongo) else None
     
     or_filters = [{"patientName": {"$regex": f"^{patient}$", "$options": "i"}}]
@@ -776,7 +846,7 @@ async def get_activity_logs():
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     else:
-        return list(reversed(local_activity_logs))
+        return serialize_list(list(reversed(local_activity_logs)))
 
 # --- Clinical AI Audit Endpoints ---
 @app.post("/api/audit", tags=["Prescription Audit"])
@@ -796,6 +866,28 @@ async def audit_prescription(req: AuditRequest):
             new_dosage=req.new_dosage,
             disease=req.disease
         )
+        
+        # Format response with top-level compatibility keys for doctor-prescription.html frontend
+        features = result.get("features", {})
+        result["duplicate_check"] = {
+            "is_duplicate": features.get("duplicate_detection", {}).get("is_duplicate", False),
+            "duplicate_details": features.get("duplicate_detection", {}).get("duplicate_details", "")
+        }
+        result["allergy_check"] = {
+            "allergy_conflict": features.get("allergy_conflict", {}).get("allergy_conflict", False),
+            "severity": features.get("allergy_conflict", {}).get("severity", "LOW"),
+            "suggested_alternatives": features.get("allergy_conflict", {}).get("suggested_alternatives", [])
+        }
+        result["interaction_check"] = {
+            "interaction_risk": features.get("drug_interactions", {}).get("interaction_risk", "LOW"),
+            "interaction_details": features.get("drug_interactions", {}).get("interaction_details", ""),
+            "alternatives": features.get("drug_interactions", {}).get("alternatives", [])
+        }
+        result["pattern_analysis"] = {
+            "pattern_type": features.get("prescription_pattern", {}).get("pattern_type", "NORMAL"),
+            "recommendation": features.get("prescription_pattern", {}).get("recommendation", "")
+        }
+        
         return result
     except Exception as e:
         logger.error(f"Error executing complete audit endpoint: {str(e)}")
