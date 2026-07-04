@@ -7,6 +7,9 @@ class DangerBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isLight = theme.brightness == Brightness.light;
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -25,8 +28,8 @@ class DangerBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: isLight ? const Color(0xFF7F1D1D) : Colors.white,
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),

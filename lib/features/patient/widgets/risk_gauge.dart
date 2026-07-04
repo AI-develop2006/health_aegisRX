@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class RiskGauge extends StatelessWidget {
   final int severityScore; // 1-10
@@ -8,7 +9,7 @@ class RiskGauge extends StatelessWidget {
   Color _getRiskColor() {
     if (severityScore >= 8) return Colors.redAccent;
     if (severityScore >= 5) return Colors.orangeAccent;
-    return const Color(0xFF00A86B); // emerald green
+    return const Color(0xFF10B981); // emerald green
   }
 
   String _getRiskText() {
@@ -20,6 +21,9 @@ class RiskGauge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final riskColor = _getRiskColor();
+    final theme = Theme.of(context);
+    final isLight = theme.brightness == Brightness.light;
+
     return Column(
       children: [
         Stack(
@@ -31,7 +35,7 @@ class RiskGauge extends StatelessWidget {
               child: CircularProgressIndicator(
                 value: severityScore / 10.0,
                 strokeWidth: 12,
-                backgroundColor: Colors.white.withOpacity(0.05),
+                backgroundColor: isLight ? Colors.black12 : Colors.white.withOpacity(0.05),
                 valueColor: AlwaysStoppedAnimation<Color>(riskColor),
               ),
             ),
@@ -39,11 +43,20 @@ class RiskGauge extends StatelessWidget {
               children: [
                 Text(
                   '$severityScore/10',
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.fraunces(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: isLight ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  ),
                 ),
                 Text(
                   _getRiskText(),
-                  style: TextStyle(fontSize: 10, color: riskColor, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: riskColor,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Inter',
+                  ),
                 ),
               ],
             ),

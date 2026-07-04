@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import '../../../shared/widgets/neon_card.dart';
+import '../../../../shared/widgets/neon_card.dart';
 
 class PatientQrShareScreen extends StatelessWidget {
   const PatientQrShareScreen({super.key});

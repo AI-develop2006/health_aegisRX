@@ -52,6 +52,16 @@ class _PharmacyLoginScreenState extends State<PharmacyLoginScreen> {
                   onPressed: _login,
                   child: const Text('Access Dispensation Desk'),
                 ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () {
+                    Provider.of<AppState>(context, listen: false).resetFlow();
+                  },
+                  child: const Text(
+                    'Back to role selection',
+                    style: TextStyle(fontFamily: 'Inter'),
+                  ),
+                ),
               ],
             ),
           ),

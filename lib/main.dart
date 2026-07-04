@@ -30,7 +30,9 @@ class AegisRxApp extends StatelessWidget {
 
     return MaterialApp.router(
       title: 'AegisRx',
-      theme: buildAppTheme(),
+      theme: buildLightTheme(),
+      darkTheme: buildDarkTheme(),
+      themeMode: ThemeMode.system,
       routerConfig: router,
     );
   }

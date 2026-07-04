@@ -9,7 +9,7 @@ class ConsultationStatusChip extends StatelessWidget {
     switch (status.toLowerCase()) {
       case 'active':
       case 'accepted':
-        return const Color(0xFF00A86B); // emerald green
+        return const Color(0xFFC5A059); // Seal Gold
       case 'pending':
         return Colors.orangeAccent;
       case 'rejected':
