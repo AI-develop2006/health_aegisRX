@@ -1,23 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 import 'package:health_lock/main.dart';
+import 'package:health_lock/core/state/app_state.dart';
 
 void main() {
-  testWidgets('SovereignShield Sandbox bootstrap test', (WidgetTester tester) async {
-    final state = SimulationState();
-    state.loginOfflineGuest(); // Bypass login gate for testing vault screen
+  testWidgets('AegisRx App Bootstrap Test', (WidgetTester tester) async {
+    final appState = AppState();
 
     await tester.pumpWidget(
-      ChangeNotifierProvider<SimulationState>.value(
-        value: state,
-        child: const SovereignShieldApp(),
-      ),
+      AegisRxApp(appState: appState),
     );
 
-    // Verify that the dashboard header is rendered
-    expect(find.text('SOVEREIGN SHIELD'), findsOneWidget);
-    expect(find.text('Elena Vance'), findsOneWidget);
-
-    state.dispose(); // Cancel the periodic polling timer to avoid leaks
+    // Verify patient dashboard renders default welcome message
+    expect(find.text('AegisRx Patient Vault'), findsOneWidget);
+    expect(find.text('Welcome to AegisRx Patient Vault'), findsOneWidget);
   });
 }

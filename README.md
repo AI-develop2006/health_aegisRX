@@ -1,572 +1,150 @@
-<![CDATA[<div align="center">
+# 🛡️ AegisRx — Sovereign Patient Health Wallet
 
-# 🛡️ HealthLock — Sovereign Patient Wallet
-
-### _A patient-controlled prescription management system with AI-powered clinical safety, cryptographic tamper-proofing, and zero-trust doctor access._
-
-[![Flutter](https://img.shields.io/badge/Flutter-3.10+-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
-[![Cerebras](https://img.shields.io/badge/Cerebras_AI-LLM_Powered-FF6F00?style=for-the-badge)](https://cerebras.ai)
-[![Firebase](https://img.shields.io/badge/Firebase-Auth-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)]()
-
-</div>
+AegisRx is a zero-trust, decentralized patient health wallet and clinician suite. It shifts the ownership of clinical data from centralized hospital systems directly to the **patient as the sovereign custodian** of their own medical records, prescriptions, and access permissions.
 
 ---
 
-## 📋 Table of Contents
+## 🎯 Architecture Pillars
 
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Architecture](#-architecture)
-- [Tech Stack](#-tech-stack)
-- [Project Structure](#-project-structure)
-- [Prerequisites](#-prerequisites)
-- [Getting Started](#-getting-started)
-- [Backend API Reference](#-backend-api-reference)
-- [Security Model](#-security-model)
-- [AI Clinical Safety Pipeline](#-ai-clinical-safety-pipeline)
-- [Web Portals](#-web-portals)
-- [Screenshots](#-screenshots)
-- [Environment Variables](#-environment-variables)
-- [Contributing](#-contributing)
-- [License](#-license)
+AegisRx is built upon four architectural pillars designed to ensure zero-trust security, clinical accuracy, and cryptographic data integrity:
 
----
-
-## 🌐 Overview
-
-**HealthLock** is a hackathon-built, production-quality prototype that reimagines how patients interact with their medical prescriptions. Instead of doctors or hospitals owning patient data, **the patient is the sovereign custodian** of their own health records.
-
-The system implements a **three-portal architecture** spanning:
-
-| Portal | Technology | Description |
-|--------|-----------|-------------|
-| 🧑‍⚕️ **Patient Wallet** | Flutter (Android / iOS / Desktop / Web) | Patients view, manage, and approve access to their prescriptions. |
-| 👨‍⚕️ **Doctor Portal** | Web (HTML/CSS/JS served by FastAPI) | Doctors scan a QR code, request access, and write prescriptions with AI audit. |
-| 💊 **Pharmacy Portal** | Web (HTML/CSS/JS served by FastAPI) | Pharmacists scan prescriptions, verify cryptographic signatures, and dispense medications. |
-
-Every prescription is **cryptographically signed** at creation, and every access event is written to an **immutable activity ledger** (hash-chained log).
+```
+  ┌─────────────────────────────────────────────────────────────┐
+  │                    1. ZERO-TRUST CONSENT                    │
+  │  Doctors cannot access patient history or write prescriptions │
+  │  without explicit scanning and approval of a session token.  │
+  └──────────────────────────────┬──────────────────────────────┘
+                                 ▼
+  ┌─────────────────────────────────────────────────────────────┐
+  │              2. CRYPTOGRAPHIC TAMPER-PROOFING               │
+  │  Prescriptions are hashed with SHA-256 and signed with the  │
+  │  physician's NPI-keyed signature. Checks validation at desk.│
+  └──────────────────────────────┬──────────────────────────────┘
+                                 ▼
+  ┌─────────────────────────────────────────────────────────────┐
+  │                 3. AI CLINICAL SAFETY NET                  │
+  │  Real-time drug-drug and drug-allergy interaction checking  │
+  │  powered by Cerebras LLM + IsolationForest anomalies.       │
+  └──────────────────────────────┬──────────────────────────────┘
+                                 ▼
+  ┌─────────────────────────────────────────────────────────────┐
+  │             4. IMMUTABLE ACTIVITY LEDGER LOGS               │
+  │  All access, creation, and dispensation logs are chained     │
+  │  chronologically with SHA-256, stored in MongoDB Atlas.     │
+  └─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## ✨ Key Features
+## 🏗️ System Architecture & Data Flow
 
-### 🔒 Patient Sovereignty
-- **Zero-trust access model** — Doctors must scan a session QR and the patient must explicitly **Accept** or **Reject** each consultation request.
-- **Offline-first** — The Flutter app gracefully falls back to local mock data when the backend is unreachable.
-
-### 🧬 Cryptographic Prescription Integrity
-- **SHA-256 hashing** of every prescription payload (patient, doctor, medicines, date).
-- **Hex-shifted digital signatures** using the doctor's unique sign ID.
-- **Tamper verification** on the pharmacy side — any field change invalidates the signature.
-
-### 🤖 AI-Powered Clinical Safety (Cerebras LLM)
-- **Duplicate Detection** — Flags re-prescriptions within a configurable 30-day window.
-- **Drug Interaction Screening** — Checks new drugs against the patient's active medication list.
-- **Allergy Conflict Detection** — Cross-references prescriptions against MongoDB-stored allergy profiles.
-- **Alternative Recommendations** — Suggests allergy-safe substitutes for flagged drugs.
-- **Prescribing Pattern Analysis** — Uses Isolation Forest (scikit-learn) to detect anomalous prescribing behavior by physicians.
-
-### 🔑 Authentication
-- **Firebase Auth** — Google Sign-In, Email/Password, with automatic fallback.
-- **Offline Guest Mode** — Full functionality without credentials for demo / hackathon evaluation.
-
-### 📜 Immutable Activity Ledger
-- Every significant event (login, scan, create, dispense, accept, reject) is logged with a **SHA-256 hash chain**, creating a tamper-evident audit trail stored in MongoDB.
-
----
-
-## 🏗️ Architecture
+AegisRx integrates Patient, Doctor, and Pharmacist workflows into a native, high-performance Flutter mobile/desktop app communicating with a central FastAPI backend:
 
 ```mermaid
 graph TB
-    subgraph "Patient Device"
-        A["Flutter App<br/>(Patient Wallet)"]
+    subgraph "Flutter App Workspace (Native)"
+        A["Patient Portal<br/>(Dashboard, Vault, QR Share)"]
+        B["Practitioner Portal<br/>(Clinical Composer, Risk Override)"]
+        C["Pharmacy Desk<br/>(QR Scanner, Dispensation Desk)"]
     end
 
-    subgraph "FastAPI Backend (Port 5000)"
-        B["REST API<br/>(app.py)"]
-        C["AI Core<br/>(ai_core.py)"]
-        D["Static File Server<br/>(Web Portals)"]
+    subgraph "FastAPI Server Core (backend-ai/)"
+        D["REST API Router & Gateway<br/>(app/main.py:4000)"]
+        E["AI Clinical Safety Engine<br/>(app/services/ai_service.py)"]
+        F["Ledger Manager & SHA-256 Chain<br/>(app/services/ledger_service.py)"]
     end
 
-    subgraph "External Services"
-        E["MongoDB Atlas"]
-        F["Cerebras AI API"]
-        G["Firebase Auth"]
+    subgraph "Cloud & Database Layer"
+        G["MongoDB Atlas Database"]
+        H["Cerebras AI API (LLM)"]
     end
 
-    subgraph "Web Portals"
-        H["Doctor Login Portal"]
-        I["Prescription Writer"]
-        J["Pharmacy Portal"]
-    end
-
-    A -- "REST API (HTTP)" --> B
-    B --> C
-    B --> E
-    C --> E
-    C --> F
-    A --> G
-    D --> H
-    D --> I
-    D --> J
-    H -- "REST API" --> B
-    I -- "REST API" --> B
-    J -- "REST API" --> B
+    A -- "REST API / JSON" --> D
+    B -- "Submit Prescription" --> D
+    C -- "Verify & Dispense" --> D
+    D --> E
+    D --> F
+    E --> G
+    E --> H
+    F --> G
 ```
 
-### Data Flow — Consultation Lifecycle
+### 🔄 End-to-End Consultation Lifecycle
 
-```mermaid
-sequenceDiagram
-    participant P as Patient (Flutter)
-    participant S as FastAPI Server
-    participant D as Doctor (Web Portal)
-    participant Ph as Pharmacy (Web Portal)
-
-    P->>P: Open Vault → Enable Attendance
-    P->>P: Display Session QR Code
-    D->>D: Scan QR Code
-    D->>S: POST /api/consultation/request
-    S->>S: Create pending request
-    P->>S: GET /api/consultation/pending (polling)
-    S-->>P: Return pending request
-    P->>P: Show Accept/Reject dialog
-    P->>S: POST /api/consultation/accept
-    S-->>D: Status: accepted (polling)
-    D->>D: Open Prescription Writer
-    D->>S: POST /api/audit (AI Safety Check)
-    S-->>D: Audit results
-    D->>S: POST /api/prescriptions (Create Rx)
-    S->>S: SHA-256 hash + sign
-    S-->>P: New Rx appears in vault (polling)
-    P->>P: Generate Pharmacy QR
-    Ph->>S: GET /api/prescriptions/:id (Scan QR)
-    Ph->>Ph: Verify Signature
-    Ph->>S: POST /api/prescriptions/dispense
-    S->>S: Log to Activity Ledger
-```
+1. **Session Handshake**: The patient generates a secure consultation session token (displayed as a QR code). The doctor scans the QR code to request permission.
+2. **Access Grant**: The patient receives a real-time polling notification and taps **Accept** to approve the connection.
+3. **Safety Audit & Writing**: The doctor drafts the prescription. Prior to submission, a pre-flight check executes checks for duplicates, allergy conflicts, drug-drug interactions, and anomaly patterns.
+4. **Signing & Commit**: Upon submission, the server computes a `SHA-256` hash of the prescription, signs it using the doctor's NPI root key, saves it to MongoDB, and writes the block to the chained activity ledger.
+5. **Validation & Dispense**: The pharmacist scans the patient's checkout QR, triggers `/api/pharmacy/verify-scan`, verifies signature integrity against the root ledger, and calls `/api/pharmacy/dispense` to burn the token.
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Complete Technology Stack
 
 | Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Mobile / Desktop** | Flutter 3.10+ (Dart) | Cross-platform patient wallet |
-| **Backend** | Python 3.11+ / FastAPI | REST API, static serving, business logic |
-| **Database** | MongoDB Atlas | Prescriptions, allergies, doctors, activity logs |
-| **AI / ML** | Cerebras API (LLM), scikit-learn | Drug interactions, recommendations, anomaly detection |
-| **Auth** | Firebase Auth | Google Sign-In, Email/Password |
-| **Crypto** | SHA-256 + hex-shift cipher | Prescription signing & verification |
-| **Web Portals** | Vanilla HTML/CSS/JS | Doctor login, prescription writer, pharmacy scanner |
+| :--- | :--- | :--- |
+| **Frontend** | **Flutter 3.10+ (Dart)** | Unified Patient Wallet, Doctor Clinical Composer, and Pharmacy desk. |
+| **Backend** | **FastAPI (Python 3.11+)** | High-performance API Gateway and microservice routing. |
+| **AI Engine** | **Cerebras AI API (LLM)** | Rapid drug interaction evaluations and alternative recommendations. |
+| **Outlier Detection** | **scikit-learn (Isolation Forest)** | Analyzes physician prescription history frequencies to flag anomalies. |
+| **Database** | **MongoDB Atlas** | Document storage for prescriptions, patient allergies, and audit logs. |
+| **Cryptography** | **SHA-256** | Secure hash chains for activity ledgers and signature verification. |
 
 ---
 
-## 📁 Project Structure
+## 📁 Codebase Directory Structure
 
-```
-health_lock/
-├── lib/                                # Flutter application source
-│   ├── main.dart                       # App entry point, state management (Provider)
-│   ├── firebase_options.dart           # Auto-generated Firebase config
-│   ├── core/
-│   │   ├── constants/
-│   │   │   ├── app_colors.dart         # Design system color tokens
-│   │   │   └── mock_prescriptions.dart # Offline fallback data
-│   │   ├── crypto/
-│   │   │   └── crypto_helper.dart      # Client-side SHA-256 + signature utils
-│   │   └── theme/
-│   │       └── app_theme.dart          # Material dark theme configuration
-│   ├── features/
-│   │   ├── patient/
-│   │   │   └── screens/
-│   │   │       ├── splash_screen.dart      # Animated launch screen
-│   │   │       ├── onboarding_screen.dart  # First-run onboarding carousel
-│   │   │       ├── patient_login.dart      # Firebase / Guest login
-│   │   │       └── patient_vault.dart      # Main wallet UI (prescriptions, QR, attendance)
-│   │   ├── doctor/                         # (Reserved for future native doctor features)
-│   │   └── pharmacy/
-│   │       └── screens/                    # (Reserved for future native pharmacy features)
-│   └── shared/
-│       ├── models/
-│       │   └── prescription.dart       # Prescription data model
-│       └── widgets/
-│           └── custom_button.dart      # Reusable glassmorphic button
-│
-├── backend-ai/                         # FastAPI backend service
-│   ├── app.py                          # Main API server (819 lines)
-│   ├── ai_core.py                      # AI Agent: MongoDB + Cerebras + ML pipeline
-│   ├── config.py                       # Environment config loader
-│   ├── requirements.txt                # Python dependencies
-│   ├── insert_sample_data.py           # Seed script for demo data
-│   ├── .env                            # Backend secrets (MongoDB URI, API keys)
-│   └── public/                         # Static web portals
-│       ├── doctor-login.html           # Doctor QR scanner + login
-│       ├── doctor-prescription.html    # Multi-drug prescription form with AI audit
-│       ├── pharmacy-portal.html        # Pharmacy scan + verify + dispense
-│       └── css/
-│           └── style.css               # Shared portal stylesheet
-│
-├── .env                                # Flutter-side Firebase config
-├── firebase.json                       # Firebase project configuration
-├── pubspec.yaml                        # Flutter dependencies
-├── start_demo.bat                      # One-click demo launcher (Windows)
-├── android/                            # Android platform files
-├── ios/                                # iOS platform files
-├── web/                                # Flutter web build files
-├── windows/                            # Windows desktop platform files
-├── macos/                              # macOS platform files
-└── linux/                              # Linux platform files
-```
+* [**lib/**](file:///e:/health_aegisRX/lib): Flutter Unified Multi-Role Client
+  * [main.dart](file:///e:/health_aegisRX/lib/main.dart): App launch & state provider injection.
+  * [core/theme/app_theme.dart](file:///e:/health_aegisRX/lib/core/theme/app_theme.dart): App colors, styling, and gradients.
+  * [core/routing/app_router.dart](file:///e:/health_aegisRX/lib/core/routing/app_router.dart): Listen-based dynamic router delegates.
+  * [core/state/app_state.dart](file:///e:/health_aegisRX/lib/core/state/app_state.dart): Session, Auth, and live API client networking logic.
+  * [features/patient/](file:///e:/health_aegisRX/lib/features/patient): Patient flows (dashboard, history logs, QR share).
+  * [features/doctor/](file:///e:/health_aegisRX/lib/features/doctor): Doctor flows (Composer, Override, and Sign).
+  * [features/pharmacy/](file:///e:/health_aegisRX/lib/features/pharmacy): Pharmacist flows (QR scanning, crypt-verdict, dispense token burn).
+* [**backend-ai/**](file:///e:/health_aegisRX/backend-ai): FastAPI AI backend core
+  * [app/main.py](file:///e:/health_aegisRX/backend-ai/app/main.py): REST routers, CORS config, database seeding.
+  * [app/services/](file:///e:/health_aegisRX/backend-ai/app/services): Modular services for auth, prescriptions, ledger, and AI safety checks.
 
 ---
 
-## 📦 Prerequisites
+## 🚀 Getting Started & Execution
 
-| Requirement | Version | Notes |
-|-------------|---------|-------|
-| **Flutter SDK** | ≥ 3.10.4 | [Install Flutter](https://docs.flutter.dev/get-started/install) |
-| **Dart SDK** | ≥ 3.10.4 | Included with Flutter |
-| **Python** | ≥ 3.9 | Required for the FastAPI backend |
-| **pip** | Latest | Python package manager |
-| **MongoDB** | Atlas (cloud) or local | Connection string configured in `.env` |
-| **Git** | Latest | Version control |
-
-**Optional:**
-- **Android Studio / Xcode** — For mobile emulator/simulator
-- **Chrome** — For Flutter web development
-- **Firebase CLI** — Only if reconfiguring Firebase project
-
----
-
-## 🚀 Getting Started
-
-### 1. Clone the Repository
-
+### 1. Configure the Environment
+Create a `.env` file under `backend-ai/` matching your database credentials:
 ```bash
-git clone https://github.com/AI-develop2006/vortexa.hackathon.git
-cd vortexa.hackathon
-git checkout feature-sovereign
-```
-
-### 2. Setup the Backend
-
-```bash
-cd backend-ai
-
-# Create and activate a virtual environment (recommended)
-python -m venv venv
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
-
-# Install Python dependencies
-pip install -r requirements.txt
-```
-
-### 3. Configure Environment Variables
-
-Copy and edit the backend `.env` file:
-
-```bash
-# backend-ai/.env
 MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=<app>
 MONGODB_DATABASE=healthcare_db
-COLLECTION_PRESCRIPTIONS=prescriptions
-COLLECTION_ALLERGIES=allergies
-
-CEREBRAS_API_KEY=<your-cerebras-api-key>
-CEREBRAS_API_URL=https://api.cerebras.ai/v1/chat/completions
-CEREBRAS_MODEL=gpt-oss-120b
-
-MOCK_CEREBRAS=False    # Set to True to use mock AI responses
+CEREBRAS_API_KEY=<your-key>
 ```
 
-For the Flutter app, edit the root `.env`:
-
-```bash
-# .env (project root)
-FIREBASE_API_KEY=<your-firebase-api-key>
-FIREBASE_APP_ID=<your-firebase-app-id>
-FIREBASE_PROJECT_ID=<your-project-id>
-FIREBASE_MESSAGING_SENDER_ID=<sender-id>
-FIREBASE_STORAGE_BUCKET=<bucket-url>
-FIREBASE_IOS_BUNDLE_ID=com.example.healthLock
-```
-
-### 4. Seed Demo Data (Optional)
-
+### 2. Start the Backend Server
 ```bash
 cd backend-ai
-python insert_sample_data.py
+python -m venv venv
+# Windows
+.\venv\Scripts\activate
+# Install deps and run
+pip install -r requirements.txt
+python -m uvicorn app.main:app --host 0.0.0.0 --port 4000 --reload
 ```
+* Interactive Swagger Docs: [http://127.0.0.1:4000/docs](http://127.0.0.1:4000/docs)
 
-### 5. Start the Backend Server
-
+### 3. Launch the Flutter App
 ```bash
-cd backend-ai
-python app.py
-```
-
-The API server will start at **`http://127.0.0.1:5000`**.
-- Interactive API docs: [http://127.0.0.1:5000/docs](http://127.0.0.1:5000/docs) (Swagger UI)
-- Alternative docs: [http://127.0.0.1:5000/redoc](http://127.0.0.1:5000/redoc)
-
-### 6. Start the Flutter App
-
-In a new terminal:
-
-```bash
-# From project root
+# Return to the root folder
 flutter pub get
 flutter run
 ```
 
-Select your target device (Android emulator, iOS simulator, Chrome, Windows, etc.).
-
-> **Tip:** For the best demo experience, run the Flutter app and open the Doctor Portal in a browser side-by-side.
-
 ---
 
-## 📡 Backend API Reference
+## 🧪 Testing Scenario Guide
 
-Base URL: `http://127.0.0.1:5000`
-
-### General
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/` | Health check & API metadata |
-| `GET` | `/docs` | Swagger interactive documentation |
-
-### Prescription Management
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/prescriptions?patient=<name>` | Fetch all prescriptions for a patient |
-| `POST` | `/api/prescriptions` | Create a new signed prescription |
-| `GET` | `/api/prescriptions/{rx_id}` | Get a single prescription by ID |
-| `POST` | `/api/prescriptions/dispense` | Mark a prescription as dispensed |
-
-### Consultation Management
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/consultation/request` | Doctor initiates a consultation request |
-| `GET` | `/api/consultation/pending?patient=<name>` | Get latest pending request for patient |
-| `GET` | `/api/consultation/status/{req_id}` | Check consultation request status |
-| `POST` | `/api/consultation/accept` | Patient accepts consultation request |
-| `POST` | `/api/consultation/reject` | Patient rejects consultation request |
-
-### Doctor Management
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/doctor/login` | Doctor sign-in by mobile number |
-| `POST` | `/api/doctor/register` | Register a new doctor profile |
-
-### Clinical AI Audit
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/audit` | Full clinical audit (duplicates + interactions + allergies + recommendations) |
-| `POST` | `/api/duplicate-check` | Check for duplicate prescriptions |
-| `POST` | `/api/interaction-check` | Check drug-drug interactions |
-| `POST` | `/api/allergy-check` | Check allergy conflicts |
-| `POST` | `/api/recommendations` | Get alternative drug recommendations |
-| `GET` | `/api/pattern-analysis/{doctor_id}` | Analyze doctor's prescribing patterns |
-
-### Activity Ledger
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/activity-logs` | Retrieve the full audit trail |
-
-### Web Portals
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/doctor-login` | Doctor login & QR scanner portal |
-| `GET` | `/doctor-prescription` | Prescription writer with AI audit |
-| `GET` | `/pharmacy-portal` | Pharmacy scan, verify & dispense portal |
-
----
-
-## 🔐 Security Model
-
-### Prescription Signing Flow
-
-```
-1. Doctor fills prescription form → structured JSON payload
-2. JSON payload → SHA-256 hash (64-char hex digest)
-3. Hash → hex-shift cipher using doctor's unique sign ID
-4. Result = digital signature stored alongside the prescription
-```
-
-### Verification (Pharmacy Side)
-
-```
-1. Pharmacy scans QR → fetches prescription from API
-2. Rebuild JSON payload from prescription fields
-3. SHA-256 hash the reconstructed payload
-4. Decrypt stored signature using doctor's sign ID (reverse hex-shift)
-5. Compare: if decrypted signature == computed hash → ✅ VALID
-6. Any mismatch → ❌ TAMPERED — dispense is blocked
-```
-
-### Activity Ledger Integrity
-
-Each activity log entry includes a SHA-256 hash computed from:
-```
-timestamp + eventType + patientName + actorId + details
-```
-This creates a content-addressed, tamper-evident audit trail.
-
----
-
-## 🤖 AI Clinical Safety Pipeline
-
-The `ai_core.py` module implements a multi-layered safety net:
-
-```mermaid
-graph LR
-    A["New Prescription"] --> B["Duplicate Detection"]
-    B --> C["Drug Interaction Check"]
-    C --> D["Allergy Screening"]
-    D --> E["Alternative Recommendations"]
-    E --> F["Pattern Anomaly Detection"]
-    F --> G["Audit Report"]
-
-    B -. "MongoDB<br/>30-day window" .-> B
-    C -. "Cerebras LLM" .-> C
-    D -. "MongoDB Allergies" .-> D
-    E -. "Cerebras LLM" .-> E
-    F -. "Isolation Forest<br/>(scikit-learn)" .-> F
-```
-
-| Check | Data Source | Method |
-|-------|-----------|--------|
-| Duplicate Detection | MongoDB prescriptions | Time-windowed query (configurable 30 days) |
-| Drug Interactions | Cerebras LLM API | Prompt-based analysis against active medications |
-| Allergy Screening | MongoDB allergy profiles | Direct database cross-reference |
-| Alternative Drugs | Cerebras LLM API | Ranked, allergy-safe suggestions |
-| Pattern Analysis | MongoDB prescriptions | Isolation Forest anomaly detection (scikit-learn) |
-
-> **Fallback:** When the Cerebras API key is not configured, the system automatically switches to **mock mode** with pre-built safe responses.
-
----
-
-## 🖥️ Web Portals
-
-### Doctor Login Portal (`/doctor-login`)
-- Register or sign in with a mobile number
-- Built-in QR code scanner (camera-based)
-- Scans the patient's session QR to initiate a consultation request
-- Real-time polling to check if the patient has accepted/rejected
-
-### Prescription Writer (`/doctor-prescription`)
-- Multi-drug form with dynamic add/remove rows
-- Integrated AI clinical audit before submission
-- Displays duplicate warnings, interaction alerts, and allergy conflicts
-- Server-side cryptographic signing on submission
-
-### Pharmacy Portal (`/pharmacy-portal`)
-- QR code scanner for prescription codes
-- **Cryptographic signature verification** (SHA-256 + hex-shift)
-- Visual status indicators (Valid ✅ / Tampered ❌ / Already Dispensed ⚠️)
-- One-click dispense with ledger logging
-
----
-
-## 🖼️ Screenshots
-
-> _Screenshots can be added here. Run the app and capture the key screens:_
-> - Splash → Onboarding → Login → Patient Vault → QR Code
-> - Doctor Login → Prescription Writer → AI Audit
-> - Pharmacy Portal → Signature Verification → Dispense
-
----
-
-## ⚙️ Environment Variables
-
-### Backend (`backend-ai/.env`)
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/` |
-| `MONGODB_DATABASE` | Database name | `healthcare_db` |
-| `COLLECTION_PRESCRIPTIONS` | Prescriptions collection name | `prescriptions` |
-| `COLLECTION_ALLERGIES` | Allergies collection name | `allergies` |
-| `CEREBRAS_API_KEY` | Cerebras API key for LLM calls | `your_api_key_here` |
-| `CEREBRAS_API_URL` | Cerebras API endpoint | `https://api.cerebras.ai/v1/chat/completions` |
-| `CEREBRAS_MODEL` | LLM model identifier | `llama3.1-8b` |
-| `MOCK_CEREBRAS` | Enable mock AI responses | `True` |
-| `DUPLICATE_TOLERANCE_DAYS` | Duplicate detection window | `30` |
-| `PRESCRIPTION_HISTORY_DAYS` | History lookback for analysis | `90` |
-
-### Flutter App (`.env` at project root)
-
-| Variable | Description |
-|----------|-------------|
-| `FIREBASE_API_KEY` | Firebase Web API key |
-| `FIREBASE_APP_ID` | Firebase Application ID |
-| `FIREBASE_PROJECT_ID` | Firebase Project ID |
-| `FIREBASE_MESSAGING_SENDER_ID` | FCM Sender ID |
-| `FIREBASE_STORAGE_BUCKET` | Firebase Storage bucket URL |
-| `FIREBASE_IOS_BUNDLE_ID` | iOS bundle identifier |
-
----
-
-## 🧪 Running Tests
-
-### Flutter
-
-```bash
-flutter test
-```
-
-### Backend
-
-```bash
-cd backend-ai
-# Run the seed script to verify MongoDB connectivity
-python insert_sample_data.py
-
-# Hit the API to verify
-curl http://127.0.0.1:5000/
-curl http://127.0.0.1:5000/api/prescriptions?patient=Elena%20Vance
-```
-
----
-
-## 🤝 Contributing
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/my-feature`)
-3. **Commit** your changes (`git commit -m 'feat: add my feature'`)
-4. **Push** to the branch (`git push origin feature/my-feature`)
-5. Open a **Pull Request**
-
-Please follow conventional commit messages (`feat:`, `fix:`, `docs:`, `refactor:`, etc.).
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-
-**Built with ❤️ for the Vortexa Hackathon 2026**
-
-_HealthLock — Because your health data belongs to you._
-
-</div>
-]]>
+1. **Patient Access**: Open the Flutter app, choose **Patient Portal**, register/login, and view the dashboard. Tap **Share Session** to generate an attendance QR code.
+2. **Clinician Encounter**: On the home portal, choose **Doctor Portal**, register or log in as a clinician (using your NPI). Click **New Consultation Session** and scan/paste the patient's QR code.
+3. **Consent Polling**: The patient dashboard will display a pending consultation request. Tap **Accept** to authorize the connection.
+4. **Draft & Auditing**: The doctor's Clinical Composer will unlock. Type the diagnosis and add a medication (e.g. penicillin). The AI Risk Band will automatically trigger and run safety audits against patient allergies.
+5. **Ledger Commit**: Click **Proceed to Sign** and log clinical justifications. Submit the signature to commit the prescription securely to the blockchain ledger.
+6. **Pharmacy Checkout**: Tap the patient's prescription on their dashboard, view the checkout QR code, and copy the payload (representing `Data##Signature`).
+7. **Dispense Desk**: On the home portal, choose **Pharmacy Portal**, paste the QR payload, verify signature validity against root keys, and click **Burn Token & Dispense** to dispense medications.

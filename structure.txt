@@ -1,0 +1,155 @@
+HEALTHLOCK PROJECT STRUCTURE & FLOW CHART
+===============================================================================
+
+This document outlines the codebase directory structure, key components, and
+the operational flows connecting the Patient Wallet app (Flutter), the Backend
+server (FastAPI), and the Web portals.
+
+===============================================================================
+1. DIRECTORY STRUCTURE
+===============================================================================
+
+health_lock/
+│
+├── lib/                               # FLUTTER MOBILE APP CODEBASE
+│   ├── main.dart                      # App entry, dark theme setup, and state management (SimulationState)
+│   ├── firebase_options.dart          # Configuration for Firebase authentication initialization
+│   │
+│   ├── core/                          # Cross-cutting foundational modules
+│   │   ├── constants/
+│   │   │   ├── app_colors.dart        # Ambient neon/dark palette style definitions
+│   │   │   └── mock_prescriptions.dart# Offline dummy prescription lists for Sandbox testing
+│   │   ├── crypto/
+│   │   │   └── crypto_helper.dart     # SHA-256 formatting and signature decryption utils (Dart side)
+│   │   └── theme/
+│   │       └── app_theme.dart         # Dark theme typography, cards, and input layout definitions
+│   │
+│   ├── features/                      # Feature-oriented UI screens and assets
+│   │   └── patient/
+│   │       ├── screens/
+│   │       │   ├── splash_screen.dart       # High-fidelity loading transition screen
+│   │       │   ├── onboarding_screen.dart   # Interactive welcome carousel explaining patient sovereignty
+│   │       │   ├── patient_login.dart       # Email, Google, and guest-login panel
+│   │       │   ├── patient_vault.dart       # Main view (Health Vault tab, QR displays, notifications)
+│   │       │   └── patient_settings.dart    # User profile, custom server config, and sovereign ID setup
+│   │       └── widgets/
+│   │           └── qr_drawer.dart           # Generates scan cards for doctors/pharmacists
+│   │
+│   └── shared/                        # Shared structures across features
+│       ├── models/
+│       │   └── prescription.dart      # Prescription model serialization structures
+│       └── widgets/
+│           └── custom_button.dart     # Reusable glassmorphic action buttons
+│
+├── backend-ai/                        # FASTAPI BACKEND SERVER CODEBASE
+│   ├── app.py                         # Web Server routes, API controllers, static file servers, custom sign/verify helper
+│   ├── ai_core.py                     # AI-Agent integration (MongoDB connector + Cerebras LLM client + scikit-learn anomaly checks)
+│   ├── config.py                      # Configurations loader, logger, and .env parser
+│   ├── requirements.txt               # List of Python library dependencies
+│   ├── insert_sample_data.py          # Seeds MongoDB instance with mock prescription histories
+│   ├── vercel.json                    # Configuration for hosting backend on Vercel
+│   │
+│   ├── public/                        # MODERN WEBPAGE PORTALS
+│   │   ├── css/
+│   │   │   └── style.css              # Styling rules sheet for Doctor and Pharmacy portals
+│   │   ├── doctor-login.html          # Portal for doctors to scan code or send manually typed requests
+│   │   ├── doctor-prescription.html   # Prescription editor form that executes AI audit pre-flight checks
+│   │   └── pharmacy-portal.html       # Pharmacist checkout scan/manual ID portal that runs cryptographic checkups
+│   │
+│   └── test_data/
+│       └── sample_patient.json        # Test patient data payload containing mock allergies
+│
+├── android/                           # Native Android target build assets
+├── ios/                               # Native iOS target build assets
+├── web/                               # Native Web target build assets
+├── macos/                             # Native macOS target build assets
+├── windows/                           # Native Windows target build assets
+├── linux/                             # Native Linux target build assets
+│
+├── .env                               # Flutter-side environment configuration variables (Firebase keys)
+├── firebase.json                      # Firebase project build parameters
+├── pubspec.yaml                       # Flutter package dependency registry
+├── README.md                          # Production instructions manual
+├── SUMMARY.txt                        # Sandbox testing workflow & developer bypass configurations
+└── start_demo.bat                     # Desktop launch scripts triggers
+
+===============================================================================
+2. RUNTIME FLOWS & SEQUENCES
+===============================================================================
+
+-------------------------------------------------------------------------------
+A. GUEST & FIREBASE LOGIN FLOW
+-------------------------------------------------------------------------------
+User starts app -> lib/main.dart calls SovereignShieldApp()
+  │
+  ├── Check Splash (lib/features/patient/screens/splash_screen.dart)
+  ├── Show Onboarding (lib/features/patient/screens/onboarding_screen.dart)
+  └── Navigate to Login (lib/features/patient/screens/patient_login.dart)
+        │
+        ├── Action: Click "SIGN IN AS OFF-LINE GUEST"
+        │     └── SimulationState.guestLogin() sets _isOfflineGuest = true
+        └── Action: Click "SIGN IN WITH GOOGLE / EMAIL"
+              └── Firebase auth authenticates credentials.
+              └── Retrieves display name + unique identifier.
+
+-------------------------------------------------------------------------------
+B. DOCTOR ACCESS CONSENT FLOW
+-------------------------------------------------------------------------------
+Patient Vault Home (lib/features/patient/screens/patient_vault.dart)
+  │
+  ├── Patient enables "Allow Doctor Attendance" toggle
+  │     ├── Sets _isAttendanceActive = true
+  │     ├── Generates Session QR containing Patient's Display Name and Sovereign ID
+  │     └── Polling Timer starts (polls GET /api/consultation/pending every 3s)
+  │
+  ├── Doctor Portal (backend-ai/public/doctor-login.html)
+  │     ├── Doctor logs in via phone number -> opens Scanner
+  │     ├── Action: Scan Patient Session QR (or manually enter patient name)
+  │     └── Sends: POST /api/consultation/request to backend
+  │
+  ├── Polling Loop catches pending request:
+  │     ├── App shows bottom sheet card: "Accept connection from [Doctor]?"
+  │     ├── If Accept: Sends POST /api/consultation/accept -> Consultation active.
+  │     └── Doctor web UI updates automatically -> redirects to doctor-prescription.html.
+
+-------------------------------------------------------------------------------
+C. PRESCRIPTION WRITING & AI AUDIT FLOW
+-------------------------------------------------------------------------------
+Doctor forms prescription data on doctor-prescription.html
+  │
+  ├── Action: Click "RUN PRE-FLIGHT CLINICAL AUDIT"
+  │     ├── Sends: POST /api/audit (medicine info)
+  │     ├── Server/ai_core.py does checks:
+  │     │     ├── Check 1: Duplicate check (DB lookback query for last 30 days)
+  │     │     ├── Check 2: Drug interaction check (Cerebras LLM analysis)
+  │     │     ├── Check 3: Allergy check (DB lookup on patient's allergy logs)
+  │     │     └── Check 4: Pattern anomaly detection (IsolationForest scores physician frequency)
+  │     └── UI displays audit highlights: Risk index, warning highlights, safe drug alternatives.
+  │
+  └── Action: Click "SUBMIT & CRYPTOGRAPHICALLY SIGN"
+        ├── Server maps inputs to JSON payload
+        ├── Computes SHA-256 hash string
+        ├── Obtains shift offset value derived from doctor's ID
+        ├── Performs Hex-Shift operation on the hash value to create signature
+        └── Saves prescription document with signature to MongoDB.
+
+-------------------------------------------------------------------------------
+D. PHARMACY VERIFICATION & DISPENSING FLOW
+-------------------------------------------------------------------------------
+Patient opens Vault -> Generates Checkout QR from prescription card (or provides ID)
+  │
+  ├── Pharmacist Portal (backend-ai/public/pharmacy-portal.html)
+  │     ├── Pharmacist scans QR / enters Prescription ID manually
+  │     ├── Action: Click "LOAD PRESCRIPTION" -> fetches prescription from database
+  │     └── Action: Click "RUN VERIFICATION & SWEEP CHECKSUM"
+  │           ├── Web client reconstructs structural JSON string from database variables
+  │           ├── Computes SHA-256 hash on reconstructed string
+  │           ├── Decrypts database signature by applying negative Hex-Shift using doctor's ID
+  │           ├── Verification result:
+  │           │     ├── If Hash == Decrypted Signature -> ✅ Signature Valid
+  │           │     └── If Hash != Decrypted Signature -> ❌ Tampered/Modified Prescription
+  │           └── If valid and status is "Undispensed", pharmacist clicks "DISPENSE MEDICATIONS"
+  │                 └── Sends: POST /api/prescriptions/dispense
+  │                 └── Status sets to isDispensed = true (Token burned).
+  │                 └── Event logged to immutable audit ledger.
+===============================================================================

@@ -1,9 +1,21 @@
 import json
 import os
+import logging
 from datetime import datetime
 from pymongo import MongoClient
-import config
-from config import logger
+
+# Configure local logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("DatabasePopulator")
+
+# Read environment variables directly with defaults
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
+MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "healthcare_db")
+COLLECTION_PRESCRIPTIONS = os.getenv("COLLECTION_PRESCRIPTIONS", "prescriptions")
+COLLECTION_ALLERGIES = os.getenv("COLLECTION_ALLERGIES", "allergies")
 
 def populate_database():
     logger.info("Starting database population with sample test data...")
@@ -19,12 +31,12 @@ def populate_database():
         
     # Connect to MongoDB
     try:
-        client = MongoClient(config.MONGODB_URI, timeoutMS=5000)
-        db = client[config.MONGODB_DATABASE]
+        client = MongoClient(MONGODB_URI, timeoutMS=5000)
+        db = client[MONGODB_DATABASE]
         
         # Reset collections
-        db[config.COLLECTION_PRESCRIPTIONS].drop()
-        db[config.COLLECTION_ALLERGIES].drop()
+        db[COLLECTION_PRESCRIPTIONS].drop()
+        db[COLLECTION_ALLERGIES].drop()
         db["patients"].drop()
         db["doctor"].drop()
         
@@ -45,7 +57,7 @@ def populate_database():
         # Insert allergies
         allergies = data.get("allergies", [])
         if allergies:
-            db[config.COLLECTION_ALLERGIES].insert_many(allergies)
+            db[COLLECTION_ALLERGIES].insert_many(allergies)
             logger.info(f"Inserted {len(allergies)} allergy records")
             
         # Insert prescriptions (convert date strings to datetime objects)
@@ -59,7 +71,7 @@ def populate_database():
             formatted_prescriptions.append(presc_copy)
             
         if formatted_prescriptions:
-            db[config.COLLECTION_PRESCRIPTIONS].insert_many(formatted_prescriptions)
+            db[COLLECTION_PRESCRIPTIONS].insert_many(formatted_prescriptions)
             logger.info(f"Inserted {len(formatted_prescriptions)} prescription records")
             
         logger.info("Database population complete!")

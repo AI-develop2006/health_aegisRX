@@ -1,0 +1,237 @@
+version: "3.8"
+
+# ─────────────────────────────────────────────────────────────────
+#  AegisRx / HealthLock — Microservices Docker Compose
+#  Each service runs its own FastAPI app but imports working logic
+#  from the shared monolith app/ package (copied at build time).
+# ─────────────────────────────────────────────────────────────────
+
+x-shared-env: &shared-env
+  MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/}
+  MONGODB_DATABASE: ${MONGODB_DATABASE:-healthcare_db}
+  COLLECTION_PRESCRIPTIONS: ${COLLECTION_PRESCRIPTIONS:-prescriptions}
+  COLLECTION_ALLERGIES: ${COLLECTION_ALLERGIES:-allergies}
+  ENV: ${ENV:-development}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+  POLYGON_RPC_URL: ${POLYGON_RPC_URL:-https://rpc-amoy.polygon.technology}
+  POLYGON_CONTRACT_ADDRESS: ${POLYGON_CONTRACT_ADDRESS:-}
+  TEST_DOCTOR_PRIVATE_KEY: ${TEST_DOCTOR_PRIVATE_KEY:-}
+  TEST_PHARMACY_PRIVATE_KEY: ${TEST_PHARMACY_PRIVATE_KEY:-}
+  DUPLICATE_TOLERANCE_DAYS: ${DUPLICATE_TOLERANCE_DAYS:-30}
+  PRESCRIPTION_HISTORY_DAYS: ${PRESCRIPTION_HISTORY_DAYS:-90}
+  AUDIT_SERVICE_URL: ${AUDIT_SERVICE_URL:-http://audit-service:4005}
+
+services:
+
+  # ── Local MongoDB (only used in local Docker dev) ──────────────
+  mongodb:
+    image: mongo:6.0
+    container_name: aegisrx-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - aegisrx-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Gateway (4000) ─────────────────────────────────────────────
+  gateway-service:
+    build:
+      context: .
+      dockerfile: services/gateway-service/Dockerfile
+    container_name: gateway-service
+    ports:
+      - "4000:4000"
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:4001
+      PATIENT_SERVICE_URL: http://patient-service:4002
+      CONSULTATION_SERVICE_URL: http://consultation-service:4003
+      PRESCRIPTION_SERVICE_URL: http://prescription-service:4004
+      AUDIT_SERVICE_URL: http://audit-service:4005
+      PHARMACY_SERVICE_URL: http://pharmacy-service:4006
+      LEDGER_SERVICE_URL: http://ledger-service:4007
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    depends_on:
+      auth-service:
+        condition: service_started
+      patient-service:
+        condition: service_started
+      consultation-service:
+        condition: service_started
+      prescription-service:
+        condition: service_started
+      audit-service:
+        condition: service_started
+      pharmacy-service:
+        condition: service_started
+      ledger-service:
+        condition: service_started
+    networks:
+      - aegisrx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Auth Service (4001) ────────────────────────────────────────
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: auth-service
+    ports:
+      - "4001:4001"
+    environment:
+      <<: *shared-env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - aegisrx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Patient Service (4002) ─────────────────────────────────────
+  patient-service:
+    build:
+      context: .
+      dockerfile: services/patient-service/Dockerfile
+    container_name: patient-service
+    ports:
+      - "4002:4002"
+    environment:
+      <<: *shared-env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - aegisrx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Consultation Service (4003) ────────────────────────────────
+  consultation-service:
+    build:
+      context: .
+      dockerfile: services/consultation-service/Dockerfile
+    container_name: consultation-service
+    ports:
+      - "4003:4003"
+    environment:
+      <<: *shared-env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - aegisrx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4003/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Prescription Service (4004) ────────────────────────────────
+  prescription-service:
+    build:
+      context: .
+      dockerfile: services/prescription-service/Dockerfile
+    container_name: prescription-service
+    ports:
+      - "4004:4004"
+    environment:
+      <<: *shared-env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - aegisrx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4004/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Audit / AI Service (4005) ──────────────────────────────────
+  audit-service:
+    build:
+      context: .
+      dockerfile: services/audit-service/Dockerfile
+    container_name: audit-service
+    ports:
+      - "4005:4005"
+    environment:
+      <<: *shared-env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - aegisrx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4005/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Pharmacy Service (4006) ────────────────────────────────────
+  pharmacy-service:
+    build:
+      context: .
+      dockerfile: services/pharmacy-service/Dockerfile
+    container_name: pharmacy-service
+    ports:
+      - "4006:4006"
+    environment:
+      <<: *shared-env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - aegisrx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4006/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Ledger Service (4007) ──────────────────────────────────────
+  ledger-service:
+    build:
+      context: .
+      dockerfile: services/ledger-service/Dockerfile
+    container_name: ledger-service
+    ports:
+      - "4007:4007"
+    environment:
+      <<: *shared-env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - aegisrx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4007/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  mongo-data:
+
+networks:
+  aegisrx-network:
+    driver: bridge

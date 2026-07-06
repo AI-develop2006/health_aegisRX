@@ -3,17 +3,48 @@ import 'dart:convert';
 class MedicineItem {
   final String name;
   final String interval;
+  final bool morning;
+  final bool afternoon;
+  final bool evening;
+  final bool night;
+  final bool beforeFood;
+  final bool afterFood;
+  final String customInstruction;
 
-  MedicineItem({required this.name, required this.interval});
+  MedicineItem({
+    required this.name,
+    required this.interval,
+    this.morning = false,
+    this.afternoon = false,
+    this.evening = false,
+    this.night = false,
+    this.beforeFood = false,
+    this.afterFood = false,
+    this.customInstruction = '',
+  });
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'interval': interval,
+        'morning': morning,
+        'afternoon': afternoon,
+        'evening': evening,
+        'night': night,
+        'beforeFood': beforeFood,
+        'afterFood': afterFood,
+        'customInstruction': customInstruction,
       };
 
   factory MedicineItem.fromJson(Map<String, dynamic> json) => MedicineItem(
         name: json['name'] ?? '',
         interval: json['interval'] ?? '',
+        morning: json['morning'] ?? false,
+        afternoon: json['afternoon'] ?? false,
+        evening: json['evening'] ?? false,
+        night: json['night'] ?? false,
+        beforeFood: json['beforeFood'] ?? false,
+        afterFood: json['afterFood'] ?? false,
+        customInstruction: json['customInstruction'] ?? '',
       );
 }
 

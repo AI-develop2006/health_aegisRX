@@ -5,11 +5,11 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:health_lock/core/constants/app_colors.dart';
 
 import 'package:health_lock/shared/models/prescription.dart';
-import 'package:health_lock/main.dart'; // To access SimulationState
+import '../../../core/state/app_state.dart';
 
 /// Shows the QR code for a prescription as a popup modal dialog
 void showQrPopup(BuildContext context, Prescription prescription) {
-  final state = Provider.of<SimulationState>(context, listen: false);
+  final state = Provider.of<AppState>(context, listen: false);
 
   // Format QR code data as: DATA##SIGNATURE
   final String medsJson = jsonEncode(prescription.medicines.map((m) => m.toJson()).toList());
@@ -206,7 +206,7 @@ class QrDrawer extends StatelessWidget {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showQrPopup(context, prescription);
       // Deselect prescription after showing popup
-      final state = Provider.of<SimulationState>(context, listen: false);
+      final state = Provider.of<AppState>(context, listen: false);
       state.selectPrescription(null);
     });
     return const SizedBox.shrink();
