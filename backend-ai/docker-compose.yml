@@ -1,0 +1,144 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: aegisrx-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - aegisrx-network
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: services/gateway-service/Dockerfile
+    container_name: gateway-service
+    ports:
+      - "4000:4000"
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service:4001
+      - PATIENT_SERVICE_URL=http://patient-service:4002
+      - CONSULTATION_SERVICE_URL=http://consultation-service:4003
+      - PRESCRIPTION_SERVICE_URL=http://prescription-service:4004
+      - AUDIT_SERVICE_URL=http://audit-service:4005
+      - PHARMACY_SERVICE_URL=http://pharmacy-service:4006
+      - LEDGER_SERVICE_URL=http://ledger-service:4007
+    depends_on:
+      - auth-service
+      - patient-service
+      - consultation-service
+      - prescription-service
+      - audit-service
+      - pharmacy-service
+      - ledger-service
+    networks:
+      - aegisrx-network
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: auth-service
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/
+      - MONGODB_DATABASE=healthcare_db
+    depends_on:
+      - mongodb
+    networks:
+      - aegisrx-network
+
+  patient-service:
+    build:
+      context: .
+      dockerfile: services/patient-service/Dockerfile
+    container_name: patient-service
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/
+      - MONGODB_DATABASE=healthcare_db
+    depends_on:
+      - mongodb
+    networks:
+      - aegisrx-network
+
+  consultation-service:
+    build:
+      context: .
+      dockerfile: services/consultation-service/Dockerfile
+    container_name: consultation-service
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/
+      - MONGODB_DATABASE=healthcare_db
+      - LEDGER_SERVICE_URL=http://ledger-service:4007
+    depends_on:
+      - mongodb
+    networks:
+      - aegisrx-network
+
+  prescription-service:
+    build:
+      context: .
+      dockerfile: services/prescription-service/Dockerfile
+    container_name: prescription-service
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/
+      - MONGODB_DATABASE=healthcare_db
+      - LEDGER_SERVICE_URL=http://ledger-service:4007
+      - PATIENT_SERVICE_URL=http://patient-service:4002
+    depends_on:
+      - mongodb
+    networks:
+      - aegisrx-network
+
+  audit-service:
+    build:
+      context: .
+      dockerfile: services/audit-service/Dockerfile
+    container_name: audit-service
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/
+      - MONGODB_DATABASE=healthcare_db
+      - CEREBRAS_API_KEY=your_api_key_here
+      - MOCK_CEREBRAS=True
+      - PATIENT_SERVICE_URL=http://patient-service:4002
+    depends_on:
+      - mongodb
+    networks:
+      - aegisrx-network
+
+  pharmacy-service:
+    build:
+      context: .
+      dockerfile: services/pharmacy-service/Dockerfile
+    container_name: pharmacy-service
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/
+      - MONGODB_DATABASE=healthcare_db
+      - PRESCRIPTION_SERVICE_URL=http://prescription-service:4004
+      - LEDGER_SERVICE_URL=http://ledger-service:4007
+    depends_on:
+      - mongodb
+    networks:
+      - aegisrx-network
+
+  ledger-service:
+    build:
+      context: .
+      dockerfile: services/ledger-service/Dockerfile
+    container_name: ledger-service
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/
+      - MONGODB_DATABASE=healthcare_db
+    depends_on:
+      - mongodb
+    networks:
+      - aegisrx-network
+
+volumes:
+  mongo-data:
+
+networks:
+  aegisrx-network:
+    driver: bridge
