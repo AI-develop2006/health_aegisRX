@@ -1,17 +1,15 @@
-# Environment variables (contains secrets)
+# Environment variables
 .env
 
-# Python
+# Python caching
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Logs
-*.log
-
-# Output
-output/
-
-# IDE
-.vscode/
-.idea/
+# Local task/scratch directory
+scratch/
+.system_generated/
