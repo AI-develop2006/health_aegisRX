@@ -56,6 +56,72 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
     }
   }
 
+  void _showServerConfigDialog() {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final urlController = TextEditingController(text: appState.backendUrl);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _kCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: _kBorder, width: 1),
+        ),
+        title: Text(
+          'Server Connection Config',
+          style: GoogleFonts.sora(fontWeight: FontWeight.bold, color: _kText),
+        ),
+        content: TextField(
+          controller: urlController,
+          style: GoogleFonts.inter(color: _kText),
+          decoration: InputDecoration(
+            labelText: 'Backend URL Gateway',
+            labelStyle: GoogleFonts.inter(color: _kMuted),
+            hintText: 'e.g. http://10.0.2.2:4000',
+            hintStyle: GoogleFonts.inter(color: _kMuted),
+            enabledBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: _kBorder),
+            ),
+            focusedBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: _kAccent),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: GoogleFonts.inter(color: _kMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _kAccent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () {
+              appState.setBackendUrl(urlController.text.trim());
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: _kCard,
+                  content: Text(
+                    'Server gateway set to: ${urlController.text.trim()}',
+                    style: GoogleFonts.inter(color: _kText),
+                  ),
+                ),
+              );
+            },
+            child: Text(
+              'Save',
+              style: GoogleFonts.inter(color: _kText, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
@@ -261,12 +327,29 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
 
                   // Back to role
                   Center(
-                    child: TextButton(
-                      onPressed: () => appState.resetFlow(),
-                      child: Text(
-                        'Back to role selection',
-                        style: GoogleFonts.inter(fontSize: 13, color: _kMuted),
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextButton(
+                          onPressed: () => appState.resetFlow(),
+                          child: Text(
+                            'Back to role selection',
+                            style: GoogleFonts.inter(fontSize: 13, color: _kMuted),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _showServerConfigDialog,
+                          icon: const Icon(Icons.settings_ethernet_rounded, size: 16, color: _kAccent),
+                          label: Text(
+                            'Server Connection Config',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: _kAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
