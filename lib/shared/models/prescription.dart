@@ -10,6 +10,8 @@ class MedicineItem {
   final bool beforeFood;
   final bool afterFood;
   final String customInstruction;
+  final String duration;
+  final String strength;
 
   MedicineItem({
     required this.name,
@@ -21,31 +23,37 @@ class MedicineItem {
     this.beforeFood = false,
     this.afterFood = false,
     this.customInstruction = '',
+    this.duration = '30 days',
+    this.strength = '',
   });
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'interval': interval,
-        'morning': morning,
-        'afternoon': afternoon,
-        'evening': evening,
-        'night': night,
-        'beforeFood': beforeFood,
-        'afterFood': afterFood,
-        'customInstruction': customInstruction,
-      };
+    'name': name,
+    'interval': interval,
+    'morning': morning,
+    'afternoon': afternoon,
+    'evening': evening,
+    'night': night,
+    'beforeFood': beforeFood,
+    'afterFood': afterFood,
+    'customInstruction': customInstruction,
+    'duration': duration,
+    'strength': strength,
+  };
 
   factory MedicineItem.fromJson(Map<String, dynamic> json) => MedicineItem(
-        name: json['name'] ?? '',
-        interval: json['interval'] ?? '',
-        morning: json['morning'] ?? false,
-        afternoon: json['afternoon'] ?? false,
-        evening: json['evening'] ?? false,
-        night: json['night'] ?? false,
-        beforeFood: json['beforeFood'] ?? false,
-        afterFood: json['afterFood'] ?? false,
-        customInstruction: json['customInstruction'] ?? '',
-      );
+    name: json['name'] ?? '',
+    interval: json['interval'] ?? '',
+    morning: json['morning'] ?? false,
+    afternoon: json['afternoon'] ?? false,
+    evening: json['evening'] ?? false,
+    night: json['night'] ?? false,
+    beforeFood: json['beforeFood'] ?? false,
+    afterFood: json['afterFood'] ?? false,
+    customInstruction: json['customInstruction'] ?? '',
+    duration: json['duration'] ?? '30 days',
+    strength: json['strength'] ?? '',
+  );
 }
 
 class Prescription {
@@ -76,16 +84,16 @@ class Prescription {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'doctorName': doctorName,
-        'hospitalName': hospitalName,
-        'patientName': patientName,
-        'disease': disease,
-        'date': date,
-        'time': time,
-        'medicines': medicines.map((m) => m.toJson()).toList(),
-        'doctorSignId': doctorSignId,
-      };
+    'id': id,
+    'doctorName': doctorName,
+    'hospitalName': hospitalName,
+    'patientName': patientName,
+    'disease': disease,
+    'date': date,
+    'time': time,
+    'medicines': medicines.map((m) => m.toJson()).toList(),
+    'doctorSignId': doctorSignId,
+  };
 
   factory Prescription.fromJson(Map<String, dynamic> json) {
     final list = json['medicines'] as List? ?? [];

@@ -1,6 +1,9 @@
+import logging
 from typing import Dict, Any, List
 from app.schemas.patient import PatientContext
 from app.ai.agents.base_agent import BaseAgent
+
+logger = logging.getLogger("AegisRx.DosageAgent")
 
 class DosageAgent(BaseAgent):
     async def analyze(self, patient: PatientContext) -> Dict[str, Any]:
@@ -11,8 +14,9 @@ class DosageAgent(BaseAgent):
         warnings = []
         is_high_risk = False
 
+        logger.info(f"Dosage Check: Reviewing drug dosage & demographics for Patient {patient.patient_id}...")
+
         # 1. Pregnancy Safety Evaluation
-        # Determine if pregnant (via boolean field or diseases)
         is_pregnant = patient.is_pregnant or any("pregnan" in d.lower() for d in patient.diseases)
         
         for drug in patient.new_prescription:
@@ -34,84 +38,104 @@ class DosageAgent(BaseAgent):
             if is_pregnant:
                 if preg_category in ["X", "D"]:
                     is_high_risk = True
+                    desc = f"Pregnancy Category {preg_category}: Contraindicated during pregnancy. {preg_warning}"
+                    logger.warning(f"Dosage Check: Alert! Rule 'PREGNANCY_CRITICAL' triggered for {drug}.")
                     warnings.append({
                         "type": "PREGNANCY_RISK",
                         "drug": drug,
                         "severity": "HIGH_RISK",
-                        "description": f"Pregnancy Category {preg_category}: Contraindicated during pregnancy. {preg_warning}"
+                        "description": desc,
+                        "reason": f"{drug} – contraindicated in pregnancy (Category {preg_category})"
                     })
                 elif preg_category == "C":
+                    desc = f"Pregnancy Category C: Use only if potential benefit outweighs risk. {preg_warning}"
+                    logger.warning(f"Dosage Check: Alert! Rule 'PREGNANCY_WARNING' triggered for {drug}.")
                     warnings.append({
                         "type": "PREGNANCY_RISK",
                         "drug": drug,
                         "severity": "WARNING",
-                        "description": f"Pregnancy Category C: Use only if potential benefit outweighs risk. {preg_warning}"
+                        "description": desc,
+                        "reason": f"{drug} – warning in pregnancy (Category C)"
                     })
 
             # 2. Age-Related Safety Evaluation
             if patient.age >= 65:
-                # Beers Criteria or Geriatric warnings
-                if age_risks and "geriatric" in age_risks.lower() or "elderly" in age_risks.lower():
+                if age_risks and ("geriatric" in age_risks.lower() or "elderly" in age_risks.lower()):
+                    desc = f"Geriatric safety warning (Age {patient.age}): {age_risks}"
+                    logger.warning(f"Dosage Check: Alert! Rule 'GERIATRIC_RISK' triggered for {drug}.")
                     warnings.append({
                         "type": "GERIATRIC_RISK",
                         "drug": drug,
                         "severity": "WARNING",
-                        "description": f"Geriatric safety warning (Age {patient.age}): {age_risks}"
+                        "description": desc,
+                        "reason": f"{drug} – geriatric safety precaution (Age {patient.age})"
                     })
             elif patient.age < 18:
-                # Pediatric warnings (e.g. Aspirin Reye's syndrome)
                 if drug_generic == "aspirin":
                     is_high_risk = True
+                    logger.warning(f"Dosage Check: Alert! Rule 'PEDIATRIC_REYES_CRITICAL' triggered for Aspirin.")
                     warnings.append({
                         "type": "PEDIATRIC_RISK",
                         "drug": drug,
                         "severity": "HIGH_RISK",
-                        "description": "Pediatric safety warning: Aspirin is contraindicated in children/adolescents due to risk of Reye's syndrome."
+                        "description": "Pediatric safety warning: Aspirin is contraindicated in children/adolescents due to risk of Reye's syndrome.",
+                        "reason": f"{drug} – contraindicated in pediatrics (Reye's syndrome risk)"
                     })
                 elif age_risks and "pediatric" in age_risks.lower():
+                    desc = f"Pediatric warning (Age {patient.age}): {age_risks}"
+                    logger.warning(f"Dosage Check: Alert! Rule 'PEDIATRIC_WARNING' triggered for {drug}.")
                     warnings.append({
                         "type": "PEDIATRIC_RISK",
                         "drug": drug,
                         "severity": "WARNING",
-                        "description": f"Pediatric warning (Age {patient.age}): {age_risks}"
+                        "description": desc,
+                        "reason": f"{drug} – pediatric safety warning (Age {patient.age})"
                     })
 
             # 3. Weight-Based Limitations
             if patient.weight is not None:
                 if patient.weight < 50.0:
                     if drug_generic == "acetaminophen":
+                        logger.warning(f"Dosage Check: Alert! Rule 'LOW_WEIGHT_ACETAMINOPHEN' triggered.")
                         warnings.append({
                             "type": "WEIGHT_RISK",
                             "drug": drug,
                             "severity": "WARNING",
-                            "description": f"Low body weight warning ({patient.weight}kg): Risk of acetaminophen hepatotoxicity. Limit daily dose to 2g-3g."
+                            "description": f"Low body weight warning ({patient.weight}kg): Risk of acetaminophen hepatotoxicity. Limit daily dose to 2g-3g.",
+                            "reason": f"{drug} – weight-based limit precaution ({patient.weight}kg)"
                         })
                     elif weight_risks and "weight-based" in weight_risks.lower():
+                        logger.warning(f"Dosage Check: Alert! Rule 'WEIGHT_LIMIT' triggered for {drug}.")
                         warnings.append({
                             "type": "WEIGHT_RISK",
                             "drug": drug,
                             "severity": "WARNING",
-                            "description": f"Weight-based warning: {weight_risks}"
+                            "description": f"Weight-based warning: {weight_risks}",
+                            "reason": f"{drug} – weight-based safety warning"
                         })
 
-            # 4. Kidney and Liver organ filter warnings (if patient has kidney/liver disease)
+            # 4. Kidney and Liver organ filter warnings
             has_kidney_disease = any(term in "".join(patient.diseases).lower() for term in ["kidney", "renal", "ckd"])
             has_liver_disease = any(term in "".join(patient.diseases).lower() for term in ["liver", "hepatic", "cirrhosis", "hepatitis"])
 
             if has_kidney_disease and kidney_risks and "risk" in kidney_risks.lower():
+                logger.warning(f"Dosage Check: Alert! Rule 'ORGAN_KIDNEY_FILTER' triggered for {drug}.")
                 warnings.append({
                     "type": "ORGAN_RISK_KIDNEY",
                     "drug": drug,
                     "severity": "WARNING",
-                    "description": f"Renal filter alert: {kidney_risks}"
+                    "description": f"Renal filter alert: {kidney_risks}",
+                    "reason": f"{drug} – renal filtration caution"
                 })
                 
             if has_liver_disease and liver_risks and "risk" in liver_risks.lower():
+                logger.warning(f"Dosage Check: Alert! Rule 'ORGAN_LIVER_FILTER' triggered for {drug}.")
                 warnings.append({
                     "type": "ORGAN_RISK_LIVER",
                     "drug": drug,
                     "severity": "WARNING",
-                    "description": f"Hepatic filter alert: {liver_risks}"
+                    "description": f"Hepatic filter alert: {liver_risks}",
+                    "reason": f"{drug} – hepatic metabolism caution"
                 })
 
         return {

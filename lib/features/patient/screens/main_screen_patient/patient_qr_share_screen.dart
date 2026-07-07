@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../shared/widgets/neon_card.dart';
+import '../../../../core/state/app_state.dart';
 
 class PatientQrShareScreen extends StatelessWidget {
   const PatientQrShareScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final appState = Provider.of<AppState>(context);
+    final String qrData = '${appState.patientName}|${appState.patientId}';
+    final String patientIdStr = appState.patientId;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Share Access Session'),
@@ -34,15 +40,15 @@ class PatientQrShareScreen extends StatelessWidget {
                   color: Colors.white,
                   padding: const EdgeInsets.all(16),
                   child: QrImageView(
-                    data: 'patient-session-consent-token-xyz',
+                    data: qrData,
                     version: QrVersions.auto,
                     size: 200.0,
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Code: SECURE-9921',
-                  style: TextStyle(fontSize: 16, fontFamily: 'monospace'),
+                Text(
+                  'ID: $patientIdStr',
+                  style: const TextStyle(fontSize: 16, fontFamily: 'monospace'),
                 ),
               ],
             ),

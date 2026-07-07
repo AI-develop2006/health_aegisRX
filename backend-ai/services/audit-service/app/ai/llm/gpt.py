@@ -12,8 +12,10 @@ logger = logging.getLogger("AegisRx.GPTClient")
 class GPTClient(BaseLLM):
     def __init__(self):
         self.api_key = settings.OPENAI_API_KEY
-        # Only initialize AsyncOpenAI if we have a seemingly real key
-        if self.api_key and not self.api_key.startswith("mock"):
+        if settings.USE_MOCK_LLM:
+            self.client = None
+            logger.warning("USE_MOCK_LLM is enabled. GPTClient will operate in Mock Fallback Mode.")
+        elif self.api_key and not self.api_key.startswith("mock"):
             self.client = AsyncOpenAI(api_key=self.api_key)
         else:
             self.client = None
@@ -25,51 +27,77 @@ class GPTClient(BaseLLM):
         user_prompt: str, 
         response_format: Optional[Type[BaseModel]] = None
     ) -> str:
-        # Check if in mock fallback mode
+        res = await self.safe_generate_response(system_prompt, user_prompt, response_format)
+        return res["content"]
+
+    async def safe_generate_response(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        response_format: Optional[Type[BaseModel]] = None
+    ) -> dict:
+        if settings.USE_MOCK_LLM:
+            logger.warning("USE_MOCK_LLM enabled. Using GPT mock fallback.")
+            fallback = self._generate_mock_fallback(user_prompt)
+            return {"content": fallback, "mode": "mock", "reason": "USE_MOCK_LLM enabled"}
+
         if not self.client:
-            return self._generate_mock_fallback(user_prompt)
+            logger.warning("No valid GPT client initialized. Using mock fallback.")
+            fallback = self._generate_mock_fallback(user_prompt)
+            return {"content": fallback, "mode": "mock", "reason": "Invalid or mock API key"}
 
         try:
-            logger.info("Sending request to OpenAI GPT model...")
-            start_time = time.time()
-            
-            # Use structured output if a response format is provided
-            kwargs = {
-                "model": "gpt-4o",  # Standard production model
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                "temperature": 0.1,
-                "timeout": 15.0
-            }
-            
-            if response_format:
-                # Use OpenAI's structured outputs via response_format parameter
-                kwargs["response_format"] = response_format
-                
-            response = await self.client.beta.chat.completions.parse(**kwargs)
-            latency = (time.time() - start_time) * 1000
-            
-            choice = response.choices[0]
-            logger.info(f"OpenAI GPT response received in {latency:.2f}ms. Finish reason: {choice.finish_reason}")
-            
-            # Record token usage for auditing (could be attached to request context or logging)
-            usage = response.usage
-            logger.info(f"Tokens used: Prompt={usage.prompt_tokens}, Completion={usage.completion_tokens}, Total={usage.total_tokens}")
-            
-            # Return raw message string
-            return choice.message.content
-
-        except (APIConnectionError, APITimeoutError) as e:
-            logger.error(f"OpenAI connection/timeout error: {str(e)}")
-            raise RuntimeError(f"LLM service timeout or connection failure: {str(e)}")
-        except APIStatusError as e:
-            logger.error(f"OpenAI API returned status error {e.status_code}: {e.message}")
-            raise RuntimeError(f"LLM service API error ({e.status_code}): {e.message}")
+            import asyncio
+            content = await asyncio.wait_for(
+                self.real_generate_response(system_prompt, user_prompt, response_format),
+                timeout=5.0
+            )
+            return {"content": content, "mode": "real", "reason": None}
+        except asyncio.TimeoutError:
+            logger.error("GPT API call timed out. Falling back to mock.")
+            fallback = self._generate_mock_fallback(user_prompt)
+            return {"content": fallback, "mode": "mock", "reason": "GPT timeout"}
         except Exception as e:
-            logger.error(f"Unexpected error in GPTClient: {str(e)}")
-            raise RuntimeError(f"LLM execution failed: {str(e)}")
+            logger.error(f"GPT API call failed: {e}. Falling back to mock.")
+            fallback = self._generate_mock_fallback(user_prompt)
+            return {"content": fallback, "mode": "mock", "reason": f"GPT error: {str(e)}"}
+
+    async def real_generate_response(
+        self, 
+        system_prompt: str, 
+        user_prompt: str, 
+        response_format: Optional[Type[BaseModel]] = None
+    ) -> str:
+        logger.info("Sending request to OpenAI GPT model...")
+        start_time = time.time()
+        
+        # Use structured output if a response format is provided
+        kwargs = {
+            "model": "gpt-4o",  # Standard production model
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            "temperature": 0.1,
+            "timeout": 15.0
+        }
+        
+        if response_format:
+            # Use OpenAI's structured outputs via response_format parameter
+            kwargs["response_format"] = response_format
+            
+        response = await self.client.beta.chat.completions.parse(**kwargs)
+        latency = (time.time() - start_time) * 1000
+        
+        choice = response.choices[0]
+        logger.info(f"OpenAI GPT response received in {latency:.2f}ms. Finish reason: {choice.finish_reason}")
+        
+        # Record token usage for auditing (could be attached to request context or logging)
+        usage = response.usage
+        logger.info(f"Tokens used: Prompt={usage.prompt_tokens}, Completion={usage.completion_tokens}, Total={usage.total_tokens}")
+        
+        # Return raw message string
+        return choice.message.content
 
     def _generate_mock_fallback(self, user_prompt: str) -> str:
         """

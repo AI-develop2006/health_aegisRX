@@ -1,266 +1,323 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/state/app_state.dart';
-import '../../../shared/widgets/neon_card.dart';
+import '../doctor_theme.dart';
 import 'doctor_patient_history_screen.dart';
 
 class DoctorPatientSearchScreen extends StatefulWidget {
   const DoctorPatientSearchScreen({super.key});
 
   @override
-  State<DoctorPatientSearchScreen> createState() => _DoctorPatientSearchScreenState();
+  State<DoctorPatientSearchScreen> createState() =>
+      _DoctorPatientSearchScreenState();
 }
 
-class _DoctorPatientSearchScreenState extends State<DoctorPatientSearchScreen> {
+class _DoctorPatientSearchScreenState
+    extends State<DoctorPatientSearchScreen> {
   final _searchController = TextEditingController();
-  String _searchQuery = '';
-  String _qrStatusText = 'Ready to scan...';
-  bool _isScanning = false;
-
-  final List<Map<String, dynamic>> _mockPatients = [
-    {
-      'id': 'priya_123',
-      'name': 'Priya Sharma',
-      'age': 34,
-      'gender': 'Female',
-      'lastEncounter': '20 June 2026',
-    },
-    {
-      'id': 'elena_vance',
-      'name': 'Elena Vance',
-      'age': 28,
-      'gender': 'Female',
-      'lastEncounter': '25 June 2026',
-    }
-  ];
+  final _qrInputController = TextEditingController();
+  Timer? _connTimer;
 
   @override
   void dispose() {
     _searchController.dispose();
+    _qrInputController.dispose();
+    _connTimer?.cancel();
     super.dispose();
   }
 
-  void _simulateQrScan() {
-    setState(() {
-      _isScanning = true;
-      _qrStatusText = 'Scanning patient QR...';
-    });
+  void _handleConnectionInitiated(String input) async {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final res = await appState.requestPatientConnection(input);
+    if (res == null) return;
 
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (!mounted) return;
-      final appState = Provider.of<AppState>(context, listen: false);
-      
-      // Establish Doctor-Patient live session
-      appState.startDoctorPatientSession('elena_vance', 'Elena Vance');
+    if (res.startsWith('PENDING:')) {
+      final reqId = res.split(':')[1];
+      _showWaitingDialog(reqId);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $res')),
+        );
+      }
+    }
+  }
 
-      setState(() {
-        _isScanning = false;
-        _qrStatusText = 'QR code recognized! Elena Vance connected.';
-      });
+  void _showWaitingDialog(String reqId) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            _connTimer?.cancel();
+            _connTimer = Timer.periodic(
+                const Duration(milliseconds: 1500), (timer) async {
+              if (!mounted) {
+                timer.cancel();
+                return;
+              }
+              final appState =
+                  Provider.of<AppState>(context, listen: false);
+              final status = await appState.checkConnectionStatus(reqId);
+              if (status == 'accepted') {
+                timer.cancel();
+                if (context.mounted) Navigator.pop(context);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Consent validated! Session established.')),
+                  );
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DoctorPatientHistoryScreen(
+                        patientId: appState.activePatientId!,
+                        patientName: appState.activePatientName!,
+                      ),
+                    ),
+                  );
+                }
+              } else if (status == 'rejected') {
+                timer.cancel();
+                if (context.mounted) Navigator.pop(context);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Connection rejected by patient.')),
+                  );
+                }
+              }
+            });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Consent validated. Session established.')),
-      );
-
-      // Navigate to patient history screen
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const DoctorPatientHistoryScreen(
-            patientId: 'elena_vance',
-            patientName: 'Elena Vance',
-          ),
-        ),
-      );
-    });
+            return AlertDialog(
+              backgroundColor: Dr.card,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: Dr.border, width: 1),
+              ),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Dr.green.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.hourglass_top_rounded,
+                        color: Dr.green, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text('Waiting for Consent',
+                        style: Dr.heading(16),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: Dr.green,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'A connection request has been sent to the patient\'s wallet. Ask the patient to tap "Accept" in their app.',
+                    textAlign: TextAlign.center,
+                    style: Dr.meta(13),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Dr.bg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Dr.border),
+                    ),
+                    child: Text(
+                      'Patient: ${Provider.of<AppState>(context, listen: false).activePatientName ?? "—"}',
+                      style: GoogleFonts.inter(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Dr.text),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    _connTimer?.cancel();
+                    Navigator.pop(context);
+                  },
+                  child: Text('Cancel',
+                      style: GoogleFonts.inter(color: Dr.red,
+                          fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
-
-    final filteredPatients = _mockPatients.where((p) {
-      final name = p['name'].toString().toLowerCase();
-      final id = p['id'].toString().toLowerCase();
-      final query = _searchQuery.toLowerCase();
-      return name.contains(query) || id.contains(query);
-    }).toList();
-
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        elevation: 0,
-        title: Text(
-          'Connect Patient Vault',
-          style: GoogleFonts.sora(fontWeight: FontWeight.bold),
-        ),
-      ),
+    return ClinicalScaffold(
+      appBar: clinicalAppBar(title: 'Connect Patient Vault'),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. QR Scan Block
-            Text(
-              'Patient Consent Scan',
-              style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            NeonCard(
-              neonColor: theme.colorScheme.primary,
-              child: Column(
+            // ── Info banner ────────────────────────────────────
+            DoctorCard(
+              borderColor: Dr.green.withOpacity(0.3),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 12),
+              child: Row(
                 children: [
-                  Container(
-                    height: 180,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Simulating visual camera viewfinder targeting frame
-                        Container(
-                          width: 140,
-                          height: 140,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: _isScanning
-                                  ? const Color(0xFF10B981) // active green
-                                  : theme.colorScheme.primary.withOpacity(0.6),
-                              width: 2.0,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        if (_isScanning)
-                          const Positioned(
-                            child: CircularProgressIndicator(),
-                          ),
-                        Positioned(
-                          bottom: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.black54,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              _qrStatusText,
-                              style: GoogleFonts.jetBrainsMono(
-                                color: Colors.white,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _isScanning ? null : _simulateQrScan,
-                      icon: const Icon(Icons.qr_code_scanner_rounded),
-                      label: const Text(
-                        'Simulate QR Scan (Elena Vance)',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                  const Icon(Icons.info_outline_rounded,
+                      color: Dr.green, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Scan the patient\'s QR from their AegisRx app or enter their ID manually.',
+                      style: Dr.meta(12),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
 
-            // 2. Search Section
-            Text(
-              'Manual Search Registry',
-              style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _searchController,
-              onChanged: (val) {
-                setState(() {
-                  _searchQuery = val;
-                });
-              },
-              decoration: const InputDecoration(
-                hintText: 'Search patient name, NPI, or mobile number...',
-                prefixIcon: Icon(Icons.search),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Filtered Patient List
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: filteredPatients.length,
-              itemBuilder: (context, index) {
-                final patient = filteredPatients[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DoctorPatientHistoryScreen(
-                            patientId: patient['id'],
-                            patientName: patient['name'],
-                          ),
-                        ),
-                      );
-                    },
-                    child: NeonCard(
-                      borderWidth: 0.5,
-                      neonColor: theme.colorScheme.secondary.withOpacity(0.3),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.secondary.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(Icons.person, color: theme.colorScheme.secondary),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  patient['name'],
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Age: ${patient['age']} • Last Encounter: ${patient['lastEncounter']}',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: isLight ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Icon(Icons.chevron_right, color: isLight ? Colors.grey : Colors.white38),
-                        ],
+            // ── QR Scan Block ──────────────────────────────────
+            sectionHeader('Patient Consent Scan (QR)'),
+            DoctorCard(
+              borderColor: Dr.green.withOpacity(0.35),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _qrInputController,
+                    style: GoogleFonts.jetBrainsMono(
+                        fontSize: 13, color: Dr.text),
+                    decoration: InputDecoration(
+                      labelText: 'Scan or Paste QR Code Content',
+                      labelStyle: Dr.meta(13),
+                      hintText: 'e.g. Elena Vance|Elena_Vance_992818',
+                      hintStyle: Dr.meta(12),
+                      prefixIcon: const Icon(Icons.qr_code_2_rounded,
+                          color: Dr.sub, size: 20),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Dr.border),
                       ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide:
+                            const BorderSide(color: Dr.green, width: 1.5),
+                      ),
+                      filled: true,
+                      fillColor: Dr.bg,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
                     ),
                   ),
-                );
-              },
+                  const SizedBox(height: 14),
+                  DoctorPrimaryButton(
+                    label: 'Connect via QR Code',
+                    icon: Icons.link_rounded,
+                    onPressed: () {
+                      final input = _qrInputController.text.trim();
+                      if (input.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'Please scan or paste patient QR content.')),
+                        );
+                        return;
+                      }
+                      _handleConnectionInitiated(input);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  DoctorOutlinedButton(
+                    label: 'Simulate Scan (Elena Vance)',
+                    icon: Icons.flash_on_rounded,
+                    color: Dr.amber,
+                    onPressed: () {
+                      _qrInputController.text =
+                          'Elena Vance|Elena_Vance_992818';
+                      _handleConnectionInitiated(
+                          'Elena Vance|Elena_Vance_992818');
+                    },
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(height: 28),
+
+            // ── Manual Entry Block ─────────────────────────────
+            sectionHeader('Backup Connection (Manual Entry)'),
+            DoctorCard(
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _searchController,
+                    style: GoogleFonts.jetBrainsMono(
+                        fontSize: 13, color: Dr.text),
+                    decoration: InputDecoration(
+                      labelText: 'Enter Patient ID Manually',
+                      labelStyle: Dr.meta(13),
+                      hintText: 'e.g. Elena_Vance_992818',
+                      hintStyle: Dr.meta(12),
+                      prefixIcon: const Icon(Icons.person_pin_rounded,
+                          color: Dr.sub, size: 20),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Dr.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(
+                            color: Dr.green, width: 1.5),
+                      ),
+                      filled: true,
+                      fillColor: Dr.bg,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  DoctorOutlinedButton(
+                    label: 'Initiate Backup Connection',
+                    icon: Icons.connecting_airports_rounded,
+                    onPressed: () {
+                      final input = _searchController.text.trim();
+                      if (input.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content:
+                                  Text('Please enter a valid Patient ID')),
+                        );
+                        return;
+                      }
+                      _handleConnectionInitiated(input);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
           ],
         ),
       ),

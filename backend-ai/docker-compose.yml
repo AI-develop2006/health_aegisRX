@@ -16,6 +16,7 @@ x-shared-env: &shared-env
   GEMINI_API_KEY: ${GEMINI_API_KEY:-}
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+  MEDGEMMA_API_URL: ${MEDGEMMA_API_URL:-http://host.docker.internal:8000/v1}
   POLYGON_RPC_URL: ${POLYGON_RPC_URL:-https://rpc-amoy.polygon.technology}
   POLYGON_CONTRACT_ADDRESS: ${POLYGON_CONTRACT_ADDRESS:-}
   TEST_DOCTOR_PRIVATE_KEY: ${TEST_DOCTOR_PRIVATE_KEY:-}
@@ -176,6 +177,8 @@ services:
       - "4005:4005"
     environment:
       <<: *shared-env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       mongodb:
         condition: service_healthy

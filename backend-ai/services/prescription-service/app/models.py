@@ -13,6 +13,8 @@ class PrescriptionMedicine(BaseModel):
     beforeFood: bool = Field(False, example=True)
     afterFood: bool = Field(False, example=False)
     customInstruction: Optional[str] = Field("", example="Take with warm water")
+    duration: Optional[str] = Field("30 days", example="30 days")
+    strength: Optional[str] = Field("500mg", example="500mg")
 
 
 class PrescriptionCreate(BaseModel):
@@ -26,6 +28,8 @@ class PrescriptionCreate(BaseModel):
     time: str = Field(..., example="10:00")
     medicines: List[PrescriptionMedicine]
     doctorSignId: Optional[str] = Field("889218", example="992818")
+    riskBand: Optional[str] = Field(None, example="CRITICAL")
+    overrideReason: Optional[str] = Field(None, example="Allergy verified, low dose justified")
 
 
 class PrescriptionResponse(BaseModel):
@@ -41,3 +45,5 @@ class PrescriptionResponse(BaseModel):
     signature: Optional[str] = None
     doctorSignId: Optional[str] = None
     isDispensed: bool = False
+    riskBand: Optional[str] = None
+    overrideReason: Optional[str] = None

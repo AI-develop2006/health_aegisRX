@@ -1,6 +1,11 @@
 from typing import Dict, Any
 from app.ai.knowledge.base import BaseRxNorm
 
+import logging
+from app.core.config import settings
+
+logger = logging.getLogger("AegisRx.RxNorm")
+
 class RxNormMock(BaseRxNorm):
     def __init__(self):
         # Local mock database for common medicines
@@ -56,6 +61,44 @@ class RxNormMock(BaseRxNorm):
         }
 
     async def get_concept_details(self, drug_name: str) -> Dict[str, Any]:
+        if settings.USE_MOCK_AUDIT:
+            logger.info("USE_MOCK_AUDIT is enabled. Using RxNorm mock database.")
+            return self._get_mock_concept_details(drug_name)
+
+        try:
+            import httpx
+            logger.info(f"USE_MOCK_AUDIT is false. Querying NIH RxNorm API for: {drug_name}...")
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                url = f"https://rxnav.nlm.nih.gov/REST/rxcui.json?name={drug_name}"
+                res = await client.get(url)
+                res.raise_for_status()
+                data = res.json()
+                rxcui = data.get("idGroup", {}).get("rxnormId", [None])[0]
+                if not rxcui:
+                    raise ValueError(f"No RxNorm concept ID found for: {drug_name}")
+                
+                # Fetch drug class details
+                class_url = f"https://rxnav.nlm.nih.gov/REST/rxclass/class/byRxcui.json?rxcui={rxcui}"
+                class_res = await client.get(class_url)
+                class_res.raise_for_status()
+                class_data = class_res.json()
+                
+                drug_class = "Unknown"
+                concepts = class_data.get("rxclassDrugInfoList", {}).get("rxclassDrugInfo", [])
+                if concepts:
+                    drug_class = concepts[0].get("rxclassMinCard", {}).get("className", "Unknown")
+
+                return {
+                    "generic_name": drug_name.strip().lower(),
+                    "brand_names": [],
+                    "drug_class": drug_class,
+                    "rxcui": str(rxcui)
+                }
+        except Exception as e:
+            logger.warning(f"NIH RxNorm query failed: {e}. Falling back to mock database.")
+            return self._get_mock_concept_details(drug_name)
+
+    def _get_mock_concept_details(self, drug_name: str) -> Dict[str, Any]:
         normalized = drug_name.strip().lower()
         
         # Simple lookup: check if it matches generic or brand name

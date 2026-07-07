@@ -35,13 +35,12 @@ class _PatientUnlockSetupScreenState extends State<PatientUnlockSetupScreen> {
 
     final appState = Provider.of<AppState>(context, listen: false);
     
-    // Save session details first (marks isLoggedIn = true)
+    final tokenToUse = appState.token ?? (appState.useMockFrontend ? 'mock-jwt-token-patient-alex' : '');
     appState.setSession(
       role: UserRole.patient,
-      token: 'mock-jwt-token-patient-alex',
+      token: tokenToUse,
     );
     
-    // Set PIN and mark unlocked (transitions state to home)
     appState.setPin(pin);
   }
 

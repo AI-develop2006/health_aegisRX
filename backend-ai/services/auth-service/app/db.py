@@ -1,7 +1,7 @@
 """Auth Service — MongoDB connection (self-contained, no shared app/)"""
 import logging
 from pymongo import MongoClient
-from app.config import MONGODB_URI, MONGODB_DATABASE
+from app.config import MONGODB_URI, MONGODB_DATABASE, FORCE_MOCK_DB
 
 logger = logging.getLogger("auth-service")
 
@@ -12,9 +12,25 @@ _db = None
 def get_db():
     global _client, _db
     if _db is None:
-        _client = MongoClient(MONGODB_URI, timeoutMS=10000)
-        _db = _client[MONGODB_DATABASE]
-        logger.info(f"Auth Service — MongoDB connected: {MONGODB_DATABASE}")
+        if FORCE_MOCK_DB:
+            logger.info("Auth Service — FORCE_MOCK_DB is active. Connecting directly to local Mock DB.")
+            from app.mock_db import MockMongoClient
+            client = MockMongoClient(MONGODB_URI)
+            _db = client[MONGODB_DATABASE]
+            _client = client
+            return _db
+        try:
+            client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=2000, timeoutMS=10000)
+            client.server_info()
+            _db = client[MONGODB_DATABASE]
+            _client = client
+            logger.info(f"Auth Service — MongoDB connected: {MONGODB_DATABASE}")
+        except Exception as e:
+            logger.warning(f"Auth Service — MongoDB Atlas unreachable ({e}). Falling back to Mock DB.")
+            from app.mock_db import MockMongoClient
+            client = MockMongoClient(MONGODB_URI)
+            _db = client[MONGODB_DATABASE]
+            _client = client
     return _db
 
 

@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 from fastapi import HTTPException
 
-from app.config import TEST_DOCTOR_PRIVATE_KEY, logger
+from app.config import TEST_DOCTOR_PRIVATE_KEY, ALLOW_MOCK_POLYGON_TX, logger
 from app.db import prescriptions_col, get_db
 from app.blockchain import BlockchainManager, log_activity
 from app.utils.signature import json_stringify_rx, sha256_hash, sign
@@ -35,9 +35,16 @@ def _serialize_doc(doc: dict | None) -> dict | None:
 
 
 def get_prescriptions_by_patient(patient: str) -> list:
-    cursor = prescriptions_col().find(
-        {"patientName": {"$regex": f"^{re.escape(patient)}$", "$options": "i"}}
-    )
+    safe = re.escape(patient)
+    safe_space = re.escape(patient.replace("_", " "))
+    safe_underscore = re.escape(patient.replace(" ", "_"))
+    pattern = f"^({safe}|{safe_space}|{safe_underscore})$"
+    cursor = prescriptions_col().find({
+        "$or": [
+            {"patientName": {"$regex": pattern, "$options": "i"}},
+            {"patient_id": {"$regex": pattern, "$options": "i"}},
+        ]
+    })
     return [_serialize_doc(doc) for doc in cursor]
 
 
@@ -68,10 +75,55 @@ async def create_prescription(rx_dict: dict) -> dict:
             rx_dict["onchain_tx_hash"] = onchain_tx_hash
         except Exception as e:
             logger.error(f"Polygon on-chain create_prescription failed: {e}")
+            if not ALLOW_MOCK_POLYGON_TX:
+                raise HTTPException(status_code=400, detail=f"On-chain transaction failed: {str(e)}")
+    else:
+        if not ALLOW_MOCK_POLYGON_TX:
+            raise HTTPException(
+                status_code=400,
+                detail="Sovereign Signature Error: Missing Polygon practitioner key. On-chain validation failed."
+            )
 
     # 3. Blockchain access check
     access_warning = None
     bm = BlockchainManager()
+
+    # ── Patient Name Resolution ───────────────────────────────────────────────
+    # If patientName looks like a raw mobile/ID number (no letters), try to
+    # resolve the real display name from the patients collection before saving.
+    raw_patient_name = rx_dict.get("patientName", "")
+    raw_patient_id = rx_dict.get("patient_id", raw_patient_name)
+    if raw_patient_name and re.match(r"^\d+$", raw_patient_name.strip()):
+        db = get_db()
+        safe = re.escape(raw_patient_name.strip())
+        patient_doc = db["patients"].find_one({
+            "$or": [
+                {"id_number": {"$regex": f"^{safe}$", "$options": "i"}},
+                {"mobile": {"$regex": f"^{safe}$", "$options": "i"}},
+                {"patient_id": {"$regex": f"^{safe}$", "$options": "i"}},
+            ]
+        })
+        if patient_doc:
+            resolved_name = patient_doc.get("name", raw_patient_name)
+            resolved_id = (
+                patient_doc.get("id_number")
+                or patient_doc.get("mobile")
+                or raw_patient_name
+            )
+            logger.info(
+                f"Resolved patientName '{raw_patient_name}' → '{resolved_name}' "
+                f"(patient_id: {resolved_id})"
+            )
+            rx_dict["patientName"] = resolved_name
+            rx_dict["patient_id"] = resolved_id
+        else:
+            logger.warning(
+                f"Could not resolve patient name from ID '{raw_patient_name}'. "
+                f"Storing as-is."
+            )
+            # Store the numeric value as patient_id, keep patientName as the ID
+            rx_dict["patient_id"] = raw_patient_name
+
     has_access = bm.has_doctor_access(doctor_sign_id, rx_dict["patientName"])
     if not has_access:
         patient_name_str = rx_dict["patientName"]
@@ -122,8 +174,14 @@ async def create_prescription(rx_dict: dict) -> dict:
     # 6. Mark active consultation as completed
     consultations_col = get_db()["consultation_requests"]
     safe_name = re.escape(rx_dict["patientName"])
+    safe_space = re.escape(rx_dict["patientName"].replace("_", " "))
+    safe_underscore = re.escape(rx_dict["patientName"].replace(" ", "_"))
+    pattern = f"^({safe_name}|{safe_space}|{safe_underscore})$"
     consultations_col.find_one_and_update(
-        {"patientName": {"$regex": f"^{safe_name}$", "$options": "i"}, "status": "accepted"},
+        {"$or": [
+            {"patientName": {"$regex": pattern, "$options": "i"}},
+            {"patientId": {"$regex": pattern, "$options": "i"}},
+         ], "status": "accepted"},
         {"$set": {"status": "completed"}},
         sort=[("createdAt", -1)],
     )
@@ -154,22 +212,75 @@ def get_patient_history(patient_id: str, doctor_id: str | None = None) -> dict:
                 detail="Access denied: no active consultation grant found for this doctor-patient pair."
             )
 
-    # Find prescriptions
+    db = get_db()
+    
+    # Get patient profile info from 'patients' collection
+    import re
     safe = re.escape(patient_id)
-    cur = prescriptions_col().find({
+    safe_space = re.escape(patient_id.replace("_", " "))
+    safe_underscore = re.escape(patient_id.replace(" ", "_"))
+    pattern = f"^({safe}|{safe_space}|{safe_underscore})$"
+    patient_doc = db["patients"].find_one({
         "$or": [
-            {"patientName": {"$regex": f"^{safe}$", "$options": "i"}},
-            {"patient_id": {"$regex": f"^{safe}$", "$options": "i"}},
+            {"id_number": {"$regex": pattern, "$options": "i"}},
+            {"mobile": {"$regex": pattern, "$options": "i"}},
+            {"patient_id": {"$regex": pattern, "$options": "i"}},
+            {"name": {"$regex": pattern, "$options": "i"}},
         ]
     })
+    
+    patient_info = {}
+    if patient_doc:
+        patient_info = {
+            "patient_id": patient_doc.get("id_number") or patient_doc.get("mobile") or patient_doc.get("patient_id") or patient_id,
+            "name": patient_doc.get("name", patient_id),
+            "age": patient_doc.get("age", 30),
+            "gender": patient_doc.get("gender", "Unknown"),
+            "conditions": patient_doc.get("conditions", ["None Recorded"])
+        }
+    else:
+        patient_info = {
+            "patient_id": patient_id,
+            "name": patient_id,
+            "age": 30,
+            "gender": "Unknown",
+            "conditions": ["None Recorded"]
+        }
+
+    # Compile search terms from all resolved properties for maximum match coverage
+    search_terms = {patient_id, patient_info["name"], patient_info["patient_id"]}
+    extra_terms = set()
+    for term in search_terms:
+        extra_terms.add(term.replace("_", " "))
+        extra_terms.add(term.replace(" ", "_"))
+    search_terms.update(extra_terms)
+    
+    # Find allergies
+    allergy_filters = []
+    for term in search_terms:
+        safe_term = re.escape(term)
+        allergy_filters.append({"patient_id": {"$regex": f"^({safe_term})$", "$options": "i"}})
+        allergy_filters.append({"patient_name": {"$regex": f"^({safe_term})$", "$options": "i"}})
+    allergies_cursor = db["allergies"].find({"$or": allergy_filters})
+    allergies = [doc.get("allergy_name") for doc in allergies_cursor if doc.get("allergy_name")]
+
+    # Find prescriptions
+    rx_filters = []
+    for term in search_terms:
+        safe_term = re.escape(term)
+        rx_filters.append({"patientName": {"$regex": f"^({safe_term})$", "$options": "i"}})
+        rx_filters.append({"patient_id": {"$regex": f"^({safe_term})$", "$options": "i"}})
+    cur = prescriptions_col().find({"$or": rx_filters})
     prescriptions = [_serialize_doc(doc) for doc in cur]
 
     # Get visit history
-    visit_history = bm.get_visit_history(patient_id)
+    visit_history = bm.get_visit_history(patient_info["name"])
 
     return {
         "patient_id": patient_id,
         "doctor_id": doctor_id,
+        "patient_info": patient_info,
+        "allergies": allergies,
         "prescriptions": prescriptions,
         "visit_history": visit_history,
         "total_prescriptions": len(prescriptions),

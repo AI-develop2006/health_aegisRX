@@ -1,6 +1,11 @@
 from typing import List, Dict, Any, Set
 from app.ai.knowledge.base import BaseDrugBank
 
+import logging
+from app.core.config import settings
+
+logger = logging.getLogger("AegisRx.DrugBank")
+
 class DrugBankMock(BaseDrugBank):
     def __init__(self):
         # Database of drug interactions by generic drug pairs (sorted tuple)
@@ -24,6 +29,18 @@ class DrugBankMock(BaseDrugBank):
         }
 
     async def get_drug_interactions(self, drugs: List[str]) -> List[Dict[str, Any]]:
+        if settings.USE_MOCK_AUDIT:
+            logger.info("USE_MOCK_AUDIT is enabled. Using DrugBank mock database.")
+            return await self._get_mock_drug_interactions(drugs)
+
+        try:
+            logger.info("USE_MOCK_AUDIT is false. Checking for production DrugBank API...")
+            raise NotImplementedError("Production DrugBank API key/licence is not configured.")
+        except Exception as e:
+            logger.warning(f"DrugBank production client check failed: {e}. Falling back to mock database.")
+            return await self._get_mock_drug_interactions(drugs)
+
+    async def _get_mock_drug_interactions(self, drugs: List[str]) -> List[Dict[str, Any]]:
         # Normalize and clean drug list
         cleaned_drugs = list(set([d.strip().lower() for d in drugs if d.strip()]))
         found_interactions = []

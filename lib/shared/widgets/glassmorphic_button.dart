@@ -2,14 +2,14 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class GlassmorphicButton extends StatelessWidget {
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final Widget child;
   final double borderRadius;
   final Color? baseColor;
 
   const GlassmorphicButton({
     super.key,
-    required this.onPressed,
+    this.onPressed,
     required this.child,
     this.borderRadius = 12.0,
     this.baseColor,

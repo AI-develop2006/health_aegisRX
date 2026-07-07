@@ -52,10 +52,16 @@ class BlockchainManager:
     def has_doctor_access(self, doctor_id: str, patient_name: str) -> bool:
         import re
         safe = re.escape(patient_name)
+        safe_space = re.escape(patient_name.replace("_", " "))
+        safe_underscore = re.escape(patient_name.replace(" ", "_"))
+        pattern = f"^({safe}|{safe_space}|{safe_underscore})$"
         latest = self.col.find_one(
             {"block_type": {"$in": ["ACCESS_GRANT", "ACCESS_REVOKE"]},
              "data.doctor_id": doctor_id,
-             "data.patient_name": {"$regex": f"^{safe}$", "$options": "i"}},
+             "$or": [
+                 {"data.patient_name": {"$regex": pattern, "$options": "i"}},
+                 {"data.patient_id": {"$regex": pattern, "$options": "i"}}
+             ]},
             sort=[("index", -1)]
         )
         return latest is not None and latest["block_type"] == "ACCESS_GRANT"
@@ -63,9 +69,15 @@ class BlockchainManager:
     def get_visit_history(self, patient_name: str) -> list:
         import re
         safe = re.escape(patient_name)
+        safe_space = re.escape(patient_name.replace("_", " "))
+        safe_underscore = re.escape(patient_name.replace(" ", "_"))
+        pattern = f"^({safe}|{safe_space}|{safe_underscore})$"
         cur = self.col.find(
             {"block_type": "VISIT_HISTORY",
-             "data.patient_name": {"$regex": f"^{safe}$", "$options": "i"}},
+             "$or": [
+                 {"data.patient_name": {"$regex": pattern, "$options": "i"}},
+                 {"data.patient_id": {"$regex": pattern, "$options": "i"}}
+             ]},
             sort=[("index", 1)]
         )
         # Serialize docs

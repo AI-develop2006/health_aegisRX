@@ -16,6 +16,10 @@ class VerifyScanInput(BaseModel):
 
 class DispenseInput(BaseModel):
     id: str = Field(..., example="RX-9921")
+    batch_number: Optional[str] = None
+    expiry_date: Optional[str] = None
+    touch_signature: Optional[str] = None
+    delivery_tracking_id: Optional[str] = None
 
 
 class DispenseRequest(BaseModel):

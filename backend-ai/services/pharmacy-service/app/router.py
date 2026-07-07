@@ -21,4 +21,10 @@ async def verify_scan(data: VerifyScanInput):
 
 @router.post("/prescriptions/dispense", summary="Dispense prescription")
 async def dispense_prescription(input_data: DispenseInput):
-    return await service.dispense_prescription(input_data.id)
+    return await service.dispense_prescription(
+        rx_id=input_data.id,
+        batch_number=input_data.batch_number,
+        expiry_date=input_data.expiry_date,
+        touch_signature=input_data.touch_signature,
+        delivery_tracking_id=input_data.delivery_tracking_id,
+    )

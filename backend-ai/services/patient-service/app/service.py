@@ -25,10 +25,13 @@ def _serialize(doc):
 def get_prescriptions(patient_id: str) -> list:
     logger.info(f"Fetching prescriptions for: {patient_id}")
     safe = re.escape(patient_id)
+    safe_space = re.escape(patient_id.replace("_", " "))
+    safe_underscore = re.escape(patient_id.replace(" ", "_"))
+    pattern = f"^({safe}|{safe_space}|{safe_underscore})$"
     cur = prescriptions_col().find({
         "$or": [
-            {"patientName": {"$regex": f"^{safe}$", "$options": "i"}},
-            {"patient_id": {"$regex": f"^{safe}$", "$options": "i"}},
+            {"patientName": {"$regex": pattern, "$options": "i"}},
+            {"patient_id": {"$regex": pattern, "$options": "i"}},
         ]
     })
     return [_serialize(doc) for doc in cur]

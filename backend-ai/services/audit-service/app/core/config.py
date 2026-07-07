@@ -26,4 +26,16 @@ class SettingsBridge:
     def GEMINI_API_KEY(self) -> str:
         return os.getenv("GEMINI_API_KEY", "")
 
+    @property
+    def USE_MOCK_AUDIT(self) -> bool:
+        return os.getenv("USE_MOCK_AUDIT", "false").lower() == "true"
+
+    @property
+    def USE_MOCK_LLM(self) -> bool:
+        return os.getenv("USE_MOCK_LLM", "false").lower() == "true"
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENV.lower() == "production"
+
 settings = SettingsBridge()

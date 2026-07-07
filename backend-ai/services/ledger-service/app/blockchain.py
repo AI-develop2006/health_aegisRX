@@ -9,7 +9,7 @@ import hashlib
 import logging
 from datetime import datetime
 from pymongo import MongoClient
-from app.config import MONGODB_URI, MONGODB_DATABASE
+from app.config import MONGODB_URI, MONGODB_DATABASE, FORCE_MOCK_DB
 
 logger = logging.getLogger("ledger-service")
 
@@ -20,9 +20,25 @@ _db_instance = None
 def get_db():
     global _client, _db_instance
     if _db_instance is None:
-        _client = MongoClient(MONGODB_URI, timeoutMS=10000)
-        _db_instance = _client[MONGODB_DATABASE]
-        logger.info(f"Ledger Service — MongoDB connected: {MONGODB_DATABASE}")
+        if FORCE_MOCK_DB:
+            logger.info("Ledger Service — FORCE_MOCK_DB is active. Connecting directly to local Mock DB.")
+            from app.mock_db import MockMongoClient
+            client = MockMongoClient(MONGODB_URI)
+            _db_instance = client[MONGODB_DATABASE]
+            _client = client
+            return _db_instance
+        try:
+            client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=2000, timeoutMS=10000)
+            client.server_info()
+            _db_instance = client[MONGODB_DATABASE]
+            _client = client
+            logger.info(f"Ledger Service — MongoDB connected: {MONGODB_DATABASE}")
+        except Exception as e:
+            logger.warning(f"Ledger Service — MongoDB Atlas unreachable ({e}). Falling back to Mock DB.")
+            from app.mock_db import MockMongoClient
+            client = MockMongoClient(MONGODB_URI)
+            _db_instance = client[MONGODB_DATABASE]
+            _client = client
     return _db_instance
 
 
@@ -144,19 +160,31 @@ class BlockchainManager:
 
     def has_doctor_access(self, doctor_id: str, patient_name: str) -> bool:
         safe = re.escape(patient_name)
+        safe_space = re.escape(patient_name.replace("_", " "))
+        safe_underscore = re.escape(patient_name.replace(" ", "_"))
+        pattern = f"^({safe}|{safe_space}|{safe_underscore})$"
         latest = self.col.find_one(
             {"block_type": {"$in": ["ACCESS_GRANT", "ACCESS_REVOKE"]},
              "data.doctor_id": doctor_id,
-             "data.patient_name": {"$regex": f"^{safe}$", "$options": "i"}},
+             "$or": [
+                 {"data.patient_name": {"$regex": pattern, "$options": "i"}},
+                 {"data.patient_id": {"$regex": pattern, "$options": "i"}}
+             ]},
             sort=[("index", -1)]
         )
         return latest is not None and latest["block_type"] == "ACCESS_GRANT"
 
     def get_visit_history(self, patient_name: str) -> list:
         safe = re.escape(patient_name)
+        safe_space = re.escape(patient_name.replace("_", " "))
+        safe_underscore = re.escape(patient_name.replace(" ", "_"))
+        pattern = f"^({safe}|{safe_space}|{safe_underscore})$"
         return [_serialize(b) for b in self.col.find(
             {"block_type": "VISIT_HISTORY",
-             "data.patient_name": {"$regex": f"^{safe}$", "$options": "i"}},
+             "$or": [
+                 {"data.patient_name": {"$regex": pattern, "$options": "i"}},
+                 {"data.patient_id": {"$regex": pattern, "$options": "i"}}
+             ]},
             sort=[("index", 1)]
         )]
 

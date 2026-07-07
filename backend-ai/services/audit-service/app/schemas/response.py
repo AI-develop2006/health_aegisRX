@@ -6,16 +6,19 @@ class DrugInteractionDetail(BaseModel):
     severity: str = Field(..., description="Interaction severity: MAJOR, MODERATE, or MINOR")
     drugs: List[str] = Field(..., description="List of drugs involved in the interaction")
     description: str = Field(..., description="Clinical description of the interaction")
+    reason: Optional[str] = Field(None, description="Explaining why interaction flagged")
 
 class AllergyRiskDetail(BaseModel):
     allergy: str = Field(..., description="The patient's allergen")
     drug: str = Field(..., description="The prescribed drug causing conflict")
     description: str = Field(..., description="Allergy conflict details")
+    reason: Optional[str] = Field(None, description="Explaining why allergy triggered")
 
 class DiseaseContraindicationDetail(BaseModel):
     disease: str = Field(..., description="Patient disease contraindicated with the drug")
     drug: str = Field(..., description="The contraindicated drug")
     description: str = Field(..., description="Contraindication reasoning")
+    reason: Optional[str] = Field(None, description="Explaining why disease flag raised")
 
 class PrescriptionSafetyAnalysis(BaseModel):
     analysis_id: UUID = Field(..., description="Unique ID for this analysis run")
@@ -29,6 +32,14 @@ class PrescriptionSafetyAnalysis(BaseModel):
     clinical_explanation: str = Field(..., description="Detailed clinical reasoning summary")
     recommended_action: str = Field(..., description="Action recommendation: SAFE_TO_DISPENSE, DOCTOR_REVIEW, DO_NOT_DISPENSE, or CONTACT_DOCTOR_IMMEDIATELY")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadata like token usage and latency")
+    
+    # Standardized RiskSnapshot contract fields
+    risk_band: str = Field("LOW", description="LOW, MEDIUM, HIGH, CRITICAL")
+    risk_score: int = Field(0, description="Risk score from 0 to 100")
+    recommendation: str = Field("", description="Short summary recommendation text")
+    flagged_medicines: List[str] = Field(default_factory=list, description="Medicines flagged during audit")
+    backend_mode: str = Field("mock", description="'real' or 'mock'")
+    backend_reason: Optional[str] = Field(None, description="Detailed explanation of fallback reasons if any")
 
 class AuditLogEntry(BaseModel):
     analysis_id: UUID

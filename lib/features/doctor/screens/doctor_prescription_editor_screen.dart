@@ -1,9 +1,10 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/state/app_state.dart';
-import '../../../shared/widgets/neon_card.dart';
+import '../doctor_theme.dart';
 import 'doctor_override_and_sign_screen.dart';
 
 class DoctorPrescriptionEditorScreen extends StatefulWidget {
@@ -17,14 +18,15 @@ class DoctorPrescriptionEditorScreen extends StatefulWidget {
   });
 
   @override
-  State<DoctorPrescriptionEditorScreen> createState() => _DoctorPrescriptionEditorScreenState();
+  State<DoctorPrescriptionEditorScreen> createState() =>
+      _DoctorPrescriptionEditorScreenState();
 }
 
-class _DoctorPrescriptionEditorScreenState extends State<DoctorPrescriptionEditorScreen> {
+class _DoctorPrescriptionEditorScreenState
+    extends State<DoctorPrescriptionEditorScreen> {
   final _chiefComplaintController = TextEditingController();
   final _diagnosisController = TextEditingController();
   final _notesController = TextEditingController();
-
   final List<Map<String, dynamic>> _medicationRows = [];
   Timer? _debounceTimer;
 
@@ -38,10 +40,7 @@ class _DoctorPrescriptionEditorScreenState extends State<DoctorPrescriptionEdito
   @override
   void initState() {
     super.initState();
-    // Start with 1 empty medication row
     _addMedicationRow();
-
-    // Listeners for auto-audit triggers on diagnosis and chief complaint
     _chiefComplaintController.addListener(_onFieldChanged);
     _diagnosisController.addListener(_onFieldChanged);
     _notesController.addListener(_onFieldChanged);
@@ -54,26 +53,22 @@ class _DoctorPrescriptionEditorScreenState extends State<DoctorPrescriptionEdito
     _notesController.dispose();
     _debounceTimer?.cancel();
     for (var row in _medicationRows) {
-      row['nameController'].dispose();
-      row['strengthController'].dispose();
-      row['instructionsController'].dispose();
+      (row['nameController'] as TextEditingController).dispose();
+      (row['strengthController'] as TextEditingController).dispose();
+      (row['instructionsController'] as TextEditingController).dispose();
     }
     super.dispose();
   }
 
   void _addMedicationRow() {
-    final nameController = TextEditingController();
-    final strengthController = TextEditingController();
-    final instructionsController = TextEditingController();
-
-    nameController.addListener(_onFieldChanged);
-    strengthController.addListener(_onFieldChanged);
-    instructionsController.addListener(_onFieldChanged);
-
+    final nameCtrl = TextEditingController()..addListener(_onFieldChanged);
+    final strengthCtrl = TextEditingController()..addListener(_onFieldChanged);
+    final instructionsCtrl = TextEditingController()
+      ..addListener(_onFieldChanged);
     setState(() {
       _medicationRows.add({
-        'nameController': nameController,
-        'strengthController': strengthController,
+        'nameController': nameCtrl,
+        'strengthController': strengthCtrl,
         'route': 'Oral',
         'frequency': 'Once daily',
         'durationValue': '7',
@@ -84,7 +79,7 @@ class _DoctorPrescriptionEditorScreenState extends State<DoctorPrescriptionEdito
         'night': false,
         'beforeFood': false,
         'afterFood': false,
-        'instructionsController': instructionsController,
+        'instructionsController': instructionsCtrl,
       });
     });
     _triggerAutoAudit();
@@ -99,81 +94,134 @@ class _DoctorPrescriptionEditorScreenState extends State<DoctorPrescriptionEdito
     }
     setState(() {
       final row = _medicationRows.removeAt(index);
-      row['nameController'].dispose();
-      row['strengthController'].dispose();
-      row['instructionsController'].dispose();
+      (row['nameController'] as TextEditingController).dispose();
+      (row['strengthController'] as TextEditingController).dispose();
+      (row['instructionsController'] as TextEditingController).dispose();
     });
     _triggerAutoAudit();
   }
 
-  void _onFieldChanged() {
-    _triggerAutoAudit();
-  }
+  void _onFieldChanged() => _triggerAutoAudit();
 
   void _triggerAutoAudit() {
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 600), () {
-      if (mounted) {
-        _runAiAudit();
-      }
+      if (mounted) _runAiAudit();
     });
   }
 
-  void _runAiAudit() {
-    setState(() {
-      _isAuditing = true;
-    });
+  void _runAiAudit() async {
+    if (_medicationRows.isEmpty) return;
 
-    // Simulate rapid API validation round
-    Future.delayed(const Duration(milliseconds: 400), () {
-      if (!mounted) return;
+    Map<String, dynamic>? firstValidRow;
+    int rowIndex = -1;
+    for (int i = 0; i < _medicationRows.length; i++) {
+      final name = (_medicationRows[i]['nameController'] as TextEditingController).text.trim();
+      if (name.isNotEmpty) {
+        firstValidRow = _medicationRows[i];
+        rowIndex = i;
+        break;
+      }
+    }
 
-      bool hasPenicillin = false;
-      int offendingRowIndex = -1;
+    if (firstValidRow == null) {
+      setState(() {
+        _riskBand = 'LOW';
+        _riskScore = 0;
+        _riskReasons = [];
+        _alternatives = [];
+      });
+      return;
+    }
 
-      for (int i = 0; i < _medicationRows.length; i++) {
-        final drugName = _medicationRows[i]['nameController'].text.trim().toLowerCase();
-        if (drugName.contains('penicillin')) {
-          hasPenicillin = true;
-          offendingRowIndex = i;
-          break;
-        }
+    setState(() => _isAuditing = true);
+
+    final appState = Provider.of<AppState>(context, listen: false);
+    final medName = (firstValidRow['nameController'] as TextEditingController).text.trim();
+    final medStrength = (firstValidRow['strengthController'] as TextEditingController).text.trim();
+    final dosage = '$medStrength ${firstValidRow['frequency']}'.trim();
+
+    final res = await appState.runAiSafetyAudit(
+      patientId: widget.patientId,
+      doctorId: appState.doctorLicense ?? '889218',
+      newMedicine: medName,
+      newDosage: dosage,
+      disease: _diagnosisController.text.trim().isNotEmpty ? _diagnosisController.text.trim() : 'Hypertension',
+    );
+
+    if (!mounted) return;
+    setState(() => _isAuditing = false);
+
+    if (res != null) {
+      final allergyCheck = res['allergy_check'] ?? {};
+      final interactionCheck = res['interaction_check'] ?? {};
+      final dupCheck = res['duplicate_check'] ?? {};
+
+      final List<String> reasons = [];
+      if (allergyCheck['allergy_conflict'] == true) {
+        reasons.add('Allergy Conflict: Severe risk matching patient profile.');
+      }
+      if (interactionCheck['interaction_risk'] == 'HIGH' || interactionCheck['interaction_risk'] == 'CRITICAL') {
+        reasons.add('Drug Interaction: ${interactionCheck['interaction_details']}');
+      }
+      if (dupCheck['is_duplicate'] == true) {
+        reasons.add('Duplicate Therapy: ${dupCheck['duplicate_details']}');
       }
 
+      final List<dynamic> altsRaw = allergyCheck['suggested_alternatives'] ?? interactionCheck['alternatives'] ?? [];
+      final List<Map<String, String>> altsParsed = altsRaw.map((a) {
+        final String label = a.toString();
+        final drug = label.split(' ').first;
+        return {
+          'label': label,
+          'drug': drug,
+          'strength': label.contains('500mg') ? '500mg' : (label.contains('250mg') ? '250mg' : '500mg'),
+          'frequency': label.contains('twice') ? 'Twice daily' : 'Once daily',
+          'rowIndex': rowIndex.toString(),
+        };
+      }).toList();
+
       setState(() {
-        _isAuditing = false;
-        // Penicillin Allergy Risk Scenario (triggers critical alerts for patient Elena Vance)
-        if (hasPenicillin && widget.patientId == 'elena_vance') {
-          _riskBand = 'CRITICAL';
-          _riskScore = 95;
-          _riskReasons = [
-            'Drug-Allergy Interaction: Patient Elena Vance is highly allergic to Penicillin compounds.',
-            'Severe risk of acute anaphylaxis and medical emergency.',
-          ];
-          _alternatives = [
-            {
-              'label': 'Ciprofloxacin 500mg twice daily for 7 days',
-              'drug': 'Ciprofloxacin',
-              'strength': '500mg',
-              'frequency': 'Twice daily',
-              'rowIndex': offendingRowIndex.toString(),
-            },
-            {
-              'label': 'Erythromycin 250mg twice daily for 10 days',
-              'drug': 'Erythromycin',
-              'strength': '250mg',
-              'frequency': 'Twice daily',
-              'rowIndex': offendingRowIndex.toString(),
-            }
-          ];
-        } else {
-          // Normal Baseline state
-          _riskBand = 'LOW';
-          _riskScore = 8;
-          _riskReasons = [];
-          _alternatives = [];
+        final riskLevelStr = res['risk_level'] ?? 'SAFE';
+        _riskBand = riskLevelStr == 'SAFE' ? 'LOW' : (riskLevelStr == 'WARNING' ? 'HIGH' : 'CRITICAL');
+        _riskScore = res['risk_score'] ?? (res['confidence_score'] != null ? (res['confidence_score'] * 100).round() : 10);
+        if (_riskBand == 'CRITICAL') {
+          _riskScore = max(90, _riskScore);
+        } else if (_riskBand == 'HIGH') {
+          _riskScore = max(70, _riskScore);
         }
+        _riskReasons = reasons.isNotEmpty ? reasons : (res['clinical_explanation'] != null ? [res['clinical_explanation']] : []);
+        _alternatives = altsParsed;
       });
+    } else {
+      _runLocalMockAudit(medName, rowIndex);
+    }
+  }
+
+  void _runLocalMockAudit(String drugName, int offendingRowIndex) {
+    setState(() {
+      if (drugName.toLowerCase().contains('penicillin') && widget.patientId == 'elena_vance') {
+        _riskBand = 'CRITICAL';
+        _riskScore = 95;
+        _riskReasons = [
+          'Drug-Allergy Interaction: Patient is highly allergic to Penicillin. (Rules Fallback)',
+          'Severe risk of acute anaphylaxis and medical emergency.',
+        ];
+        _alternatives = [
+          {
+            'label': 'Ciprofloxacin 500mg twice daily for 7 days',
+            'drug': 'Ciprofloxacin',
+            'strength': '500mg',
+            'frequency': 'Twice daily',
+            'rowIndex': offendingRowIndex.toString(),
+          },
+        ];
+      } else {
+        _riskBand = 'LOW';
+        _riskScore = 8;
+        _riskReasons = [];
+        _alternatives = [];
+      }
     });
   }
 
@@ -181,32 +229,38 @@ class _DoctorPrescriptionEditorScreenState extends State<DoctorPrescriptionEdito
     final int index = int.parse(alt['rowIndex']!);
     if (index >= 0 && index < _medicationRows.length) {
       setState(() {
-        _medicationRows[index]['nameController'].text = alt['drug']!;
-        _medicationRows[index]['strengthController'].text = alt['strength']!;
+        (_medicationRows[index]['nameController'] as TextEditingController)
+            .text = alt['drug']!;
+        (_medicationRows[index]['strengthController']
+                as TextEditingController)
+            .text = alt['strength']!;
         _medicationRows[index]['frequency'] = alt['frequency']!;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Applied safe alternative: ${alt['drug']}')),
+        SnackBar(content: Text('Applied: ${alt['drug']}')),
       );
     }
   }
 
   void _proceedToOverride() {
-    if (_chiefComplaintController.text.isEmpty || _diagnosisController.text.isEmpty) {
+    if (_chiefComplaintController.text.isEmpty ||
+        _diagnosisController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please complete Chief Complaint and Provisional Diagnosis.')),
+        const SnackBar(
+            content: Text(
+                'Please complete Chief Complaint and Provisional Diagnosis.')),
       );
       return;
     }
-
     final List<Map<String, dynamic>> finalMeds = _medicationRows.map((row) {
       return {
-        'name': row['nameController'].text.toString(),
-        'strength': row['strengthController'].text.toString(),
+        'name': (row['nameController'] as TextEditingController).text,
+        'strength': (row['strengthController'] as TextEditingController).text,
         'route': row['route'].toString(),
         'frequency': row['frequency'].toString(),
         'duration': '${row['durationValue']} ${row['durationUnit']}',
-        'instructions': row['instructionsController'].text.toString(),
+        'instructions':
+            (row['instructionsController'] as TextEditingController).text,
         'morning': row['morning'] == true,
         'afternoon': row['afternoon'] == true,
         'evening': row['evening'] == true,
@@ -216,10 +270,10 @@ class _DoctorPrescriptionEditorScreenState extends State<DoctorPrescriptionEdito
       };
     }).toList();
 
-    // Check if medication row name is empty
-    if (finalMeds.any((med) => med['name']!.trim().isEmpty)) {
+    if (finalMeds.any((med) => med['name'].trim().isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter drug names for all medication rows.')),
+        const SnackBar(
+            content: Text('Please enter drug names for all medication rows.')),
       );
       return;
     }
@@ -241,432 +295,296 @@ class _DoctorPrescriptionEditorScreenState extends State<DoctorPrescriptionEdito
     );
   }
 
+  // ── Input decoration helper ───────────────────────────────────
+  InputDecoration _inputDec(String label, {String? hint}) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: Dr.meta(13),
+      hintText: hint,
+      hintStyle: Dr.meta(12),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Dr.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Dr.green, width: 1.5),
+      ),
+      filled: true,
+      fillColor: Dr.bg,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
     final appState = Provider.of<AppState>(context);
-
-    // Doctor fallback
-    final docName = 'Dr. Alexander Vance';
-    final docHospital = appState.doctorHospital ?? 'Metropolitan Hospital Centre';
+    final docHospital =
+        appState.doctorHospital ?? 'Metropolitan Hospital Centre';
     final docSpecialty = appState.doctorSpecialty ?? 'Cardiology';
+    final isCritical = _riskBand == 'CRITICAL' || _riskBand == 'HIGH';
+    final auditColor = isCritical ? Dr.red : Dr.green;
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        elevation: 0,
-        title: Text(
-          'Clinical Composer',
-          style: GoogleFonts.sora(fontWeight: FontWeight.bold),
-        ),
-      ),
+    return ClinicalScaffold(
+      appBar: clinicalAppBar(title: 'Clinical Composer'),
       body: Column(
         children: [
+          // ── Scrollable Form ─────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Structured header: Patient & Doctor Info
-                  NeonCard(
-                    borderWidth: 0.5,
-                    neonColor: theme.colorScheme.primary.withOpacity(0.3),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  // ── Encounter Header Card ─────────────────────
+                  DoctorCard(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    child: Row(
                       children: [
-                        Text(
-                          'Encounter Details',
-                          style: GoogleFonts.sora(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Patient: ${widget.patientName} (${widget.patientId == 'elena_vance' ? 'Female, Age 28' : 'Female, Age 34'})',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                        ),
-                        Text(
-                          'Provider: $docName • $docSpecialty ($docHospital)',
-                          style: const TextStyle(fontSize: 12, color: Colors.white70),
+                        const Icon(Icons.person_outline_rounded,
+                            color: Dr.sub, size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(widget.patientName,
+                                  style: Dr.heading(14),
+                                  overflow: TextOverflow.ellipsis),
+                              Text(
+                                'Provider: Dr. — · $docSpecialty · $docHospital',
+                                style: Dr.meta(11),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-                  // Problem & Diagnosis Inputs
-                  Text(
-                    'Clinical Diagnosis',
-                    style: GoogleFonts.sora(fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _chiefComplaintController,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'Chief Complaint / Problem *',
-                      hintText: 'e.g. Severe dry cough, chest tightness',
+                  // ── Clinical Diagnosis ────────────────────────
+                  sectionHeader('Clinical Diagnosis'),
+                  DoctorCard(
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: _chiefComplaintController,
+                          maxLines: 2,
+                          style: GoogleFonts.inter(
+                              fontSize: 14, color: Dr.text),
+                          decoration: _inputDec(
+                            'Chief Complaint / Problem *',
+                            hint: 'e.g. Severe dry cough, chest tightness',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _diagnosisController,
+                          style: GoogleFonts.inter(
+                              fontSize: 14, color: Dr.text),
+                          decoration: _inputDec(
+                            'Provisional Diagnosis *',
+                            hint: 'e.g. Bronchial Asthma Exacerbation',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _notesController,
+                          maxLines: 2,
+                          style: GoogleFonts.inter(
+                              fontSize: 14, color: Dr.text),
+                          decoration: _inputDec('Clinical Notes (Optional)'),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _diagnosisController,
-                    decoration: const InputDecoration(
-                      labelText: 'Provisional Diagnosis *',
-                      hintText: 'e.g. Bronchial Asthma Exacerbation',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _notesController,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'Clinical Notes (Optional)',
-                    ),
-                  ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
 
-                  // Medications Section Title
+                  // ── Medication Section Header ──────────────────
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Medication Regimen *',
-                        style: GoogleFonts.sora(fontSize: 15, fontWeight: FontWeight.bold),
-                      ),
+                      Expanded(
+                          child: sectionHeader(
+                              'Medication Regimen (${_medicationRows.length})')),
                       TextButton.icon(
                         onPressed: _addMedicationRow,
-                        icon: const Icon(Icons.add, size: 16),
-                        label: const Text('Add Row'),
+                        icon: const Icon(Icons.add_rounded,
+                            size: 16, color: Dr.green),
+                        label: Text('Add Medicine',
+                            style: GoogleFonts.inter(
+                                fontSize: 13,
+                                color: Dr.green,
+                                fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
 
-                  // Dynamic Medication Rows List
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _medicationRows.length,
-                    itemBuilder: (context, index) {
-                      final row = _medicationRows[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isLight ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white10),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Medicine #${index + 1}',
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
-                                  onPressed: () => _removeMedicationRow(index),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: row['nameController'],
-                              decoration: const InputDecoration(
-                                labelText: 'Drug Name (e.g. Penicillin)',
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: row['strengthController'],
-                                    decoration: const InputDecoration(
-                                      labelText: 'Strength (e.g. 500mg)',
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: DropdownButtonFormField<String>(
-                                    value: row['route'],
-                                    decoration: const InputDecoration(labelText: 'Route'),
-                                    items: ['Oral', 'IV', 'IM', 'Topical', 'Inhalation']
-                                        .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                                        .toList(),
-                                    onChanged: (val) {
-                                      setState(() {
-                                        row['route'] = val;
-                                      });
-                                      _triggerAutoAudit();
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  flex: 2,
-                                  child: DropdownButtonFormField<String>(
-                                    value: row['frequency'],
-                                    decoration: const InputDecoration(labelText: 'Frequency'),
-                                    items: ['Once daily', 'Twice daily', 'Three times daily', 'Once at night']
-                                        .map((f) => DropdownMenuItem(value: f, child: Text(f)))
-                                        .toList(),
-                                    onChanged: (val) {
-                                      setState(() {
-                                        row['frequency'] = val;
-                                      });
-                                      _triggerAutoAudit();
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: TextFormField(
-                                    initialValue: row['durationValue'],
-                                    decoration: const InputDecoration(labelText: 'Dur.'),
-                                    keyboardType: TextInputType.number,
-                                    onChanged: (val) {
-                                      row['durationValue'] = val;
-                                      _triggerAutoAudit();
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: DropdownButtonFormField<String>(
-                                    value: row['durationUnit'],
-                                    decoration: const InputDecoration(labelText: 'Unit'),
-                                    items: ['days', 'weeks', 'months']
-                                        .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-                                        .toList(),
-                                    onChanged: (val) {
-                                      setState(() {
-                                        row['durationUnit'] = val;
-                                      });
-                                      _triggerAutoAudit();
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            // Timings checkboxes
-                            Text(
-                              'Timings',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Wrap(
-                              spacing: 8,
-                              children: [
-                                _buildCheckbox('Mng', row, 'morning'),
-                                _buildCheckbox('Aft', row, 'afternoon'),
-                                _buildCheckbox('Eve', row, 'evening'),
-                                _buildCheckbox('Ngt', row, 'night'),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            // Food relation dropdown
-                            DropdownButtonFormField<String>(
-                              value: row['beforeFood'] == true
-                                  ? 'Before Food'
-                                  : (row['afterFood'] == true ? 'After Food' : 'None'),
-                              decoration: const InputDecoration(labelText: 'Food Relation'),
-                              items: ['None', 'Before Food', 'After Food']
-                                  .map((fr) => DropdownMenuItem(value: fr, child: Text(fr)))
-                                  .toList(),
-                              onChanged: (val) {
-                                setState(() {
-                                  if (val == 'Before Food') {
-                                    row['beforeFood'] = true;
-                                    row['afterFood'] = false;
-                                  } else if (val == 'After Food') {
-                                    row['beforeFood'] = false;
-                                    row['afterFood'] = true;
-                                  } else {
-                                    row['beforeFood'] = false;
-                                    row['afterFood'] = false;
-                                  }
-                                });
-                                _triggerAutoAudit();
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            // Custom instructions
-                            TextField(
-                              controller: row['instructionsController'],
-                              decoration: const InputDecoration(
-                                labelText: 'Custom Instructions / Notes',
-                                hintText: 'e.g. Take with warm water',
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                  // ── Medication Rows ───────────────────────────
+                  ...List.generate(_medicationRows.length, (index) {
+                    final row = _medicationRows[index];
+                    return _buildMedRow(index, row);
+                  }),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),
           ),
 
-          // 3. AI Safety Audit Bottom Panel
+          // ── AI Audit Bottom Panel ─────────────────────────────
           Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isLight ? Colors.white : const Color(0xFF0F172A),
-              border: Border(
-                top: BorderSide(color: isLight ? Colors.black12 : Colors.white10),
-              ),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            decoration: const BoxDecoration(
+              color: Dr.card,
+              border: Border(top: BorderSide(color: Dr.border)),
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Audit Status Row
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        if (_isAuditing) ...[
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'AI Auditing...',
-                            style: GoogleFonts.jetBrainsMono(fontSize: 12, color: Colors.blueAccent),
-                          ),
-                        ] else ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _riskBand == 'CRITICAL'
-                                  ? Colors.redAccent.withOpacity(0.12)
-                                  : Colors.green.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: _riskBand == 'CRITICAL' ? Colors.redAccent : Colors.green,
-                                width: 0.5,
-                              ),
-                            ),
-                            child: Text(
-                              'AI RISK: $_riskBand',
-                              style: TextStyle(
-                                color: _riskBand == 'CRITICAL' ? Colors.redAccent : Colors.green,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Score: $_riskScore/100',
-                            style: GoogleFonts.jetBrainsMono(fontSize: 12),
-                          ),
-                        ]
-                      ],
-                    ),
-                    ElevatedButton(
-                      onPressed: _proceedToOverride,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _riskBand == 'CRITICAL' ? Colors.redAccent : theme.colorScheme.primary,
+                    if (_isAuditing) ...[
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Dr.green),
                       ),
-                      child: const Text('Proceed to Sign', style: TextStyle(color: Colors.white)),
+                      const SizedBox(width: 8),
+                      Text('AI Safety Auditing...',
+                          style: GoogleFonts.jetBrainsMono(
+                              fontSize: 11, color: Dr.sub)),
+                    ] else ...[
+                      DoctorStatusBadge(
+                        label: 'AI: $_riskBand',
+                        color: auditColor,
+                        icon: isCritical
+                            ? Icons.dangerous_rounded
+                            : Icons.verified_rounded,
+                      ),
+                      const SizedBox(width: 8),
+                      Text('$_riskScore/100',
+                          style: GoogleFonts.jetBrainsMono(
+                              fontSize: 12, color: Dr.sub)),
+                    ],
+                    const Spacer(),
+                    ElevatedButton.icon(
+                      onPressed: _proceedToOverride,
+                      icon: Icon(
+                        isCritical
+                            ? Icons.warning_amber_rounded
+                            : Icons.draw_rounded,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      label: Text('Proceed to Sign',
+                          style: GoogleFonts.inter(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: auditColor,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
                     ),
                   ],
                 ),
-                if (_riskBand == 'CRITICAL' && _riskReasons.isNotEmpty) ...[
+
+                // Contraindication warnings
+                if (isCritical && _riskReasons.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Container(
+                    width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.redAccent.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.redAccent.withOpacity(0.3), width: 0.5),
+                      color: Dr.red.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(10),
+                      border:
+                          Border.all(color: Dr.red.withOpacity(0.3)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Contraindication warnings:',
-                          style: GoogleFonts.sora(
-                            color: Colors.redAccent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text('Contraindications:',
+                            style: GoogleFonts.sora(
+                                color: Dr.red,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold)),
                         const SizedBox(height: 6),
-                        ..._riskReasons.map(
-                          (reason) => Padding(
-                            padding: const EdgeInsets.only(bottom: 4.0),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('• ', style: TextStyle(color: Colors.redAccent)),
-                                Expanded(
-                                  child: Text(
-                                    reason,
-                                    style: const TextStyle(fontSize: 12, color: Colors.white),
+                        ..._riskReasons.map((reason) => Padding(
+                              padding:
+                                  const EdgeInsets.only(bottom: 3),
+                              child: Row(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  const Text('· ',
+                                      style: TextStyle(
+                                          color: Dr.red,
+                                          fontWeight:
+                                              FontWeight.bold)),
+                                  Expanded(
+                                    child: Text(reason,
+                                        style: Dr.body(12)
+                                            .copyWith(color: Dr.red)),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Suggested Safe Alternatives:',
-                          style: GoogleFonts.sora(
-                            color: const Color(0xFF10B981),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ..._alternatives.map(
-                          (alt) => Padding(
-                            padding: const EdgeInsets.only(bottom: 6.0),
-                            child: SizedBox(
-                              width: double.infinity,
-                              height: 34,
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: Color(0xFF10B981), width: 0.5),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ),
-                                onPressed: () => _applyAlternative(alt),
-                                child: Text(
-                                  'Apply: ${alt['label']}',
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF10B981)),
-                                ),
+                                ],
                               ),
-                            ),
-                          ),
-                        ),
+                            )),
+                        if (_alternatives.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Text('Safe Alternatives:',
+                              style: GoogleFonts.sora(
+                                  color: Dr.green,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 6),
+                          ..._alternatives.map((alt) => Padding(
+                                padding:
+                                    const EdgeInsets.only(bottom: 6),
+                                child: OutlinedButton(
+                                  onPressed: () =>
+                                      _applyAlternative(alt),
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(
+                                        color: Dr.green, width: 1),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(8)),
+                                    padding:
+                                        const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.check_rounded,
+                                          size: 14, color: Dr.green),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          'Apply: ${alt['label']}',
+                                          style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              color: Dr.green,
+                                              fontWeight:
+                                                  FontWeight.bold),
+                                          overflow:
+                                              TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )),
+                        ],
                       ],
                     ),
                   ),
@@ -677,14 +595,234 @@ class _DoctorPrescriptionEditorScreenState extends State<DoctorPrescriptionEdito
         ],
       ),
     );
-  Widget _buildCheckbox(String label, Map<String, dynamic> row, String key) {
+  }
+
+  Widget _buildMedRow(int index, Map<String, dynamic> row) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Dr.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Dr.border),
+        boxShadow: const [Dr.cardShadow],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Row header
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Dr.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Medicine #${index + 1}',
+                  style: GoogleFonts.jetBrainsMono(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Dr.green),
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.delete_outline_rounded,
+                    color: Dr.red, size: 18),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => _removeMedicationRow(index),
+                tooltip: 'Remove',
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Drug name
+          TextField(
+            controller: row['nameController'] as TextEditingController,
+            style: GoogleFonts.inter(fontSize: 14, color: Dr.text),
+            decoration: _inputDec('Drug Name *', hint: 'e.g. Amoxicillin'),
+          ),
+          const SizedBox(height: 10),
+
+          // Strength + Route
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller:
+                      row['strengthController'] as TextEditingController,
+                  style: GoogleFonts.inter(fontSize: 14, color: Dr.text),
+                  decoration:
+                      _inputDec('Strength', hint: 'e.g. 500mg'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: row['route'] as String,
+                  decoration: _inputDec('Route'),
+                  style: GoogleFonts.inter(fontSize: 13, color: Dr.text),
+                  dropdownColor: Dr.card,
+                  items: ['Oral', 'IV', 'IM', 'Topical', 'Inhalation']
+                      .map((r) => DropdownMenuItem(
+                          value: r,
+                          child: Text(r,
+                              style: GoogleFonts.inter(
+                                  fontSize: 13, color: Dr.text))))
+                      .toList(),
+                  onChanged: (val) {
+                    setState(() => row['route'] = val);
+                    _triggerAutoAudit();
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Frequency + Duration
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: DropdownButtonFormField<String>(
+                  value: row['frequency'] as String,
+                  decoration: _inputDec('Frequency'),
+                  style: GoogleFonts.inter(fontSize: 13, color: Dr.text),
+                  dropdownColor: Dr.card,
+                  items: [
+                    'Once daily',
+                    'Twice daily',
+                    'Three times daily',
+                    'Once at night',
+                  ]
+                      .map((f) => DropdownMenuItem(
+                          value: f,
+                          child: Text(f,
+                              style: GoogleFonts.inter(
+                                  fontSize: 13, color: Dr.text))))
+                      .toList(),
+                  onChanged: (val) {
+                    setState(() => row['frequency'] = val);
+                    _triggerAutoAudit();
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextFormField(
+                  initialValue: row['durationValue'] as String,
+                  keyboardType: TextInputType.number,
+                  style: GoogleFonts.inter(fontSize: 14, color: Dr.text),
+                  decoration: _inputDec('Days'),
+                  onChanged: (val) {
+                    row['durationValue'] = val;
+                    _triggerAutoAudit();
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: row['durationUnit'] as String,
+                  decoration: _inputDec('Unit'),
+                  style: GoogleFonts.inter(fontSize: 13, color: Dr.text),
+                  dropdownColor: Dr.card,
+                  items: ['days', 'weeks', 'months']
+                      .map((u) => DropdownMenuItem(
+                          value: u,
+                          child: Text(u,
+                              style: GoogleFonts.inter(
+                                  fontSize: 13, color: Dr.text))))
+                      .toList(),
+                  onChanged: (val) {
+                    setState(() => row['durationUnit'] = val);
+                    _triggerAutoAudit();
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Timings chips
+          Text('Dose Timings',
+              style: Dr.meta(12)
+                  .copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              _timingChip('Morning', row, 'morning'),
+              _timingChip('Afternoon', row, 'afternoon'),
+              _timingChip('Evening', row, 'evening'),
+              _timingChip('Night', row, 'night'),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Food relation
+          DropdownButtonFormField<String>(
+            value: row['beforeFood'] == true
+                ? 'Before Food'
+                : (row['afterFood'] == true ? 'After Food' : 'None'),
+            decoration: _inputDec('Food Relation'),
+            style: GoogleFonts.inter(fontSize: 13, color: Dr.text),
+            dropdownColor: Dr.card,
+            items: ['None', 'Before Food', 'After Food']
+                .map((fr) => DropdownMenuItem(
+                    value: fr,
+                    child: Text(fr,
+                        style: GoogleFonts.inter(
+                            fontSize: 13, color: Dr.text))))
+                .toList(),
+            onChanged: (val) {
+              setState(() {
+                row['beforeFood'] = val == 'Before Food';
+                row['afterFood'] = val == 'After Food';
+              });
+              _triggerAutoAudit();
+            },
+          ),
+          const SizedBox(height: 10),
+
+          // Custom instructions
+          TextField(
+            controller:
+                row['instructionsController'] as TextEditingController,
+            style: GoogleFonts.inter(fontSize: 14, color: Dr.text),
+            decoration: _inputDec('Custom Instructions',
+                hint: 'e.g. Take with warm water'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _timingChip(
+      String label, Map<String, dynamic> row, String key) {
+    final selected = row[key] == true;
     return FilterChip(
-      label: Text(label, style: const TextStyle(fontSize: 11)),
-      selected: row[key] == true,
+      label: Text(label,
+          style: GoogleFonts.inter(
+              fontSize: 12,
+              color: selected ? Colors.white : Dr.sub,
+              fontWeight:
+                  selected ? FontWeight.bold : FontWeight.normal)),
+      selected: selected,
+      selectedColor: Dr.green,
+      backgroundColor: Dr.bg,
+      side: BorderSide(
+          color: selected ? Dr.green : Dr.border, width: 1),
+      checkmarkColor: Colors.white,
       onSelected: (val) {
-        setState(() {
-          row[key] = val;
-        });
+        setState(() => row[key] = val);
         _triggerAutoAudit();
       },
     );

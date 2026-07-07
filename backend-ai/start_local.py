@@ -68,6 +68,19 @@ def main():
                     k, v = line.split("=", 1)
                     os.environ[k.strip()] = v.strip()
 
+    # Run database seeding if enabled
+    if os.getenv("RUN_DB_SEED_ON_STARTUP", "false").lower() == "true":
+        print("\n[SEED] RUN_DB_SEED_ON_STARTUP is true. Automatically seeding database...")
+        seed_script = BASE_DIR / "insert_sample_data.py"
+        if seed_script.exists():
+            try:
+                subprocess.run([sys.executable, str(seed_script)], check=True)
+                print("[SEED] Database seeding complete!\n")
+            except Exception as e:
+                print(f"[SEED] ERROR: Database seeding failed: {e}\n")
+        else:
+            print("[SEED] WARNING: insert_sample_data.py not found.\n")
+
     procs = []
 
     if args.service:
@@ -86,7 +99,15 @@ def main():
     def shutdown(sig, frame):
         print("\n[STOP] Shutting down all services...")
         for p in procs:
-            p.terminate()
+            try:
+                if os.name == 'nt':
+                    # Cleanly terminate process tree on Windows
+                    subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)], 
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                else:
+                    p.terminate()
+            except Exception:
+                pass
         sys.exit(0)
 
     signal.signal(signal.SIGINT, shutdown)

@@ -68,7 +68,18 @@ class _PatientSignUpScreenState extends State<PatientSignUpScreen> {
     });
 
     final appState = Provider.of<AppState>(context, listen: false);
-    final error = await appState.signUpWithEmail(email, password, name: name);
+    final error = await appState.signUpWithEmail(
+      email,
+      password,
+      name: name,
+      mobile: mobile,
+      dob: _dob != null ? _dob!.toIso8601String().split('T').first : '',
+      gender: _gender ?? '',
+      country: _country ?? '',
+      idType: _idType ?? '',
+      idNumber: _idNumberController.text.trim(),
+      uploadedFileName: _uploadedFileName ?? '',
+    );
 
     if (mounted) {
       setState(() {

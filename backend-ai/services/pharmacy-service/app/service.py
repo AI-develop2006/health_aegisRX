@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 from fastapi import HTTPException
 
-from app.config import TEST_PHARMACY_PRIVATE_KEY, logger
+from app.config import TEST_PHARMACY_PRIVATE_KEY, ALLOW_MOCK_POLYGON_TX, logger
 from app.db import prescriptions_col
 from app.blockchain import BlockchainManager, log_activity
 from app.utils.signature import sha256_hash, decrypt, json_stringify_rx
@@ -156,7 +156,13 @@ async def verify_scan(raw_payload: str, signature: str, timestamp: str) -> dict:
     }
 
 
-async def dispense_prescription(rx_id: str) -> dict:
+async def dispense_prescription(
+    rx_id: str,
+    batch_number: str = None,
+    expiry_date: str = None,
+    touch_signature: str = None,
+    delivery_tracking_id: str = None,
+) -> dict:
     existing = prescriptions_col().find_one({"id": rx_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Prescription not found")
@@ -165,7 +171,16 @@ async def dispense_prescription(rx_id: str) -> dict:
 
     updated = prescriptions_col().find_one_and_update(
         {"id": rx_id},
-        {"$set": {"isDispensed": True}},
+        {
+            "$set": {
+                "isDispensed": True,
+                "batch_number": batch_number,
+                "expiry_date": expiry_date,
+                "touch_signature": touch_signature,
+                "delivery_tracking_id": delivery_tracking_id,
+                "dispensedAt": datetime.utcnow(),
+            }
+        },
         return_document=True
     )
     if not updated:
@@ -178,6 +193,14 @@ async def dispense_prescription(rx_id: str) -> dict:
             onchain_tx_hash = polygon_client.mark_dispensed(rx_id, TEST_PHARMACY_PRIVATE_KEY)
         except Exception as e:
             logger.error(f"Polygon on-chain mark_dispensed failed: {e}")
+            if not ALLOW_MOCK_POLYGON_TX:
+                raise HTTPException(status_code=400, detail=f"On-chain dispensation failed: {str(e)}")
+    else:
+        if not ALLOW_MOCK_POLYGON_TX:
+            raise HTTPException(
+                status_code=400,
+                detail="Sovereign Dispense Error: Missing Polygon pharmacist key. On-chain validation failed."
+            )
 
     bm = BlockchainManager()
     bm.add_block("DISPENSED", {
@@ -185,12 +208,16 @@ async def dispense_prescription(rx_id: str) -> dict:
         "patient_name": updated.get("patientName", ""),
         "doctor_id": updated.get("doctorSignId", ""),
         "dispensed_at": datetime.utcnow().isoformat(),
+        "batch_number": batch_number,
+        "expiry_date": expiry_date,
+        "touch_signature": touch_signature,
+        "delivery_tracking_id": delivery_tracking_id,
     }, onchain_tx_hash=onchain_tx_hash)
 
     await log_activity(
         "DISPENSE_PRESCRIPTION",
         updated.get("patientName", "Unknown"), "Pharmacy",
-        f"Pharmacy dispensed medications and burned token for prescription {rx_id}.",
+        f"Pharmacy dispensed medications and burned token for prescription {rx_id} (Batch: {batch_number}).",
         onchain_tx_hash=onchain_tx_hash
     )
     return _serialize_doc(updated)

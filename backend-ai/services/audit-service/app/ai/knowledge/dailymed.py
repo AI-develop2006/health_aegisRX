@@ -1,5 +1,9 @@
 from typing import Dict, Any
+import logging
 from app.ai.knowledge.base import BaseDailyMed
+from app.core.config import settings
+
+logger = logging.getLogger("AegisRx.DailyMed")
 
 class DailyMedMock(BaseDailyMed):
     def __init__(self):
@@ -49,14 +53,13 @@ class DailyMedMock(BaseDailyMed):
                     "History of angioedema related to previous ACE inhibitor treatment",
                     "Co-administration with aliskiren in patients with diabetes"
                 ],
-                "boxed_warning": "Fetal Toxicity: When pregnancy is detected, discontinue lisinopril as soon as possible."
+                "boxed_warning": "Fetal Toxicity: When pregnancy is detected, discontinue Lisinopril as soon as possible."
             },
             "aspirin": {
                 "pregnancy_category": "D",
-                "pregnancy_warning": "Avoid in the third trimester of pregnancy due to risks of bleeding and premature closure of fetal ductus arteriosus.",
+                "pregnancy_warning": "Avoid in the third trimester. Can cause premature closure of the ductus arteriosus, bleeding, and prolonged labor.",
                 "contraindications": [
-                    "Bleeding disorders (e.g. hemophilia)",
-                    "Active peptic ulcer disease",
+                    "Hypersensitivity to NSAIDs",
                     "Asthma with nasal polyps"
                 ],
                 "boxed_warning": None
@@ -73,6 +76,18 @@ class DailyMedMock(BaseDailyMed):
         }
 
     async def get_drug_warnings(self, drug_name: str) -> Dict[str, Any]:
+        if settings.USE_MOCK_AUDIT:
+            logger.info("USE_MOCK_AUDIT is enabled. Using DailyMed mock database.")
+            return self._get_mock_drug_warnings(drug_name)
+
+        try:
+            logger.info("USE_MOCK_AUDIT is false. Checking for production DailyMed API...")
+            raise NotImplementedError("Production DailyMed API is not configured.")
+        except Exception as e:
+            logger.warning(f"DailyMed production client check failed: {e}. Falling back to mock database.")
+            return self._get_mock_drug_warnings(drug_name)
+
+    def _get_mock_drug_warnings(self, drug_name: str) -> Dict[str, Any]:
         normalized = drug_name.strip().lower()
         if normalized in self.warnings_db:
             return self.warnings_db[normalized]

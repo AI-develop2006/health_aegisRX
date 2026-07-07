@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:health_lock/core/constants/app_colors.dart';
-import 'package:health_lock/core/theme/app_theme.dart';
+import 'package:health_lock/shared/widgets/neon_card.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final VoidCallback onFinished;
@@ -97,7 +97,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24.0),
                     child: Center(
-                      child: GlassCard(
+                      child: NeonCard(
                         padding: const EdgeInsets.all(32.0),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,

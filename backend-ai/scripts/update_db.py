@@ -14,6 +14,10 @@ import json
 import logging
 from datetime import datetime
 from pymongo import MongoClient
+from dotenv import load_dotenv
+
+# Load env variables from .env file
+load_dotenv(override=True)
 
 # Configure local logging
 logging.basicConfig(

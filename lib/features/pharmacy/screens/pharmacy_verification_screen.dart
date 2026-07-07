@@ -50,9 +50,6 @@ class _PharmacyVerificationScreenState extends State<PharmacyVerificationScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
-
     Widget content;
 
     if (_isLoading) {

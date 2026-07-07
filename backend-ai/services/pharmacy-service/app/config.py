@@ -12,6 +12,9 @@ MONGODB_URI              = os.getenv("MONGODB_URI", "mongodb://localhost:27017/"
 MONGODB_DATABASE         = os.getenv("MONGODB_DATABASE", "healthcare_db")
 COLLECTION_PRESCRIPTIONS   = os.getenv("COLLECTION_PRESCRIPTIONS", "prescriptions")
 LOG_LEVEL                = os.getenv("LOG_LEVEL", "INFO")
+ENV                      = os.getenv("ENV", "development")
+FORCE_MOCK_DB            = os.getenv("FORCE_MOCK_DB", "false").lower() == "true"
+ALLOW_MOCK_POLYGON_TX    = os.getenv("ALLOW_MOCK_POLYGON_TX", "false").lower() == "true"
 
 # Blockchain Config
 POLYGON_RPC_URL          = os.getenv("POLYGON_RPC_URL", "https://rpc-amoy.polygon.technology")

@@ -1,9 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../shared/widgets/neon_card.dart';
+import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
+import '../../../core/state/app_state.dart';
+import '../doctor_theme.dart';
 import 'doctor_prescription_editor_screen.dart';
 
-class DoctorPatientHistoryScreen extends StatelessWidget {
+class DoctorPatientHistoryScreen extends StatefulWidget {
   final String patientId;
   final String patientName;
 
@@ -14,300 +18,387 @@ class DoctorPatientHistoryScreen extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
+  State<DoctorPatientHistoryScreen> createState() =>
+      _DoctorPatientHistoryScreenState();
+}
 
-    // Retrieve details depending on mock patient selected
-    final bool isElena = patientId == 'elena_vance';
-    final age = isElena ? 28 : 34;
-    final gender = isElena ? 'Female' : 'Female';
-    final allergies = isElena ? ['Penicillin', 'Peanuts'] : ['Sulfa drugs'];
-    final conditions = isElena ? ['Type-2 Diabetes', 'Asthma'] : ['Essential Hypertension'];
+class _DoctorPatientHistoryScreenState
+    extends State<DoctorPatientHistoryScreen> {
+  bool _isLoading = true;
+  String? _error;
+  Map<String, dynamic>? _historyData;
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        elevation: 0,
-        title: Text(
-          'Patient Medical File',
-          style: GoogleFonts.sora(fontWeight: FontWeight.bold),
+  @override
+  void initState() {
+    super.initState();
+    _fetchHistory();
+  }
+
+  Future<void> _fetchHistory() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+      final appState = Provider.of<AppState>(context, listen: false);
+      final response = await http.get(
+        Uri.parse(
+          '${appState.backendUrl}/api/doctor/patient-history/${Uri.encodeComponent(widget.patientId)}'
+          '?doctor_id=${Uri.encodeComponent(appState.doctorLicense ?? "9876543210")}',
         ),
+      );
+      if (response.statusCode == 200) {
+        setState(() {
+          _historyData = jsonDecode(response.body) as Map<String, dynamic>;
+          _isLoading = false;
+        });
+      } else {
+        try {
+          final decoded =
+              jsonDecode(response.body) as Map<String, dynamic>;
+          setState(() {
+            _error = decoded['detail'] ?? 'Failed to retrieve patient history';
+            _isLoading = false;
+          });
+        } catch (_) {
+          setState(() {
+            _error = 'Server Error (${response.statusCode})';
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Connection failed: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return ClinicalScaffold(
+        appBar: clinicalAppBar(title: 'Patient Medical File'),
+        body: const Center(
+          child: CircularProgressIndicator(color: Dr.green),
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return ClinicalScaffold(
+        appBar: clinicalAppBar(title: 'Patient Medical File'),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline_rounded,
+                    size: 56, color: Dr.red),
+                const SizedBox(height: 16),
+                Text(_error!,
+                    textAlign: TextAlign.center, style: Dr.heading(15)),
+                const SizedBox(height: 24),
+                DoctorOutlinedButton(
+                  label: 'Retry',
+                  icon: Icons.refresh_rounded,
+                  onPressed: _fetchHistory,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final pInfo =
+        _historyData?['patient_info'] as Map<String, dynamic>? ?? {};
+    final age = pInfo['age'] ?? '—';
+    final gender = pInfo['gender'] ?? 'Unknown';
+    final List<dynamic> conditions =
+        pInfo['conditions'] as List<dynamic>? ?? ['None Recorded'];
+    final List<dynamic> allergies =
+        _historyData?['allergies'] as List<dynamic>? ?? [];
+    final List<dynamic> prescriptions =
+        _historyData?['prescriptions'] as List<dynamic>? ?? [];
+    final List<dynamic> visits =
+        _historyData?['visit_history'] as List<dynamic>? ?? [];
+
+    return ClinicalScaffold(
+      appBar: clinicalAppBar(
+        title: 'Patient Medical File',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: Dr.sub),
+            onPressed: _fetchHistory,
+            tooltip: 'Refresh',
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Patient demographics card
-            NeonCard(
-              neonColor: theme.colorScheme.primary,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        patientName,
-                        style: GoogleFonts.sora(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'ID: $patientId',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 12,
-                          color: isLight ? Colors.black54 : Colors.white54,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Age: $age • Gender: $gender',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(color: Colors.white12),
-                  const SizedBox(height: 12),
-
-                  // Allergies List
-                  const Text(
-                    'Drug & Food Allergies',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: allergies
-                        .map(
-                          (allergy) => Chip(
-                            backgroundColor: Colors.redAccent.withOpacity(0.12),
-                            side: const BorderSide(color: Colors.redAccent, width: 0.5),
-                            label: Text(
-                              allergy,
-                              style: const TextStyle(
-                                color: Colors.redAccent,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+      body: RefreshIndicator(
+        color: Dr.green,
+        onRefresh: _fetchHistory,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Patient Demographics Card ─────────────────────
+              DoctorCard(
+                borderColor: Dr.green.withOpacity(0.3),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(widget.patientName,
+                                  style: Dr.heading(18),
+                                  overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 4),
+                              Text('Age: $age · Gender: $gender',
+                                  style: Dr.meta(13)),
+                            ],
                           ),
-                        )
-                        .toList(),
-                  ),
-                  const SizedBox(height: 16),
+                        ),
+                        const SizedBox(width: 8),
+                        const DoctorStatusBadge(
+                            label: 'Active Session',
+                            color: Dr.green,
+                            icon: Icons.wifi_tethering_rounded),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'ID: ${widget.patientId}',
+                      style: GoogleFonts.jetBrainsMono(
+                          fontSize: 11, color: Dr.sub),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Divider(
+                        color: Dr.border, height: 28),
 
-                  // Chronic conditions list
-                  const Text(
-                    'Chronic Conditions',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: conditions
-                        .map(
-                          (cond) => Chip(
-                            backgroundColor: theme.colorScheme.secondary.withOpacity(0.12),
-                            side: BorderSide(color: theme.colorScheme.secondary, width: 0.5),
-                            label: Text(
-                              cond,
-                              style: TextStyle(
-                                color: theme.colorScheme.secondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                    // Allergies
+                    Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded,
+                            size: 14, color: Dr.red),
+                        const SizedBox(width: 6),
+                        Text('Allergies', style: Dr.heading(13)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    allergies.isEmpty
+                        ? Text('No known allergies recorded',
+                            style: Dr.meta(13)
+                                .copyWith(fontStyle: FontStyle.italic))
+                        : Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: allergies
+                                .map((a) => _chip(a.toString(), Dr.red))
+                                .toList(),
                           ),
-                        )
-                        .toList(),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 28),
+                    const SizedBox(height: 16),
 
-            // Clinical Encounter Logs
-            Text(
-              'Encounter Logs',
-              style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            NeonCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '25 June 2026 - Routine Checkup',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: theme.colorScheme.primary,
+                    // Conditions
+                    Row(
+                      children: [
+                        const Icon(Icons.medical_information_outlined,
+                            size: 14, color: Dr.amber),
+                        const SizedBox(width: 6),
+                        Text('Chronic Conditions', style: Dr.heading(13)),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Patient reported mild fatigue and dry mouth. Blood glucose values indicate slightly elevated HbA1c. Recommended continuing low carbohydrate diet and regular medication compliance.',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: isLight ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
-                      height: 1.4,
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: conditions
+                          .map((c) => _chip(c.toString(), Dr.amber))
+                          .toList(),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 28),
+              const SizedBox(height: 24),
 
-            // Historical Prescriptions
-            Text(
-              'Historical Prescriptions',
-              style: GoogleFonts.sora(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            _buildHistoryRxCard(
-              context: context,
-              date: '20 June 2026',
-              medText: 'Metformin 500 mg twice daily for 3 months',
-              riskBand: 'LOW',
-              riskColor: const Color(0xFF10B981),
-            ),
-            const SizedBox(height: 12),
-            _buildHistoryRxCard(
-              context: context,
-              date: '15 May 2026',
-              medText: 'Amoxicillin 500 mg three times daily for 7 days',
-              riskBand: 'HIGH',
-              riskColor: Colors.orangeAccent,
-              overrideNote: 'Patient has chronic sinus infection resistant to first-line agents. Monitored closely for side effects.',
-            ),
-            const SizedBox(height: 36),
-
-            // Action CTA
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => DoctorPrescriptionEditorScreen(
-                        patientId: patientId,
-                        patientName: patientName,
+              // ── Encounter Logs ────────────────────────────────
+              sectionHeader('Encounter Logs (Blockchain Ledger)'),
+              if (visits.isEmpty)
+                DoctorCard(
+                  child: Center(
+                    child: Text('No prior encounter logs found.',
+                        style: Dr.meta(13)
+                            .copyWith(fontStyle: FontStyle.italic)),
+                  ),
+                )
+              else
+                ...visits.map((visit) {
+                  final data =
+                      visit['data'] as Map<String, dynamic>? ?? {};
+                  final timestamp = visit['timestamp'] != null
+                      ? DateTime.fromMillisecondsSinceEpoch(
+                              visit['timestamp'])
+                          .toLocal()
+                          .toString()
+                          .substring(0, 16)
+                      : 'Unknown Date';
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: DoctorCard(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(timestamp,
+                              style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 11, color: Dr.green)),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Dr. ${data['doctor_name'] ?? '—'} · ${data['hospital'] ?? '—'}',
+                            style: Dr.body(13)
+                                .copyWith(fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'Diagnosis: ${data['disease'] ?? '—'} · Rx: ${data['rx_id'] ?? '—'}',
+                            style: Dr.meta(12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     ),
                   );
-                },
-                icon: const Icon(Icons.note_add_rounded, color: Colors.white),
-                label: const Text(
-                  'Write New Prescription',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                }),
+              const SizedBox(height: 24),
+
+              // ── Historical Prescriptions ──────────────────────
+              sectionHeader('Historical Prescriptions'),
+              if (prescriptions.isEmpty)
+                DoctorCard(
+                  child: Center(
+                    child: Text('No prior prescriptions found.',
+                        style: Dr.meta(13)
+                            .copyWith(fontStyle: FontStyle.italic)),
                   ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                )
+              else
+                ...prescriptions.map((rx) {
+                  final List<dynamic> meds =
+                      rx['medicines'] as List<dynamic>? ?? [];
+                  final medStr = meds
+                      .map((m) => '${m['name']} (${m['interval']})')
+                      .join(', ');
+                  final riskBand = rx['riskBand'] ?? 'LOW';
+                  final override = rx['overrideReason'];
+                  final rc = riskColor(riskBand);
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: DoctorCard(
+                      borderColor: rc.withOpacity(0.3),
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${rx['date'] ?? ''} · ${rx['time'] ?? ''}',
+                                  style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 11, color: Dr.sub),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              DoctorStatusBadge(
+                                  label: riskLabel(riskBand),
+                                  color: rc),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(medStr,
+                              style: Dr.body(13).copyWith(
+                                  fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis),
+                          if (override != null &&
+                              override.toString().isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Dr.amber.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: Dr.amber.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.shield_outlined,
+                                      color: Dr.amber, size: 14),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Justification: $override',
+                                      style: Dr.meta(12).copyWith(
+                                          fontStyle: FontStyle.italic),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              const SizedBox(height: 28),
+
+              // ── Write Prescription CTA ────────────────────────
+              DoctorPrimaryButton(
+                label: 'Write New Prescription',
+                icon: Icons.note_add_rounded,
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DoctorPrescriptionEditorScreen(
+                      patientId: widget.patientId,
+                      patientName: widget.patientName,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHistoryRxCard({
-    required BuildContext context,
-    required String date,
-    required String medText,
-    required String riskBand,
-    required Color riskColor,
-    String? overrideNote,
-  }) {
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
-
-    return NeonCard(
-      borderWidth: 0.5,
-      neonColor: riskColor.withOpacity(0.4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                date,
-                style: GoogleFonts.jetBrainsMono(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  color: isLight ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: riskColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: riskColor, width: 0.5),
-                ),
-                child: Text(
-                  riskBand,
-                  style: TextStyle(
-                    color: riskColor,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            medText,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          ),
-          if (overrideNote != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.orangeAccent.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orangeAccent.withOpacity(0.3), width: 0.5),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.shield_outlined, color: Colors.orangeAccent, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Justification: $overrideNote',
-                      style: GoogleFonts.inter(
-                        color: isLight ? const Color(0xFF7C2D12) : const Color(0xFFFFEDD5),
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
+  Widget _chip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.4), width: 1),
       ),
+      child: Text(label,
+          style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: color)),
     );
   }
 }

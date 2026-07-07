@@ -9,7 +9,7 @@ import logging
 from datetime import datetime
 from fastapi import HTTPException
 
-from app.db import consultations_col
+from app.db import consultations_col, get_db
 from app import blockchain
 
 logger = logging.getLogger("consultation-service")
@@ -34,10 +34,30 @@ def _serialize_doc(doc: dict | None) -> dict | None:
 
 async def create_consultation_request(patient_name: str, patient_id: str | None, doctor_id: str | None) -> dict:
     patient_id = patient_id or patient_name
-    safe_name = re.escape(patient_name)
 
+    # Resolve actual patientName and patientId from 'patients' collection
+    db = get_db()
+    safe_id = re.escape(patient_id)
+    safe_name = re.escape(patient_name)
+    pattern = f"^({safe_id}|{safe_name})$"
+
+    patient_doc = db["patients"].find_one({
+        "$or": [
+            {"id_number": {"$regex": pattern, "$options": "i"}},
+            {"mobile": {"$regex": pattern, "$options": "i"}},
+            {"name": {"$regex": pattern, "$options": "i"}},
+            {"patient_id": {"$regex": pattern, "$options": "i"}},
+            {"email": {"$regex": pattern, "$options": "i"}},
+        ]
+    })
+
+    if patient_doc:
+        patient_name = patient_doc.get("name", patient_name)
+        patient_id = patient_doc.get("id_number") or patient_doc.get("mobile") or patient_doc.get("patient_id") or str(patient_doc["_id"])
+
+    safe_name_escaped = re.escape(patient_name)
     existing_pending = consultations_col().find_one({
-        "patientName": {"$regex": f"^{safe_name}$", "$options": "i"},
+        "patientName": {"$regex": f"^{safe_name_escaped}$", "$options": "i"},
         "status": "pending"
     })
     if existing_pending:

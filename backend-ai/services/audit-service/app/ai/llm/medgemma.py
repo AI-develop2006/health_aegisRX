@@ -19,10 +19,49 @@ class MedGemmaClient(BaseLLM):
         user_prompt: str, 
         response_format: Optional[Type[BaseModel]] = None
     ) -> str:
-        # Check if running in mock testing mode or if API is mock
-        if "mock" in self.api_url or settings.OPENAI_API_KEY.startswith("mock"):
-            return self._generate_mock_fallback(user_prompt)
+        res = await self.safe_generate_response(system_prompt, user_prompt, response_format)
+        return res["content"]
 
+    async def safe_generate_response(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        response_format: Optional[Type[BaseModel]] = None
+    ) -> dict:
+        if settings.USE_MOCK_LLM:
+            logger.warning("USE_MOCK_LLM enabled. Using MedGemma mock fallback.")
+            fallback = self._generate_mock_fallback(user_prompt)
+            return {"content": fallback, "mode": "mock", "reason": "USE_MOCK_LLM enabled"}
+
+        if "mock" in self.api_url or settings.OPENAI_API_KEY.startswith("mock"):
+            if settings.ENV.lower() in ("production", "prod"):
+                raise ValueError("MedGemma API URL or OpenAI key is missing or invalid in production mode.")
+            logger.warning("Invalid or mock API URL. Using MedGemma mock fallback.")
+            fallback = self._generate_mock_fallback(user_prompt)
+            return {"content": fallback, "mode": "mock", "reason": "Invalid or mock API URL"}
+
+        try:
+            import asyncio
+            content = await asyncio.wait_for(
+                self.real_generate_response(system_prompt, user_prompt, response_format),
+                timeout=5.0
+            )
+            return {"content": content, "mode": "real", "reason": None}
+        except asyncio.TimeoutError:
+            logger.error("MedGemma API call timed out. Falling back to mock.")
+            fallback = self._generate_mock_fallback(user_prompt)
+            return {"content": fallback, "mode": "mock", "reason": "MedGemma timeout"}
+        except Exception as e:
+            logger.error(f"MedGemma API call failed: {e}. Falling back to mock.")
+            fallback = self._generate_mock_fallback(user_prompt)
+            return {"content": fallback, "mode": "mock", "reason": f"MedGemma error: {str(e)}"}
+
+    async def real_generate_response(
+        self, 
+        system_prompt: str, 
+        user_prompt: str, 
+        response_format: Optional[Type[BaseModel]] = None
+    ) -> str:
         try:
             logger.info(f"Sending request to MedGemma API at {self.api_url}...")
             

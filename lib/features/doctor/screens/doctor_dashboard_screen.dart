@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/state/app_state.dart';
-import '../../../shared/widgets/neon_card.dart';
-import '../../../shared/widgets/glassmorphic_button.dart';
+import '../doctor_theme.dart';
 import 'doctor_patient_search_screen.dart';
 import 'doctor_patient_history_screen.dart';
 
@@ -13,119 +12,110 @@ class DoctorDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
-
-    // Doctor details fallback
     final docLicense = appState.doctorLicense ?? 'NPI-1002288';
     final docHospital = appState.doctorHospital ?? 'Metropolitan Hospital Centre';
     final docSpecialty = appState.doctorSpecialty ?? 'Cardiology';
+    final docName = 'Dr. ${appState.doctorLicense ?? 'Alexander Vance'}';
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: Text(
-          'Practitioner Console',
-          style: GoogleFonts.sora(fontWeight: FontWeight.bold),
-        ),
+    return ClinicalScaffold(
+      appBar: clinicalAppBar(
+        title: 'Practitioner Console',
+        showBack: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () {
-              appState.clearSession();
-            },
-          )
+            icon: const Icon(Icons.logout_rounded, color: Dr.sub),
+            tooltip: 'Sign Out',
+            onPressed: () => appState.clearSession(),
+          ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Doctor Profile Header Card
-            NeonCard(
+            // ── Doctor Profile Card ───────────────────────────
+            DoctorCard(
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.12),
+                      color: Dr.green.withOpacity(0.1),
                       shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Dr.green.withOpacity(0.3), width: 1),
                     ),
-                    child: Icon(
-                      Icons.local_hospital_rounded,
-                      size: 32,
-                      color: theme.colorScheme.primary,
-                    ),
+                    child: const Icon(Icons.local_hospital_rounded,
+                        size: 28, color: Dr.green),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Dr. Alexander Vance',
-                          style: GoogleFonts.sora(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text(docName, style: Dr.heading(16),
+                            overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 3),
+                        Text('$docSpecialty · $docHospital',
+                            style: Dr.meta(12),
+                            overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 4),
-                        Text(
-                          '$docSpecialty • $docHospital',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: isLight ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
-                          ),
-                        ),
-                        Text(
-                          'License: $docLicense',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11,
-                            color: isLight ? Colors.black54 : Colors.white54,
-                          ),
-                        ),
+                        Text(docLicense,
+                            style: GoogleFonts.jetBrainsMono(
+                                fontSize: 11, color: Dr.sub),
+                            overflow: TextOverflow.ellipsis),
                       ],
                     ),
+                  ),
+                  const SizedBox(width: 8),
+                  const DoctorStatusBadge(
+                    label: 'Verified',
+                    color: Dr.green,
+                    icon: Icons.verified_rounded,
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
-            // Active Consultation Session Section
-            Text(
-              'Active Consultation',
-              style: GoogleFonts.sora(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
+            // ── Active Session Card ───────────────────────────
+            sectionHeader('Active Consultation'),
             if (appState.activePatientId != null) ...[
-              NeonCard(
-                neonColor: const Color(0xFF10B981), // Emerald Green
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withOpacity(0.1),
-                      shape: BoxShape.circle,
+              DoctorCard(
+                borderColor: Dr.green.withOpacity(0.4),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Dr.green.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.wifi_tethering_rounded,
+                          color: Dr.green, size: 20),
                     ),
-                    child: const Icon(Icons.wifi_tethering_rounded, color: Color(0xFF10B981)),
-                  ),
-                  title: Text(
-                    appState.activePatientName ?? 'Priya Sharma',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  subtitle: Text('ID: ${appState.activePatientId} • Live Connection Established'),
-                  trailing: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            appState.activePatientName ?? 'Patient',
+                            style: Dr.heading(14),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'ID: ${appState.activePatientId} · Live',
+                            style: Dr.meta(12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () => Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => DoctorPatientHistoryScreen(
@@ -133,166 +123,153 @@ class DoctorDashboardScreen extends StatelessWidget {
                             patientName: appState.activePatientName!,
                           ),
                         ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF10B981),
-                    ),
-                    child: const Text('Open Vault', style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-              ),
-            ] else ...[
-              NeonCard(
-                neonColor: Colors.blueGrey,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.wifi_tethering_off_rounded, color: Colors.blueGrey),
-                      const SizedBox(width: 12),
-                      Text(
-                        'No active patient session connected.',
-                        style: GoogleFonts.inter(
-                          color: isLight ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Dr.green,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 28),
-
-            // Today's Appointments Section
-            Text(
-              "Today's Appointments",
-              style: GoogleFonts.sora(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ListView(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildAppointmentTile(
-                  context: context,
-                  name: 'Priya Sharma',
-                  time: '09:30 AM',
-                  reason: 'Hypertension Follow-up',
-                  patientId: 'priya_123',
-                ),
-                const SizedBox(height: 12),
-                _buildAppointmentTile(
-                  context: context,
-                  name: 'Elena Vance',
-                  time: '11:00 AM',
-                  reason: 'Post-op Cardiac Checkup',
-                  patientId: 'elena_vance',
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-
-            // Primary CTA
-            SizedBox(
-              width: double.infinity,
-              child: GlassmorphicButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const DoctorPatientSearchScreen()),
-                  );
-                },
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.search_rounded),
-                    SizedBox(width: 8),
-                    Text(
-                      'Search Patient / Scan QR',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                      child: Text('Open Vault',
+                          style: GoogleFonts.inter(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Colors.white)),
                     ),
                   ],
                 ),
               ),
+            ] else ...[
+              DoctorCard(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.wifi_tethering_off_rounded,
+                        color: Dr.sub, size: 20),
+                    const SizedBox(width: 10),
+                    Text('No active patient session.',
+                        style: Dr.meta(13)),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+
+            // ── Today's Appointments ──────────────────────────
+            sectionHeader("Today's Appointments"),
+            _appointmentTile(
+              context: context,
+              name: 'Priya Sharma',
+              time: '09:30 AM',
+              reason: 'Hypertension Follow-up',
+              patientId: 'priya_123',
+              status: 'Completed',
+              statusColor: Dr.green,
             ),
+            const SizedBox(height: 10),
+            _appointmentTile(
+              context: context,
+              name: 'Elena Vance',
+              time: '11:00 AM',
+              reason: 'Post-op Cardiac Checkup',
+              patientId: 'elena_vance',
+              status: 'Upcoming',
+              statusColor: Dr.amber,
+            ),
+            const SizedBox(height: 10),
+            _appointmentTile(
+              context: context,
+              name: 'Raj Mehta',
+              time: '02:30 PM',
+              reason: 'Diabetes Management Review',
+              patientId: 'raj_mehta',
+              status: 'Upcoming',
+              statusColor: Dr.amber,
+            ),
+            const SizedBox(height: 28),
+
+            // ── Primary CTA ───────────────────────────────────
+            DoctorPrimaryButton(
+              label: 'Search Patient / Scan QR',
+              icon: Icons.qr_code_scanner_rounded,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const DoctorPatientSearchScreen()),
+              ),
+            ),
+            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAppointmentTile({
+  Widget _appointmentTile({
     required BuildContext context,
     required String name,
     required String time,
     required String reason,
     required String patientId,
+    required String status,
+    required Color statusColor,
   }) {
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
-
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => DoctorPatientHistoryScreen(
-              patientId: patientId,
-              patientName: name,
-            ),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DoctorPatientHistoryScreen(
+            patientId: patientId,
+            patientName: name,
           ),
-        );
-      },
-      child: NeonCard(
-        borderWidth: 0.5,
-        neonColor: theme.colorScheme.primary.withOpacity(0.3),
+        ),
+      ),
+      child: DoctorCard(
+        padding: const EdgeInsets.all(14),
         child: Row(
           children: [
+            // Time block
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.1),
+                color: Dr.green.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: Dr.green.withOpacity(0.3), width: 1),
               ),
               child: Text(
                 time,
                 style: GoogleFonts.jetBrainsMono(
-                  color: theme.colorScheme.primary,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
+                  color: Dr.green,
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    name,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
+                  Text(name,
+                      style: Dr.heading(14),
+                      overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 2),
-                  Text(
-                    reason,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 13,
-                      color: isLight ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                    ),
-                  ),
+                  Text(reason,
+                      style: Dr.meta(12),
+                      overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: isLight ? Colors.grey : Colors.white38),
+            const SizedBox(width: 8),
+            DoctorStatusBadge(label: status, color: statusColor),
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right_rounded, color: Dr.border, size: 20),
           ],
         ),
       ),

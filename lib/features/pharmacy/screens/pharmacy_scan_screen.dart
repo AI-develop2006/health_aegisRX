@@ -55,10 +55,6 @@ class _PharmacyScanScreenState extends State<PharmacyScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
-    final accent10 = isLight ? const Color(0xFF4F46E5) : const Color(0xFF818CF8);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Prescription Scanner', style: TextStyle(fontFamily: 'Sora')),

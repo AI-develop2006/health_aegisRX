@@ -1,48 +1,48 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // ── Canvas & Surfaces ─────────────────────────────────────────
-  static const Color baseCanvas = Color(0xFFF4F6F9);         // --canvas
-  static const Color cardSurface = Color(0xFFFFFFFF);        // --surface
-  static const Color surfaceMuted = Color(0xFFF1F5F9);       // --surface-muted
-  static const Color borderWhite = Color(0xFFE4E9F0);        // --border (reused naming to prevent breaks)
+  // ── Canvas & Surfaces (60% Dominant) ─────────────────────────
+  static const Color baseCanvas = Color(0xFFF7F4EB);         // Cream Canvas Background
+  static const Color cardSurface = Color(0xFFFFFFFF);        // Pure White Cards
+  static const Color surfaceMuted = Color(0xFFFAF9F5);       // Soft Canvas Muted
+  static const Color borderWhite = Color(0xFFB88E74);        // Brushed Copper Border (30%)
 
-  // ── Typography ────────────────────────────────────────────────
-  static const Color primaryText = Color(0xFF0F172A);        // --text-primary
-  static const Color mutedText = Color(0xFF64748B);          // --text-muted
-  static const Color textFaint = Color(0xFF94A3B8);          // --text-faint
+  // ── Typography & Structure (30% Secondary) ────────────────────
+  static const Color primaryText = Color(0xFF4A3325);        // Deep Matte Bronze (Text/Headings)
+  static const Color mutedText = Color(0xFFD4A387);          // Soft Rose Gold (Accent labels/subtitles)
+  static const Color textFaint = Color(0xFFE6DCD2);          // Very soft warm grey-bronze
 
-  // ── Role Accent Colors ─────────────────────────────────────────
-  static const Color patientBlue = Color(0xFF2563EB);        // --patient-blue
-  static const Color patientBlueDark = Color(0xFF1D4ED8);    // --patient-blue-dark
-  static const Color doctorTeal = Color(0xFF0D9488);          // --doctor-teal
-  static const Color pharmacyViolet = Color(0xFF7C3AED);      // --pharmacy-violet
-  static const Color verifiedEmerald = Color(0xFF059669);    // --verified-emerald
+  // ── Role Accent Colors & States (10% Accent) ──────────────────
+  static const Color patientBlue = Color(0xFF2E8B90);        // Deep Medical Teal (Done/Safe)
+  static const Color patientBlueDark = Color(0xFF1E5F62);    // Medical Teal Dark
+  static const Color doctorTeal = Color(0xFF2E8B90);         // Deep Medical Teal
+  static const Color pharmacyViolet = Color(0xFFB88E74);     // Brushed Copper
+  static const Color verifiedEmerald = Color(0xFF2E8B90);    // Deep Medical Teal
 
   // ── Tint Backgrounds ──────────────────────────────────────────
-  static const Color tintBlue = Color(0xFFE8F0FE);           // --tint-blue
-  static const Color tintTeal = Color(0xFFF0FDFA);           // --tint-teal
-  static const Color tintViolet = Color(0xFFF3F0FE);         // --tint-violet
-  static const Color tintEmerald = Color(0xFFECFDF5);        // --tint-emerald
-  static const Color tintSlate = Color(0xFFF1F5F9);          // --tint-slate
+  static const Color tintBlue = Color(0xFFEAF5F5);           // Soft Teal Tint
+  static const Color tintTeal = Color(0xFFEAF5F5);          // Soft Teal Tint
+  static const Color tintViolet = Color(0xFFFDFBF7);         // Soft Copper Tint
+  static const Color tintEmerald = Color(0xFFEAF5F5);        // Soft Teal Tint
+  static const Color tintSlate = Color(0xFFFAF9F5);          // Soft Canvas Tint
 
   // ── Status Colors ─────────────────────────────────────────────
-  static const Color statusLocked = Color(0xFF94A3B8);       // --status-locked
-  static const Color statusPending = Color(0xFFD97706);      // --status-pending
-  static const Color statusCritical = Color(0xFFDC2626);     // --status-critical
+  static const Color statusLocked = Color(0xFFB88E74);       // Brushed Copper (Locked)
+  static const Color statusPending = Color(0xFFD97736);      // Warm Amber Copper (Warning)
+  static const Color statusCritical = Color(0xFFB33A3A);     // Burgundy Red (Critical)
 
   // ── Legacy Aliases & Safety Fallbacks ─────────────────────────
-  static const Color clinicalBlue = patientBlue;             // For references to clinicalBlue
-  static const Color emeraldAccent = verifiedEmerald;        // For references to emeraldAccent
-  static const Color amberWarning = statusPending;           // For references to amberWarning
-  static const Color crimsonLockout = statusCritical;         // For references to crimsonLockout
-  static const Color darkRimGray = borderWhite;              // Fallback
-  static const Color pearlFill = surfaceMuted;               // Fallback
-  static const Color deepNavy = patientBlueDark;             // Fallback
-  static const Color gradientTeal = doctorTeal;              // Fallback
-  static const Color gradientBlue = patientBlue;             // Fallback
-  static const Color ambientBlue = tintBlue;                 // Fallback
-  static const Color ambientGreen = tintTeal;                // Fallback
-  static const Color indigoDusk = patientBlueDark;           // Fallback
-  static const Color mutedTeal = doctorTeal;                 // Fallback
+  static const Color clinicalBlue = Color(0xFF2E8B90);
+  static const Color emeraldAccent = Color(0xFF2E8B90);
+  static const Color amberWarning = Color(0xFFD97736);
+  static const Color crimsonLockout = Color(0xFFB33A3A);
+  static const Color darkRimGray = Color(0xFFB88E74);
+  static const Color pearlFill = Color(0xFFFFFFFF);
+  static const Color deepNavy = Color(0xFF4A3325);
+  static const Color gradientTeal = Color(0xFF2E8B90);
+  static const Color gradientBlue = Color(0xFF2E8B90);
+  static const Color ambientBlue = Color(0xFFEAF5F5);
+  static const Color ambientGreen = Color(0xFFEAF5F5);
+  static const Color indigoDusk = Color(0xFF4A3325);
+  static const Color mutedTeal = Color(0xFF2E8B90);
 }

@@ -61,6 +61,10 @@ class AIService:
             self.llm = MedGemmaClient()
         elif provider == "gemini":
             self.llm = GeminiClient()
+        elif provider == "hybrid":
+            self.medgemma_client = MedGemmaClient()
+            self.gemini_client = GeminiClient()
+            self.llm = self.gemini_client
         else:
             logger.warning(f"Unknown LLM Provider '{provider}'. Defaulting to GPTClient.")
             self.llm = GPTClient()
@@ -114,17 +118,58 @@ class AIService:
         logger.info("Built prompts for LLM call.")
         logger.debug(f"System Prompt:\n{system_prompt}\nUser Prompt:\n{user_prompt}")
 
-        # Step 6: Call LLM with error handling and fallback
+        # Step 6: Call LLM with error handling, timeouts, and fallback
         raw_llm_response = ""
         parsed_llm_analysis = None
         llm_error_flag = False
+        provider = settings.LLM_PROVIDER.lower()
+        
+        llm_mode = "mock"
+        llm_reason = None
 
         try:
-            raw_llm_response = await self.llm.generate_response(system_prompt, user_prompt)
+            if provider == "hybrid":
+                logger.info("Hybrid AI Mode: Running local MedGemma inference first...")
+                medgemma_prompt = (
+                    "You are a clinical NLP model. Analyze the following patient case and medication request. "
+                    "Extract clinical summaries and highlight potential drug interactions, allergies, or contraindications."
+                )
+                medgemma_res = await self.medgemma_client.safe_generate_response(medgemma_prompt, user_prompt)
+                medgemma_summary = medgemma_res["content"]
+                
+                llm_mode = medgemma_res["mode"]
+                if medgemma_res["reason"]:
+                    llm_reason = f"MedGemma: {medgemma_res['reason']}"
+
+                hybrid_user_prompt = (
+                    f"{user_prompt}\n\n"
+                    f"--- Local MedGemma Clinical Analysis ---\n"
+                    f"{medgemma_summary}\n"
+                    f"-----------------------------------------\n"
+                    f"Using the local MedGemma analysis and your own medical reasoning, perform the final safety analysis."
+                )
+                
+                logger.info("Hybrid AI Mode: Calling Gemini cloud model for final safety determination...")
+                gemini_res = await self.gemini_client.safe_generate_response(system_prompt, hybrid_user_prompt)
+                raw_llm_response = gemini_res["content"]
+                
+                # If either is mock, overall is mock
+                if gemini_res["mode"] == "mock":
+                    llm_mode = "mock"
+                    gem_reason = gemini_res["reason"] or "Gemini fallback"
+                    llm_reason = f"{llm_reason or ''}; Gemini: {gem_reason}".strip("; ")
+                else:
+                    if llm_mode == "real":
+                        llm_mode = "real"
+            else:
+                res = await self.llm.safe_generate_response(system_prompt, user_prompt)
+                raw_llm_response = res["content"]
+                llm_mode = res["mode"]
+                llm_reason = res["reason"]
+            
             # Remove any possible markdown blocks around JSON (like ```json ... ```)
             cleaned_json = raw_llm_response.strip()
             if cleaned_json.startswith("```"):
-                # strip the leading ```json or ```
                 lines = cleaned_json.split("\n")
                 if lines[0].startswith("```"):
                     lines = lines[1:]
@@ -156,11 +201,24 @@ class AIService:
                 suggested_alternative_medicines=parsed_json.get("suggested_alternative_medicines", []),
                 clinical_explanation=parsed_json.get("clinical_explanation", "Analysis completed."),
                 recommended_action=parsed_json.get("recommended_action", "SAFE_TO_DISPENSE"),
-                metadata={"provider": settings.LLM_PROVIDER, "fallback_mode": False}
+                metadata={"provider": settings.LLM_PROVIDER, "fallback_mode": False},
+                backend_mode=llm_mode,
+                backend_reason=llm_reason
             )
 
+            # Map the RiskSnapshot fields
+            parsed_llm_analysis.risk_band = parsed_json.get("risk_band") or parsed_json.get("riskBand") or (
+                "LOW" if parsed_llm_analysis.risk_level == "SAFE" else
+                "MEDIUM" if parsed_llm_analysis.risk_level == "WARNING" else "CRITICAL"
+            )
+            parsed_llm_analysis.risk_score = int(parsed_json.get("risk_score") or parsed_json.get("riskScore") or (
+                10 if parsed_llm_analysis.risk_band == "LOW" else
+                50 if parsed_llm_analysis.risk_band == "MEDIUM" else 95
+            ))
+            parsed_llm_analysis.recommendation = parsed_json.get("recommendation") or parsed_llm_analysis.clinical_explanation[:120]
+
         except Exception as e:
-            logger.error(f"LLM execution or JSON parsing failed: {str(e)}. Falling back to deterministic rules.")
+            logger.error(f"LLM execution, JSON parsing, or timeout failed: {str(e)}. Falling back to deterministic rules.")
             llm_error_flag = True
             raw_llm_response = f"ERROR_FALLBACK: {str(e)}"
             
@@ -181,12 +239,25 @@ class AIService:
                 ],
                 suggested_alternative_medicines=clinical_overrides["suggested_alternative_medicines"],
                 clinical_explanation=(
-                    "Failsafe Mode active. Reasoning generated via the clinical rule engine. "
+                    "Failsafe Mode active (LLM timeout or connection failure). Reasoning generated via the clinical rule engine. "
                     "Detected conflicts present in allergies, diseases, or drug interactions."
-                ) if clinical_overrides["risk_level"] != "SAFE" else "Failsafe Mode active. No safety rules violated.",
+                ) if clinical_overrides["risk_level"] != "SAFE" else "Failsafe Mode active (LLM timeout or connection failure). No safety rules violated.",
                 recommended_action=clinical_overrides["recommended_action"],
-                metadata={"provider": "rules_engine_fallback", "fallback_mode": True, "error": str(e)}
+                metadata={"provider": "rules_engine_fallback", "fallback_mode": True, "error": str(e)},
+                backend_mode="mock",
+                backend_reason=f"LLM parsing or unexpected error: {str(e)}"
             )
+
+            # Map the RiskSnapshot fields for fallback
+            parsed_llm_analysis.risk_band = (
+                "LOW" if parsed_llm_analysis.risk_level == "SAFE" else
+                "MEDIUM" if parsed_llm_analysis.risk_level == "WARNING" else "CRITICAL"
+            )
+            parsed_llm_analysis.risk_score = (
+                10 if parsed_llm_analysis.risk_band == "LOW" else
+                50 if parsed_llm_analysis.risk_band == "MEDIUM" else 95
+            )
+            parsed_llm_analysis.recommendation = "Safety Warning: rules-engine flagged potential risks." if parsed_llm_analysis.risk_band != "LOW" else "Prescription evaluated as safe by clinical rules."
 
         # Step 7: Apply Clinical Safety Overrides (Safe-by-design policy)
         # Even if LLM says SAFE, if rules engine found HIGH_RISK or WARNING, upgrade the rating
@@ -197,6 +268,9 @@ class AIService:
             if clinical_overrides["risk_level"] == "HIGH_RISK" and parsed_llm_analysis.risk_level != "HIGH_RISK":
                 parsed_llm_analysis.risk_level = "HIGH_RISK"
                 parsed_llm_analysis.recommended_action = clinical_overrides["recommended_action"]
+                parsed_llm_analysis.risk_band = "CRITICAL"
+                parsed_llm_analysis.risk_score = 95
+                parsed_llm_analysis.recommendation = "Clinical override triggered: High-risk patient safety conflict detected."
                 safety_triggered = True
                 logger.warning("Clinical Policy Override: Risk level upgraded to HIGH_RISK.")
                 
@@ -204,6 +278,9 @@ class AIService:
             elif clinical_overrides["risk_level"] == "WARNING" and parsed_llm_analysis.risk_level == "SAFE":
                 parsed_llm_analysis.risk_level = "WARNING"
                 parsed_llm_analysis.recommended_action = clinical_overrides["recommended_action"]
+                parsed_llm_analysis.risk_band = "MEDIUM"
+                parsed_llm_analysis.risk_score = 60
+                parsed_llm_analysis.recommendation = "Clinical override triggered: Medium-risk patient safety caution detected."
                 safety_triggered = True
                 logger.warning("Clinical Policy Override: Risk level upgraded to WARNING.")
 
@@ -220,6 +297,23 @@ class AIService:
                 for alt in clinical_overrides["suggested_alternative_medicines"]:
                     if alt not in parsed_llm_analysis.suggested_alternative_medicines:
                         parsed_llm_analysis.suggested_alternative_medicines.append(alt)
+
+        # Scan all list items to dynamically compile flagged_medicines and enforce reasons
+        flagged = set()
+        for item in parsed_llm_analysis.detected_drug_interactions:
+            flagged.update(item.drugs)
+            if not item.reason:
+                item.reason = f"{item.drugs[0]} + {item.drugs[1]} – interaction risk ({item.severity})"
+        for item in parsed_llm_analysis.detected_allergy_risks:
+            flagged.add(item.drug)
+            if not item.reason:
+                item.reason = f"{item.drug} – allergy risk ({item.allergy})"
+        for item in parsed_llm_analysis.disease_contraindications:
+            flagged.add(item.drug)
+            if not item.reason:
+                item.reason = f"{item.drug} – contraindicated in {item.disease}"
+                
+        parsed_llm_analysis.flagged_medicines = list(flagged)
 
         # Compute total latency
         latency_ms = (time.time() - start_time) * 1000

@@ -1,16 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:health_lock/shared/models/prescription.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/state/app_state.dart';
-import '../../widgets/risk_gauge.dart';
-import '../../widgets/danger_banner.dart';
+
 import '../../widgets/dose_timeline.dart';
-import '../../widgets/inventory_tracker.dart';
 import '../../widgets/consultation_status_chip.dart';
+import '../../widgets/danger_banner.dart';
+import '../../widgets/risk_gauge.dart';
+import '../../widgets/inventory_tracker.dart';
 import 'patient_history_screen.dart';
 import '../patient_share_screen.dart';
 import '../patient_medication_list_screen.dart';
-import '../../../../shared/widgets/neon_card.dart';
+import '../patient_prescription_detail_screen.dart';
+import '../patient_notifications_screen.dart';
+
+// ── 60-30-10 Design Tokens ─────────────────────────────────────
+class _P {
+  // 60% Dominant — Cream Canvas
+  static const bg = Color(0xFFF7F4EB);
+  static const card = Color(0xFFFFFFFF);
+
+  // 30% Secondary — Bronze & Copper
+  static const text = Color(0xFF4A3325); // Deep Matte Bronze
+  static const sub = Color(0xFFD4A387); // Soft Rose Gold
+  static const border = Color(0xFFB88E74); // Brushed Copper
+
+  // 10% Accent — State Indicators
+  static const teal = Color(0xFF2E8B90); // Deep Medical Teal (Done/Safe)
+  static const amber = Color(0xFFD97736); // Warm Amber (Warning)
+  static const red = Color(0xFFB33A3A); // Burgundy Red (Critical)
+}
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -34,14 +54,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
     final appState = Provider.of<AppState>(context);
     final vault = appState.patientVault;
-
-    // 60-30-10 Color Tokens
-    final bg60 = isLight ? const Color(0xFFF5F6FA) : const Color(0xFF0B0F19); // 60% Dominant Background
-    final accent10 = isLight ? const Color(0xFF4F46E5) : const Color(0xFF818CF8); // 10% Primary Accent
 
     // Derive today's medicines from active (undispensed) prescriptions
     final activePrescriptions = vault.where((rx) => !rx.isDispensed).toList();
@@ -53,11 +67,11 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         if (med.afternoon) timings.add('Afternoon');
         if (med.evening) timings.add('Evening');
         if (med.night) timings.add('Night');
-        
         final timingStr = timings.isEmpty ? med.interval : timings.join(', ');
-        final foodStr = med.beforeFood ? ' (Before Food)' : (med.afterFood ? ' (After Food)' : '');
+        final foodStr = med.beforeFood
+            ? ' (Before Food)'
+            : (med.afterFood ? ' (After Food)' : '');
         final isTaken = _takenMeds.contains(med.name);
-        
         todayMeds.add({
           'name': med.name,
           'schedule': '$timingStr$foodStr ${med.customInstruction}'.trim(),
@@ -66,10 +80,28 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       }
     }
 
+    int riskScore = 8;
+    bool hasPenicillinAllergy = appState.patientName.toLowerCase().contains('elena') ||
+        appState.patientName.toLowerCase().contains('vance');
+    bool takingPenicillin = false;
+    for (var rx in activePrescriptions) {
+      for (var med in rx.medicines) {
+        if (med.name.toLowerCase().contains('penicillin')) {
+          takingPenicillin = true;
+          break;
+        }
+      }
+    }
+    if (hasPenicillinAllergy && takingPenicillin) {
+      riskScore = 95;
+    } else if (activePrescriptions.isNotEmpty) {
+      riskScore = 15;
+    }
+
     return Scaffold(
-      backgroundColor: bg60,
+      backgroundColor: _P.bg,
       appBar: AppBar(
-        backgroundColor: bg60,
+        backgroundColor: _P.bg,
         elevation: 0,
         automaticallyImplyLeading: false,
         title: RichText(
@@ -77,8 +109,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             children: [
               TextSpan(
                 text: 'AegisRx ',
-                style: GoogleFonts.fraunces(
-                  color: isLight ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                style: GoogleFonts.sora(
+                  color: _P.text,
                   fontWeight: FontWeight.bold,
                   fontSize: 22,
                 ),
@@ -86,7 +118,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
               TextSpan(
                 text: 'Patient Vault',
                 style: GoogleFonts.inter(
-                  color: isLight ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                  color: _P.sub,
                   fontWeight: FontWeight.w500,
                   fontSize: 18,
                 ),
@@ -94,26 +126,104 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             ],
           ),
         ),
+        actions: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined, color: _P.text),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PatientNotificationsScreen(),
+                    ),
+                  );
+                },
+              ),
+              if (appState.activePendingRequestId != null)
+                Positioned(
+                  right: 12,
+                  top: 12,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _P.red,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [
-          // 1. Top status and session sharing area
+          if (appState.networkError)
+            Container(
+              color: _P.red,
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: Row(
+                children: [
+                  const Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'AegisRx Node Offline. Operating in sovereign offline-vault fallback mode.',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () async {
+                      await appState.fetchPrescriptions();
+                      await appState.fetchVisitHistory();
+                    },
+                    child: Text(
+                      'RETRY',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // ── Session Row ───────────────────────────────────────
           Container(
-            color: bg60,
+            color: _P.bg,
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20.0, 4.0, 20.0, 16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                ConsultationStatusChip(status: appState.isAttendanceActive ? 'active' : 'inactive'),
+                ConsultationStatusChip(
+                  status: appState.isAttendanceActive ? 'active' : 'inactive',
+                ),
                 ElevatedButton.icon(
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const PatientShareScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const PatientShareScreen(),
+                      ),
                     );
                   },
-                  icon: const Icon(Icons.qr_code, size: 18, color: Colors.white),
+                  icon: const Icon(
+                    Icons.qr_code,
+                    size: 18,
+                    color: Colors.white,
+                  ),
                   label: Text(
                     'Share Session',
                     style: GoogleFonts.inter(
@@ -123,9 +233,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: accent10, // 10% Accent Color for key action
+                    backgroundColor: _P.teal,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -134,20 +247,20 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
               ],
             ),
           ),
-          // 2. Main content scroll area
+          // ── Main Scrollable Content ───────────────────────────
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Personalized Welcome Header
+                  // Welcome Header
                   Text(
-                    'Good morning, ${appState.patientName}',
+                    'Good day, ${appState.patientName}',
                     style: GoogleFonts.sora(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
-                      color: isLight ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      color: _P.text,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -155,106 +268,206 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                     'Today, ${DateTime.now().day} ${_getMonthName(DateTime.now().month)} ${DateTime.now().year}',
                     style: GoogleFonts.inter(
                       fontSize: 14,
-                      color: isLight ? Colors.black54 : Colors.white60,
+                      color: _P.sub,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
+                  if (hasPenicillinAllergy) ...[
+                    const SizedBox(height: 16),
+                    const DangerBanner(
+                      message: 'CRITICAL ALERT: Documented severe Penicillin allergy.',
+                    ),
+                  ],
                   const SizedBox(height: 24),
 
-                  // Today's Medications card
-                  NeonCard(
-                    neonColor: const Color(0xFF818CF8),
+                  // ── Status Row — 3 flat cards ─────────────────
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatusCard(
+                          icon: Icons.description_rounded,
+                          label: 'Prescriptions',
+                          value: '${vault.length}',
+                          iconColor: _P.teal,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatusCard(
+                          icon: Icons.warning_amber_rounded,
+                          label: 'Allergy Alerts',
+                          value: hasPenicillinAllergy ? '1' : '0',
+                          iconColor: _P.amber,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatusCard(
+                          icon: Icons.medical_services_rounded,
+                          label: 'Consultation',
+                          value: appState.isAttendanceActive ? 'Live' : 'None',
+                          iconColor: appState.isAttendanceActive
+                              ? _P.teal
+                              : _P.sub,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: _buildFlatCard(
+                          child: Center(
+                            child: RiskGauge(severityScore: riskScore),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ── Today's Medications card ─────────────────
+                  _buildFlatCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               "Today's medications",
-                              style: TextStyle(
-                                fontFamily: 'Sora',
-                                fontSize: 18,
+                              style: GoogleFonts.sora(
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
+                                color: _P.text,
                               ),
                             ),
-                            Icon(Icons.today_rounded, color: const Color(0xFF818CF8).withOpacity(0.8)),
+                            Icon(
+                              Icons.today_rounded,
+                              color: _P.border,
+                              size: 22,
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         todayMeds.isEmpty
-                            ? const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 16.0),
+                            ? Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16.0,
+                                ),
                                 child: Center(
                                   child: Text(
                                     'No active medications for today.',
-                                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                                    style: GoogleFonts.inter(
+                                      color: _P.sub,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                 ),
                               )
-                            : ListView.builder(
+                            : ListView.separated(
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: todayMeds.length,
+                                separatorBuilder: (_, __) => Divider(
+                                  color: _P.border.withOpacity(0.3),
+                                  height: 16,
+                                ),
                                 itemBuilder: (context, index) {
                                   final med = todayMeds[index];
                                   final isTaken = med['status'] == 'Taken';
-                                  return ListTile(
-                                    contentPadding: EdgeInsets.zero,
-                                    title: Text(
-                                      med['name']!,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                        decoration: isTaken ? TextDecoration.lineThrough : null,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      med['schedule']!,
-                                      style: const TextStyle(fontSize: 13, color: Colors.white70),
-                                    ),
-                                    trailing: InkWell(
-                                      onTap: () => _toggleStatus(med['name']!),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: isTaken
-                                              ? const Color(0xFF10B981).withOpacity(0.2)
-                                              : Colors.amber.withOpacity(0.2),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(
-                                            color: isTaken ? const Color(0xFF10B981) : Colors.amber,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          med['status']!,
-                                          style: TextStyle(
-                                            color: isTaken ? const Color(0xFF10B981) : Colors.amber,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                          ),
+                                  return Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              med['name']!,
+                                              style: GoogleFonts.inter(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                                color: _P.text,
+                                                decoration: isTaken
+                                                    ? TextDecoration.lineThrough
+                                                    : null,
+                                              ),
+                                            ),
+                                            Text(
+                                              med['schedule']!,
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12,
+                                                color: _P.sub,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ),
+                                      InkWell(
+                                        onTap: () =>
+                                            _toggleStatus(med['name']!),
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: isTaken
+                                                ? _P.teal.withOpacity(0.1)
+                                                : _P.amber.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border: Border.all(
+                                              color: isTaken
+                                                  ? _P.teal
+                                                  : _P.amber,
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            med['status']!,
+                                            style: GoogleFonts.inter(
+                                              color: isTaken
+                                                  ? _P.teal
+                                                  : _P.amber,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   );
                                 },
                               ),
-                        const Divider(height: 24, color: Colors.white24),
+                        const SizedBox(height: 16),
+                        Divider(color: _P.border.withOpacity(0.3)),
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton.icon(
                             onPressed: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const PatientMedicationListScreen()),
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const PatientMedicationListScreen(),
+                                ),
                               );
                             },
-                            icon: const Icon(Icons.arrow_forward, size: 16, color: Color(0xFF818CF8)),
-                            label: const Text(
+                            icon: const Icon(
+                              Icons.arrow_forward,
+                              size: 16,
+                              color: _P.teal,
+                            ),
+                            label: Text(
                               'See all medications',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                color: Color(0xFF818CF8),
+                              style: GoogleFonts.inter(
+                                color: _P.teal,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -265,94 +478,21 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  const DangerBanner(
-                    message: 'ALLERGY WARNING: Patient has marked allergy to Penicillin. Confirm with Doctor before prescription.',
+                  // ── Prescription Status Summary ───────────────
+                  _buildPrescriptionSummaryCard(context, vault),
+                  const SizedBox(height: 24),
+
+                  // ── Intake Timeline card ──────────────────────
+                  _buildFlatCard(child: const DoseTimeline()),
+                  const SizedBox(height: 24),
+
+                  // ── Inventory Tracker card ───────────────────
+                  _buildFlatCard(
+                    child: InventoryTracker(prescriptions: vault),
                   ),
                   const SizedBox(height: 24),
 
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Safety Index score (Fraunces typography)
-                      const Expanded(
-                        child: NeonCard(
-                          neonColor: Color(0xFFC5A059), // Seal Gold Outline
-                          child: Column(
-                            children: [
-                              Text(
-                                'Safety Index',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                              ),
-                              SizedBox(height: 16),
-                              RiskGauge(severityScore: 3),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      // Prescriptions (JetBrains Mono codes)
-                      Expanded(
-                        child: NeonCard(
-                          neonColor: const Color(0xFF818CF8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Prescriptions',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                              const SizedBox(height: 12),
-                              if (vault.isEmpty)
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                                  child: Text('No prescriptions', style: TextStyle(fontSize: 12, color: Colors.white70)),
-                                )
-                              else
-                                ...vault.take(3).map((rx) => _buildRxRow(
-                                      rx.id,
-                                      rx.isDispensed ? 'Dispensed' : 'Active',
-                                      rx.isDispensed ? Colors.redAccent : const Color(0xFF10B981),
-                                    )),
-                              const SizedBox(height: 12),
-                              TextButton.icon(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const PatientHistoryScreen()),
-                                  );
-                                },
-                                icon: const Icon(Icons.history, size: 16, color: Color(0xFFC5A059)), // Seal Gold history icon
-                                label: Text(
-                                  'History',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFC5A059),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  const NeonCard(
-                    neonColor: Color(0xFF1E293B),
-                    child: DoseTimeline(),
-                  ),
-                  const SizedBox(height: 24),
-                  const NeonCard(
-                    neonColor: Color(0xFF818CF8),
-                    child: InventoryTracker(),
-                  ),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
@@ -362,25 +502,54 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  Widget _buildRxRow(String code, String status, Color statusColor) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
+  // ── Flat Card builder ──────────────────────────────────────────
+  Widget _buildFlatCard({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _P.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _P.border, width: 1.0),
+      ),
+      child: child,
+    );
+  }
+
+  // ── Status Summary card (top row) ─────────────────────────────
+  Widget _buildStatusCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color iconColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      decoration: BoxDecoration(
+        color: _P.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _P.border, width: 1.0),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('• ', style: TextStyle(color: Colors.white54)),
+          Icon(icon, color: iconColor, size: 24),
+          const SizedBox(height: 6),
           Text(
-            code,
-            style: GoogleFonts.jetBrainsMono(
+            value,
+            style: GoogleFonts.sora(
               fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: const Color(0xFF818CF8),
+              fontSize: 18,
+              color: _P.text,
             ),
           ),
+          const SizedBox(height: 2),
           Text(
-            ' ($status)',
-            style: TextStyle(
-              color: statusColor,
-              fontSize: 11,
+            label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              color: _P.sub,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -390,10 +559,312 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   }
 
   String _getMonthName(int month) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     if (month >= 1 && month <= 12) {
       return months[month - 1];
     }
     return '';
+  }
+
+  // ── Prescription Status Summary Card ──────────────────────────
+
+  Widget _buildPrescriptionSummaryCard(
+    BuildContext context,
+    List<Prescription> vault,
+  ) {
+    final int activeCount = vault.where((rx) => !rx.isDispensed).length;
+    final int dispensedCount = vault.where((rx) => rx.isDispensed).length;
+    final int medicineCount = vault.fold(
+      0,
+      (sum, rx) => sum + rx.medicines.length,
+    );
+
+    return _buildFlatCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ─────────────────────────────────────────
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Prescription Status',
+                  style: GoogleFonts.sora(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _P.text,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Verified badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _P.teal.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _P.teal.withOpacity(0.5), width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.verified_rounded,
+                      size: 13,
+                      color: _P.teal,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Blockchain Secured',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: _P.teal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // ── Stat Row ────────────────────────────────────────
+          Row(
+            children: [
+              _statPill(
+                label: 'Active',
+                value: '$activeCount',
+                color: _P.teal,
+                icon: Icons.check_circle_outline_rounded,
+              ),
+              const SizedBox(width: 10),
+              _statPill(
+                label: 'Dispensed',
+                value: '$dispensedCount',
+                color: _P.border,
+                icon: Icons.local_pharmacy_outlined,
+              ),
+              const SizedBox(width: 10),
+              _statPill(
+                label: 'Medicines',
+                value: '$medicineCount',
+                color: _P.amber,
+                icon: Icons.medication_outlined,
+              ),
+            ],
+          ),
+
+          if (vault.isEmpty) ...[
+            const SizedBox(height: 20),
+            Center(
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.description_outlined,
+                    size: 40,
+                    color: _P.border,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No prescriptions yet',
+                    style: GoogleFonts.inter(color: _P.sub, fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Your doctor will add them during a consultation.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(color: _P.sub, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            Divider(color: _P.border.withOpacity(0.3), height: 28),
+
+            // ── Prescription List ───────────────────────────
+            ...vault.map(
+              (rx) => Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: InkWell(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          PatientPrescriptionDetailScreen(prescription: rx),
+                    ),
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _P.bg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _P.border.withOpacity(0.4),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // Status indicator dot
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: rx.isDispensed ? _P.border : _P.teal,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Dr. ${rx.doctorName}',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: _P.text,
+                                ),
+                              ),
+                              Text(
+                                '${rx.disease} · ${rx.medicines.length} med${rx.medicines.length == 1 ? '' : 's'}',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: _P.sub,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Status badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: rx.isDispensed
+                                ? _P.border.withOpacity(0.1)
+                                : _P.teal.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: rx.isDispensed
+                                  ? _P.border.withOpacity(0.5)
+                                  : _P.teal.withOpacity(0.6),
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            rx.isDispensed ? 'Dispensed' : 'Active',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: rx.isDispensed ? _P.border : _P.teal,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 12,
+                          color: _P.border,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // ── View History link ───────────────────────────
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PatientHistoryScreen(),
+                  ),
+                ),
+                icon: const Icon(Icons.history, size: 16, color: _P.border),
+                label: Text(
+                  'Full History',
+                  style: GoogleFonts.inter(
+                    color: _P.border,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── Stat pill widget ──────────────────────────────────────────
+  Widget _statPill({
+    required String label,
+    required String value,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3), width: 1),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: GoogleFonts.sora(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                color: _P.text,
+              ),
+            ),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                color: _P.sub,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

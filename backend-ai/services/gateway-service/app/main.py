@@ -31,13 +31,13 @@ app.add_middleware(
 
 # ── Downstream service registry ─────────────────────────────────────────────
 SERVICES = {
-    "auth":         os.getenv("AUTH_SERVICE_URL",         "http://auth-service:4001"),
-    "patient":      os.getenv("PATIENT_SERVICE_URL",      "http://patient-service:4002"),
-    "consultation": os.getenv("CONSULTATION_SERVICE_URL", "http://consultation-service:4003"),
-    "prescription": os.getenv("PRESCRIPTION_SERVICE_URL", "http://prescription-service:4004"),
-    "audit":        os.getenv("AUDIT_SERVICE_URL",        "http://audit-service:4005"),
-    "pharmacy":     os.getenv("PHARMACY_SERVICE_URL",     "http://pharmacy-service:4006"),
-    "ledger":       os.getenv("LEDGER_SERVICE_URL",       "http://ledger-service:4007"),
+    "auth":         os.getenv("AUTH_SERVICE_URL",         "http://127.0.0.1:4001"),
+    "patient":      os.getenv("PATIENT_SERVICE_URL",      "http://127.0.0.1:4002"),
+    "consultation": os.getenv("CONSULTATION_SERVICE_URL", "http://127.0.0.1:4003"),
+    "prescription": os.getenv("PRESCRIPTION_SERVICE_URL", "http://127.0.0.1:4004"),
+    "audit":        os.getenv("AUDIT_SERVICE_URL",        "http://127.0.0.1:4005"),
+    "pharmacy":     os.getenv("PHARMACY_SERVICE_URL",     "http://127.0.0.1:4006"),
+    "ledger":       os.getenv("LEDGER_SERVICE_URL",       "http://127.0.0.1:4007"),
 }
 
 
@@ -131,41 +131,42 @@ async def forward(service_name: str, downstream_path: str, request: Request) -> 
 #
 # Auth Service (4001) — /api/patient/register, /api/patient/login,
 #                       /api/doctor/register, /api/doctor/login
-@app.api_route("/api/patient/register",   methods=["POST"])
-@app.api_route("/api/patient/login",      methods=["POST"])
-@app.api_route("/api/patient/update-name", methods=["POST"])
-@app.api_route("/api/doctor/register",    methods=["POST"])
-@app.api_route("/api/doctor/login",       methods=["POST"])
+@app.api_route("/api/patient/register",   methods=["POST"], operation_id="auth_patient_register")
+@app.api_route("/api/patient/login",      methods=["POST"], operation_id="auth_patient_login")
+@app.api_route("/api/patient/update-name", methods=["POST"], operation_id="auth_patient_update_name")
+@app.api_route("/api/doctor/register",    methods=["POST"], operation_id="auth_doctor_register")
+@app.api_route("/api/doctor/login",       methods=["POST"], operation_id="auth_doctor_login")
+@app.api_route("/api/pharmacy/login",     methods=["POST"], operation_id="auth_pharmacy_login")
 async def route_auth(request: Request):
     return await forward("auth", request.url.path, request)
 
 
 # Patient Service (4002) — /api/patient/dashboard/*, /api/patient/prescriptions/*
-@app.api_route("/api/patient/dashboard/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
-@app.api_route("/api/patient/prescriptions/{path:path}", methods=["GET"])
+@app.api_route("/api/patient/dashboard/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], operation_id="patient_dashboard_router")
+@app.api_route("/api/patient/prescriptions/{path:path}", methods=["GET"], operation_id="patient_prescriptions_router")
 async def route_patient(path: str, request: Request):
     return await forward("patient", request.url.path, request)
 
 
 # Consultation Service (4003) — /api/consultation/*
-@app.api_route("/api/consultation/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+@app.api_route("/api/consultation/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], operation_id="consultation_router")
 async def route_consultation(path: str, request: Request):
     return await forward("consultation", request.url.path, request)
 
 
 # Pharmacy Service (4006) — Specific Prescription Endpoints
-@app.api_route("/api/prescriptions/verify-scan",     methods=["POST"])
-@app.api_route("/api/prescriptions/dispense",        methods=["POST"])
+@app.api_route("/api/prescriptions/verify-scan",     methods=["POST"], operation_id="pharmacy_verify_scan_router")
+@app.api_route("/api/prescriptions/dispense",        methods=["POST"], operation_id="pharmacy_dispense_router")
 async def route_pharmacy_specific(request: Request):
     return await forward("pharmacy", request.url.path, request)
 
 
 # Prescription Service (4004) — /api/prescriptions/*, /api/doctor/*,
 #                                /api/pattern-analysis/*
-@app.api_route("/api/prescriptions",               methods=["GET", "POST"])
-@app.api_route("/api/prescriptions/{path:path}",   methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
-@app.api_route("/api/doctor/{path:path}",          methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
-@app.api_route("/api/pattern-analysis/{path:path}", methods=["GET"])
+@app.api_route("/api/prescriptions",               methods=["GET", "POST"], operation_id="prescription_root_router")
+@app.api_route("/api/prescriptions/{path:path}",   methods=["GET", "POST", "PUT", "PATCH", "DELETE"], operation_id="prescription_path_router")
+@app.api_route("/api/doctor/{path:path}",          methods=["GET", "POST", "PUT", "PATCH", "DELETE"], operation_id="doctor_path_router")
+@app.api_route("/api/pattern-analysis/{path:path}", methods=["GET"], operation_id="pattern_analysis_router")
 async def route_prescription(request: Request, path: str = ""):
     return await forward("prescription", request.url.path, request)
 
@@ -173,17 +174,17 @@ async def route_prescription(request: Request, path: str = ""):
 # Audit / AI Service (4005) — /api/audit, /api/duplicate-check,
 #                             /api/interaction-check, /api/allergy-check,
 #                             /api/recommendations
-@app.api_route("/api/audit",              methods=["POST"])
-@app.api_route("/api/duplicate-check",   methods=["POST"])
-@app.api_route("/api/interaction-check", methods=["POST"])
-@app.api_route("/api/allergy-check",     methods=["POST"])
-@app.api_route("/api/recommendations",   methods=["POST"])
+@app.api_route("/api/audit",              methods=["POST"], operation_id="audit_api_router")
+@app.api_route("/api/duplicate-check",   methods=["POST"], operation_id="audit_duplicate_check_router")
+@app.api_route("/api/interaction-check", methods=["POST"], operation_id="audit_interaction_check_router")
+@app.api_route("/api/allergy-check",     methods=["POST"], operation_id="audit_allergy_check_router")
+@app.api_route("/api/recommendations",   methods=["POST"], operation_id="audit_recommendations_router")
 async def route_audit(request: Request):
     return await forward("audit", request.url.path, request)
 
 
 # Pharmacy Service (4006) — /api/pharmacy/*
-@app.api_route("/api/pharmacy/{path:path}",          methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+@app.api_route("/api/pharmacy/{path:path}",          methods=["GET", "POST", "PUT", "PATCH", "DELETE"], operation_id="pharmacy_path_router")
 async def route_pharmacy(request: Request, path: str = ""):
     return await forward("pharmacy", request.url.path, request)
 
@@ -191,11 +192,11 @@ async def route_pharmacy(request: Request, path: str = ""):
 # Ledger Service (4007) — /api/blockchain/*, /api/ledger/*,
 #                         /api/access/*, /api/visit-history/*,
 #                         /api/activity-logs
-@app.api_route("/api/blockchain/{path:path}",    methods=["GET", "POST"])
-@app.api_route("/api/ledger/{path:path}",        methods=["GET", "POST"])
-@app.api_route("/api/access/{path:path}",        methods=["GET", "POST"])
-@app.api_route("/api/visit-history/{path:path}", methods=["GET"])
-@app.api_route("/api/activity-logs",             methods=["GET"])
+@app.api_route("/api/blockchain/{path:path}",    methods=["GET", "POST"], operation_id="ledger_blockchain_router")
+@app.api_route("/api/ledger/{path:path}",        methods=["GET", "POST"], operation_id="ledger_path_router")
+@app.api_route("/api/access/{path:path}",        methods=["GET", "POST"], operation_id="ledger_access_router")
+@app.api_route("/api/visit-history/{path:path}", methods=["GET"], operation_id="ledger_visit_history_router")
+@app.api_route("/api/activity-logs",             methods=["GET"], operation_id="ledger_activity_logs_router")
 async def route_ledger(request: Request, path: str = ""):
     return await forward("ledger", request.url.path, request)
 

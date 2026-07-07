@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'main_screen_patient/patient_dashboard_screen.dart';
 import 'main_screen_patient/patient_history_screen.dart';
 import 'patient_share_screen.dart';
 import 'main_screen_patient/patient_settings_screen.dart';
+
+// ── Design Tokens ──────────────────────────────────────────────
+const _kBg = Color(0xFFF7F4EB); // 60% Cream Canvas
+const _kCard = Color(0xFFFFFFFF); // Card surfaces
+const _kText = Color(0xFF4A3325); // 30% Deep Bronze
+const _kBorder = Color(0xFFB88E74); // Brushed Copper
+const _kTeal = Color(0xFF2E8B90); // 10% Medical Teal (active)
 
 class PatientHomeShellScreen extends StatefulWidget {
   const PatientHomeShellScreen({super.key});
@@ -23,62 +31,52 @@ class _PatientHomeShellScreenState extends State<PatientHomeShellScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
-
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: isLight ? Colors.black12 : Colors.white10,
-              width: 1.0,
+          color: _kCard,
+          border: const Border(top: BorderSide(color: _kBorder, width: 1.0)),
+          boxShadow: [
+            BoxShadow(
+              color: _kBorder.withOpacity(0.12),
+              blurRadius: 12,
+              offset: const Offset(0, -4),
             ),
-          ),
+          ],
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
+          onTap: (index) => setState(() => _currentIndex = index),
           type: BottomNavigationBarType.fixed,
-          backgroundColor: isLight ? Colors.white : const Color(0xFF111827),
-          selectedItemColor: const Color(0xFF818CF8), // Electric Indigo
-          unselectedItemColor: isLight ? Colors.black38 : Colors.white38,
-          selectedLabelStyle: const TextStyle(
-            fontFamily: 'Inter',
+          backgroundColor: _kCard,
+          selectedItemColor: _kTeal,
+          unselectedItemColor: _kBorder,
+          selectedLabelStyle: GoogleFonts.inter(
             fontWeight: FontWeight.bold,
-            fontSize: 12,
+            fontSize: 11,
           ),
-          unselectedLabelStyle: const TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 12,
-          ),
+          unselectedLabelStyle: GoogleFonts.inter(fontSize: 11),
+          elevation: 0,
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_rounded),
-              activeIcon: Icon(Icons.dashboard_rounded, color: Color(0xFF818CF8)),
+              icon: Icon(Icons.dashboard_outlined),
+              activeIcon: Icon(Icons.dashboard_rounded, color: _kTeal),
               label: 'Dashboard',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.history_rounded),
-              activeIcon: Icon(Icons.history_rounded, color: Color(0xFF818CF8)),
+              icon: Icon(Icons.history_outlined),
+              activeIcon: Icon(Icons.history_rounded, color: _kTeal),
               label: 'History',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.share_rounded),
-              activeIcon: Icon(Icons.share_rounded, color: Color(0xFF818CF8)),
+              icon: Icon(Icons.share_outlined),
+              activeIcon: Icon(Icons.share_rounded, color: _kTeal),
               label: 'Share',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.settings_rounded),
-              activeIcon: Icon(Icons.settings_rounded, color: Color(0xFF818CF8)),
+              icon: Icon(Icons.settings_outlined),
+              activeIcon: Icon(Icons.settings_rounded, color: _kTeal),
               label: 'Settings',
             ),
           ],

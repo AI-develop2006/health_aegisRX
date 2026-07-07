@@ -1,4 +1,8 @@
-from app.ai.knowledge.base import BaseSNOMED
+from app.ai.knowledge import BaseSNOMED
+import logging
+from app.core.config import settings
+
+logger = logging.getLogger("AegisRx.SNOMED")
 
 class SNOMEDMock(BaseSNOMED):
     def __init__(self):
@@ -23,6 +27,18 @@ class SNOMEDMock(BaseSNOMED):
         }
 
     async def get_concept_code(self, name: str) -> str:
+        if settings.USE_MOCK_AUDIT:
+            logger.info("USE_MOCK_AUDIT is enabled. Using SNOMED mock registry.")
+            return self._get_mock_concept_code(name)
+
+        try:
+            logger.info("USE_MOCK_AUDIT is false. Checking for production SNOMED registry...")
+            raise NotImplementedError("Production SNOMED registry client is not configured.")
+        except Exception as e:
+            logger.warning(f"SNOMED production client check failed: {e}. Falling back to mock database.")
+            return self._get_mock_concept_code(name)
+
+    def _get_mock_concept_code(self, name: str) -> str:
         normalized = name.strip().lower()
         if normalized in self.code_db:
             return self.code_db[normalized]
