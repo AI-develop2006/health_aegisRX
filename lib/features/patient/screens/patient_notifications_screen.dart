@@ -47,8 +47,11 @@ class PatientNotificationsScreen extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.notifications_none_rounded,
-                        size: 64, color: _border),
+                    const Icon(
+                      Icons.notifications_none_rounded,
+                      size: 64,
+                      color: _border,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'No new notifications.',
@@ -61,137 +64,166 @@ class PatientNotificationsScreen extends StatelessWidget {
                   ],
                 ),
               )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Pending Requests',
-                    style: GoogleFonts.sora(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: _text,
+            : SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pending Requests',
+                      style: GoogleFonts.sora(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: _text,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: _card,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: _teal, width: 1.5),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: _teal.withOpacity(0.1),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                    color: _teal.withOpacity(0.4), width: 1),
-                              ),
-                              child: const Icon(Icons.emergency_share_rounded,
-                                  color: _teal, size: 22),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Doctor Connection Request',
-                                    style: GoogleFonts.sora(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: _text,
-                                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: _card,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: _teal, width: 1.5),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: _teal.withOpacity(0.1),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: _teal.withOpacity(0.4),
+                                    width: 1,
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'ID: $pendingRequestId',
-                                    style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 10,
-                                      color: _sub,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'A doctor is requesting temporary session access to view your health profile and write a prescription. Do you grant access?',
-                          style: GoogleFonts.inter(
-                            color: _sub,
-                            fontSize: 14,
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            OutlinedButton(
-                              onPressed: () async {
-                                await appState
-                                    .rejectConsultation(pendingRequestId);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content:
-                                          Text('Request declined successfully.')),
-                                );
-                                Navigator.pop(context);
-                              },
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: _red,
-                                side: const BorderSide(color: _red, width: 1.5),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: Text('Decline',
-                                  style: GoogleFonts.inter(
-                                      fontWeight: FontWeight.bold,
-                                      color: _red)),
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton(
-                              onPressed: () async {
-                                await appState
-                                    .acceptConsultation(pendingRequestId);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text(
-                                          'Access session granted successfully.')),
-                                );
-                                Navigator.pop(context);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _teal,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 20, vertical: 10),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.emergency_share_rounded,
+                                  color: _teal,
+                                  size: 22,
                                 ),
                               ),
-                              child: Text('Grant Access',
-                                  style: GoogleFonts.inter(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white)),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Doctor Connection Request',
+                                      style: GoogleFonts.sora(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: _text,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'ID: $pendingRequestId',
+                                      style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 10,
+                                        color: _sub,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'A doctor is requesting temporary session access to view your health profile and write a prescription. Do you grant access?',
+                            style: GoogleFonts.inter(
+                              color: _sub,
+                              fontSize: 14,
+                              height: 1.5,
                             ),
-                          ],
-                        )
-                      ],
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              OutlinedButton(
+                                onPressed: () async {
+                                  await appState.rejectConsultation(
+                                    pendingRequestId,
+                                  );
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Request declined successfully.',
+                                      ),
+                                    ),
+                                  );
+                                  Navigator.pop(context);
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: _red,
+                                  side: const BorderSide(
+                                    color: _red,
+                                    width: 1.5,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Decline',
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    color: _red,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              ElevatedButton(
+                                onPressed: () async {
+                                  await appState.acceptConsultation(
+                                    pendingRequestId,
+                                  );
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Access session granted successfully.',
+                                      ),
+                                    ),
+                                  );
+                                  Navigator.pop(context);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _teal,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 10,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Grant Access',
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
       ),
     );

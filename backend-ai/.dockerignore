@@ -1,0 +1,11 @@
+.git
+.github
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.db.json
+.mock_db
+.env
+.env.local

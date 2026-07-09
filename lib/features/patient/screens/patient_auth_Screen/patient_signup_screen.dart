@@ -1,7 +1,10 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/state/app_state.dart';
 import '../../../../shared/widgets/neon_card.dart';
+
 
 class PatientSignUpScreen extends StatefulWidget {
   const PatientSignUpScreen({super.key});
@@ -23,14 +26,48 @@ class _PatientSignUpScreenState extends State<PatientSignUpScreen> {
   String? _idType = 'Aadhaar';
   String? _uploadedFileName;
   bool _agreeToPolicy = false;
+  bool _isUploadingDoc = false;
 
-  void _pickDocument() {
-    setState(() {
-      _uploadedFileName = 'id_proof_document_${_idType!.toLowerCase()}.pdf';
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$_idType Document uploaded successfully (mock).')),
-    );
+  void _pickDocument() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+      );
+
+      if (result == null || result.files.single.path == null) {
+        return;
+      }
+
+      setState(() {
+        _isUploadingDoc = true;
+      });
+
+      final File localFile = File(result.files.single.path!);
+      final appState = Provider.of<AppState>(context, listen: false);
+      final remoteName = await appState.uploadPatientIdDocument(localFile);
+
+      setState(() {
+        _isUploadingDoc = false;
+        if (remoteName != null) {
+          _uploadedFileName = remoteName;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('ID Document uploaded successfully!')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to upload document to secure server.')),
+          );
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _isUploadingDoc = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking/uploading file: $e')),
+      );
+    }
   }
 
   bool _isLoading = false;
@@ -47,6 +84,39 @@ class _PatientSignUpScreenState extends State<PatientSignUpScreen> {
         const SnackBar(content: Text('Please fill all required fields (*) and upload your ID document.')),
       );
       return;
+    }
+
+    // 1. Email ends with @gmail.com check
+    final emailRegExp = RegExp(r"^[a-zA-Z0-9._%+-]+@gmail\.com$");
+    if (!emailRegExp.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid Gmail address (ending with @gmail.com).')),
+      );
+      return;
+    }
+
+    // 2. Strong Password check (at least 8 chars, mixed case, number, special char)
+    final passwordRegExp = RegExp(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$");
+    if (!passwordRegExp.hasMatch(password)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    // 3. Aadhaar number format check (exactly 12 digits)
+    if (_idType == 'Aadhaar') {
+      final sanitizedAadhaar = _idNumberController.text.trim().replaceAll(RegExp(r'\s+'), '');
+      if (!RegExp(r'^\d{12}$').hasMatch(sanitizedAadhaar)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Aadhaar number must be exactly 12 numeric digits.')),
+        );
+        return;
+      }
     }
 
     if (password != confirm) {
@@ -98,6 +168,7 @@ class _PatientSignUpScreenState extends State<PatientSignUpScreen> {
       }
     }
   }
+
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -263,7 +334,7 @@ class _PatientSignUpScreenState extends State<PatientSignUpScreen> {
               ),
               const SizedBox(height: 16),
               InkWell(
-                onTap: _pickDocument,
+                onTap: _isUploadingDoc ? null : _pickDocument,
                 child: InputDecorator(
                   decoration: const InputDecoration(
                     labelText: 'Upload ID Proof Document *',
@@ -274,7 +345,9 @@ class _PatientSignUpScreenState extends State<PatientSignUpScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          _uploadedFileName ?? 'Tap to upload ID document (PDF, PNG, JPG)',
+                          _isUploadingDoc
+                              ? 'Uploading to secure server...'
+                              : (_uploadedFileName ?? 'Tap to upload ID document (PDF, PNG, JPG)'),
                           style: TextStyle(
                             fontFamily: 'Inter',
                             color: _uploadedFileName == null
@@ -284,7 +357,16 @@ class _PatientSignUpScreenState extends State<PatientSignUpScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (_uploadedFileName != null)
+                      if (_isUploadingDoc)
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF818CF8)),
+                          ),
+                        )
+                      else if (_uploadedFileName != null)
                         const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 20)
                       else
                         Icon(

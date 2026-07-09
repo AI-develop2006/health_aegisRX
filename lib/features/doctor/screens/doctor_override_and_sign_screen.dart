@@ -231,9 +231,7 @@ class _DoctorOverrideAndSignScreenState
               TextButton(
                 onPressed: () {
                   appState.endDoctorPatientSession();
-                  Navigator.pop(context);
-                  Navigator.pop(context);
-                  Navigator.pop(context);
+                  Navigator.popUntil(context, (route) => route.isFirst);
                 },
                 child: Text('Back to Dashboard',
                     style: GoogleFonts.inter(

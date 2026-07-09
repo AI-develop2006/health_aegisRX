@@ -12,6 +12,7 @@ class _P {
   static const border = Color(0xFFB88E74);
   static const teal = Color(0xFF2E8B90);
   static const red = Color(0xFFB33A3A);
+  static const amber = Color(0xFFD97736);
 }
 
 class PatientPrescriptionDetailScreen extends StatelessWidget {
@@ -150,6 +151,15 @@ class PatientPrescriptionDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
+            if (prescription.overrideReason != null &&
+                prescription.overrideReason!.trim().isNotEmpty) ...[
+              _overrideWarningCard(
+                prescription.overrideReason!,
+                prescription.riskBand ?? 'WARNING',
+              ),
+              const SizedBox(height: 24),
+            ],
+
             // ── 3. Medicines ───────────────────────────────────
             Text(
               'Prescribed Medications',
@@ -263,6 +273,56 @@ class PatientPrescriptionDetailScreen extends StatelessWidget {
                 );
               },
             ),
+            const SizedBox(height: 24),
+
+            // ── 3.5. Audit & Lifecycle Timeline ────────────────
+            Text(
+              'Audit & Lifecycle Timeline',
+              style: GoogleFonts.sora(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: _P.text,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _flatCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _timelineStep(
+                    title: 'Prescription Issued',
+                    subtitle: 'Signed by Dr. ${prescription.doctorName}',
+                    timestamp: '${prescription.date} ${prescription.time}',
+                    isCompleted: true,
+                    isLast: false,
+                  ),
+                  _timelineStep(
+                    title: 'On-Chain Hash Confirmed',
+                    subtitle: 'Registered secure hash to Polygon Ledger',
+                    timestamp: 'Confirmed',
+                    isCompleted: true,
+                    isLast: false,
+                  ),
+                  if (prescription.isDispensed)
+                    _timelineStep(
+                      title: 'Medication Dispensed',
+                      subtitle: 'Collected from Licensed Partner Pharmacy',
+                      timestamp: 'Dispensed',
+                      isCompleted: true,
+                      isLast: true,
+                    )
+                  else
+                    _timelineStep(
+                      title: 'Dispensation Pending',
+                      subtitle: 'Awaiting pharmacist scan & verification',
+                      timestamp: 'Pending',
+                      isCompleted: false,
+                      isLast: true,
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
 
             // ── 4. Integrity Proof ─────────────────────────────
             Container(
@@ -398,6 +458,137 @@ class PatientPrescriptionDetailScreen extends StatelessWidget {
           fontWeight: FontWeight.bold,
           color: _P.teal,
         ),
+      ),
+    );
+  }
+
+  Widget _timelineStep({
+    required String title,
+    required String subtitle,
+    required String timestamp,
+    required bool isCompleted,
+    required bool isLast,
+  }) {
+    final dotColor = isCompleted ? _P.teal : _P.sub;
+    final lineColor = isCompleted
+        ? _P.teal.withOpacity(0.3)
+        : _P.border.withOpacity(0.2);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color: isCompleted ? dotColor : Colors.transparent,
+                shape: BoxShape.circle,
+                border: Border.all(color: dotColor, width: 2),
+              ),
+              child: isCompleted
+                  ? const Icon(Icons.check, size: 10, color: Colors.white)
+                  : null,
+            ),
+            if (!isLast) Container(width: 2, height: 38, color: lineColor),
+          ],
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.sora(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: isCompleted ? _P.text : _P.sub,
+                    ),
+                  ),
+                  Text(
+                    timestamp,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: isCompleted ? _P.teal : _P.sub,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: GoogleFonts.inter(fontSize: 12, color: _P.sub),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _overrideWarningCard(String reason, String riskBand) {
+    final isCritical = riskBand == 'CRITICAL';
+    final cardColor = isCritical ? _P.red : _P.amber;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardColor.withOpacity(0.4), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_rounded, color: cardColor, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                'Clinical Safety Override',
+                style: GoogleFonts.sora(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: cardColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'The prescribing clinician has authorized this prescription with the following justification:',
+            style: GoogleFonts.inter(
+              color: _P.text.withOpacity(0.8),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: cardColor.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              reason,
+              style: GoogleFonts.inter(
+                color: _P.text,
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -26,7 +27,9 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
     final npi = _npiController.text.trim();
     if (npi.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your National Provider Identifier (NPI)')),
+        const SnackBar(
+          content: Text('Please enter your National Provider Identifier (NPI)'),
+        ),
       );
       return;
     }
@@ -35,42 +38,10 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
     final error = await appState.loginDoctor(npi);
     if (mounted) setState(() => _isLoading = false);
     if (error != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
     }
-  }
-
-  void _showServerConfigDialog() {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final urlController = TextEditingController(text: appState.backendUrl);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Server Connection Config'),
-        content: TextField(
-          controller: urlController,
-          decoration: const InputDecoration(
-            labelText: 'Backend URL Gateway',
-            hintText: 'e.g. http://10.0.2.2:4000',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              appState.setBackendUrl(urlController.text.trim());
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Server gateway set to: ${urlController.text.trim()}')),
-              );
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -88,7 +59,10 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
                 decoration: BoxDecoration(
                   color: Dr.green.withOpacity(0.08),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Dr.green.withOpacity(0.3), width: 1.5),
+                  border: Border.all(
+                    color: Dr.green.withOpacity(0.3),
+                    width: 1.5,
+                  ),
                 ),
                 child: const Icon(
                   Icons.local_hospital_rounded,
@@ -109,7 +83,11 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.badge_outlined, size: 16, color: Dr.sub),
+                        const Icon(
+                          Icons.badge_outlined,
+                          size: 16,
+                          color: Dr.sub,
+                        ),
                         const SizedBox(width: 8),
                         Text('Clinician Authentication', style: Dr.meta(12)),
                       ],
@@ -125,21 +103,30 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
                       decoration: InputDecoration(
                         labelText: 'National Provider Identifier (NPI)',
                         labelStyle: Dr.meta(13),
-                        hintText: 'e.g. 1234567890',
+                        hintText: 'NPI',
                         hintStyle: Dr.meta(13),
-                        prefixIcon: const Icon(Icons.badge_rounded, color: Dr.sub, size: 20),
+                        prefixIcon: const Icon(
+                          Icons.badge_rounded,
+                          color: Dr.sub,
+                          size: 20,
+                        ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: const BorderSide(color: Dr.border),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: Dr.green, width: 1.5),
+                          borderSide: const BorderSide(
+                            color: Dr.green,
+                            width: 1.5,
+                          ),
                         ),
                         filled: true,
                         fillColor: Dr.bg,
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -170,11 +157,6 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
                     fontSize: 13,
                   ),
                 ),
-              ),
-              TextButton.icon(
-                onPressed: _showServerConfigDialog,
-                icon: const Icon(Icons.settings_ethernet_rounded, size: 16, color: Dr.green),
-                label: Text('Server Connection Config', style: GoogleFonts.inter(color: Dr.green, fontSize: 13)),
               ),
               TextButton(
                 onPressed: () =>

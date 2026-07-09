@@ -129,12 +129,15 @@ class DoctorPrimaryButton extends StatelessWidget {
                     Icon(icon, size: 18),
                     const SizedBox(width: 8),
                   ],
-                  Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: Colors.white,
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Colors.white,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -182,12 +185,15 @@ class DoctorOutlinedButton extends StatelessWidget {
               Icon(icon, size: 18, color: c),
               const SizedBox(width: 8),
             ],
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                color: c,
+            Flexible(
+              child: Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: c,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

@@ -47,7 +47,6 @@ async def get_prescription(rx_id: str) -> dict:
 
 
 async def verify_scan(raw_payload: str, signature: str, timestamp: str) -> dict:
-    local_hash = sha256_hash(raw_payload)
     parts = raw_payload.split("|")
     if len(parts) < 8:
         logger.warning(f"Invalid payload format: only {len(parts)} parts.")
@@ -55,6 +54,41 @@ async def verify_scan(raw_payload: str, signature: str, timestamp: str) -> dict:
 
     rx_id = parts[0]
     doctor_sign_id = parts[8] if len(parts) > 8 else "889218"
+
+    # Compute static hash on the original prescription details (parts 0 to 8) to match signature and blockchain
+    original_payload = "|".join(parts[:9])
+    local_hash = sha256_hash(original_payload)
+
+    # Item 3: Validate expiry, scope, and nonces
+    if len(parts) >= 12:
+        try:
+            expiry = int(parts[9])
+            nonce = parts[10]
+            scope = parts[11]
+            
+            import time
+            current_time = int(time.time())
+            
+            if current_time > expiry:
+                logger.warning(f"Verification blocked: Scanned QR token has expired. Current={current_time}, Expiry={expiry}")
+                return {
+                    "verified": False,
+                    "verdict": "TOKEN_EXPIRED",
+                    "reason": "This dispensation session token has expired. Please regenerate the checkout QR code in your app.",
+                    "error": "Single-use session token expired"
+                }
+                
+            if scope != "DISPENSE":
+                logger.warning(f"Verification blocked: Invalid QR token scope. Scope={scope}")
+                return {
+                    "verified": False,
+                    "verdict": "INVALID_SCOPE",
+                    "reason": "This token is not authorized for prescription dispensation.",
+                    "error": "Invalid token scope authorization"
+                }
+        except ValueError as ex:
+            logger.error(f"Error parsing QR payload secure parameters: {ex}")
+            return {"verified": False, "error": "Malformed secure payload parameters"}
 
     logger.info(f"Verifying scan: rx_id={rx_id}, doctor_sign_id={doctor_sign_id}")
 
@@ -162,6 +196,8 @@ async def dispense_prescription(
     expiry_date: str = None,
     touch_signature: str = None,
     delivery_tracking_id: str = None,
+    billing_amount: float = None,
+    receipt_attached: bool = None,
 ) -> dict:
     existing = prescriptions_col().find_one({"id": rx_id})
     if not existing:
@@ -178,6 +214,8 @@ async def dispense_prescription(
                 "expiry_date": expiry_date,
                 "touch_signature": touch_signature,
                 "delivery_tracking_id": delivery_tracking_id,
+                "billing_amount": billing_amount,
+                "receipt_attached": receipt_attached,
                 "dispensedAt": datetime.utcnow(),
             }
         },

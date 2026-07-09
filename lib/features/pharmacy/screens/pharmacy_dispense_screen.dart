@@ -26,7 +26,9 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
   final _batchController = TextEditingController(text: 'LOT-9921A');
   final _expiryController = TextEditingController(text: '12/2028');
   final _trackingController = TextEditingController(text: 'TRK-88122-VX');
+  final _invoiceController = TextEditingController(text: '45.00');
   bool _signatureCaptured = true;
+  bool _receiptUploaded = false;
   late List<bool> _medicationChecks;
   late AnimationController _pulseController;
 
@@ -56,6 +58,7 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
     _batchController.dispose();
     _expiryController.dispose();
     _trackingController.dispose();
+    _invoiceController.dispose();
     _pulseController.dispose();
     super.dispose();
   }
@@ -86,6 +89,8 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
       _isDispensing = true;
     });
 
+    final double? billAmt = double.tryParse(_invoiceController.text.trim());
+
     final appState = Provider.of<AppState>(context, listen: false);
     final res = await appState.dispensePrescription(
       widget.prescriptionId,
@@ -93,6 +98,8 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
       expiryDate: _expiryController.text.trim(),
       deliveryTrackingId: _trackingController.text.trim(),
       touchSignature: 'Pharmacist Signed: PHARMA-001',
+      billingAmount: billAmt,
+      receiptAttached: _receiptUploaded,
     );
 
     setState(() {
@@ -255,6 +262,10 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
                     _buildTechnicalForm(),
                     const SizedBox(height: 16),
 
+                    // --- 4.5. Billing & Invoice Management ---
+                    _buildBillingCard(),
+                    const SizedBox(height: 16),
+
                     // --- 5. Dispatch Lifecycle Timeline ---
                     _buildDispatchTimeline(),
                     const SizedBox(height: 24),
@@ -290,24 +301,29 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'WORKSTATION: WRK-PH-7721',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: _primaryText,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'WORKSTATION: WRK-PH-7721',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: _primaryText,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                'Pharmacist Desk #1 (Verified)',
-                style: GoogleFonts.inter(fontSize: 12, color: _secondaryText),
-              ),
-            ],
+                const SizedBox(height: 3),
+                Text(
+                  'Pharmacist Desk #1 (Verified)',
+                  style: GoogleFonts.inter(fontSize: 12, color: _secondaryText),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 12),
           Row(
             children: [
               AnimatedBuilder(
@@ -441,15 +457,19 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'ORDER FULFILLMENT LEDGER',
-                style: GoogleFonts.sora(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: _primaryText,
-                  letterSpacing: 0.5,
+              Expanded(
+                child: Text(
+                  'ORDER FULFILLMENT LEDGER',
+                  style: GoogleFonts.sora(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: _primaryText,
+                    letterSpacing: 0.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -517,13 +537,15 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
                       decoration: _medicationChecks[index] ? TextDecoration.lineThrough : null,
                     ),
                   ),
-                  subtitle: Row(
+                  subtitle: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
                     children: [
                       Text(
                         '$duration | $interval',
                         style: GoogleFonts.inter(fontSize: 11, color: _secondaryText),
                       ),
-                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                         decoration: BoxDecoration(
@@ -768,6 +790,115 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
                   letterSpacing: 0.5,
                 ),
               ),
+      ),
+    );
+  }
+
+  Widget _buildBillingCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _borderSlate),
+        boxShadow: [
+          BoxShadow(
+            color: _brandBlue.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'BILLING & INVOICE MANAGEMENT',
+                style: GoogleFonts.sora(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: _primaryText,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const Icon(Icons.receipt_long_rounded, size: 18, color: _accentReady),
+            ],
+          ),
+          const SizedBox(height: 14),
+          
+          // Custom Invoice Amount Input
+          TextFormField(
+            controller: _invoiceController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: GoogleFonts.jetBrainsMono(fontSize: 13, color: _primaryText, fontWeight: FontWeight.bold),
+            decoration: InputDecoration(
+              labelText: 'Total Billing Amount (\$ USD)',
+              labelStyle: GoogleFonts.inter(fontSize: 12, color: _secondaryText),
+              border: const OutlineInputBorder(borderSide: BorderSide(color: _borderSlate)),
+              enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: _borderSlate)),
+              focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _primaryText)),
+              prefixIcon: const Icon(Icons.attach_money_rounded, size: 20, color: _secondaryText),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+            validator: (val) => val == null || val.isEmpty ? 'Invoice amount required' : null,
+          ),
+          const SizedBox(height: 16),
+
+          // Digital Receipt File Uploader
+          InkWell(
+            onTap: () {
+              setState(() {
+                _receiptUploaded = !_receiptUploaded;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(_receiptUploaded 
+                    ? 'Invoice Receipt Uploaded: receipt_${widget.prescriptionId.toLowerCase().substring(0, 6)}.pdf attached.'
+                    : 'Invoice Receipt Removed.'),
+                  backgroundColor: _receiptUploaded ? Colors.green : Colors.grey[700],
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              decoration: BoxDecoration(
+                color: _receiptUploaded ? const Color(0xFFECFDF5) : _bgCanvas,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _receiptUploaded ? const Color(0xFF10B981) : _borderSlate,
+                  width: 1.2,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _receiptUploaded ? Icons.task_alt_rounded : Icons.cloud_upload_outlined,
+                    color: _receiptUploaded ? const Color(0xFF10B981) : _secondaryText,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      _receiptUploaded ? 'Receipt Attached (Click to remove)' : 'Upload Pharmacy Invoice Receipt (PDF/JPG)',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _receiptUploaded ? const Color(0xFF065F46) : _secondaryText,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

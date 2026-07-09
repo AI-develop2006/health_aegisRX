@@ -4,13 +4,25 @@
     "patient_id": "Priya_123",
     "name": "Priya Sharma",
     "age": 45,
-    "gender": "Female"
+    "gender": "Female",
+    "email": "priya@test.com",
+    "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$dyMwJkSWOolMFeGdFNhLdg$HjAupVXgmOp6qB3whl2cOSEhID55Unt45YS7GXTjxjM"
   },
   {
     "patient_id": "Elena Vance",
     "name": "Elena Vance",
     "age": 28,
-    "gender": "Female"
+    "gender": "Female",
+    "email": "elena@test.com",
+    "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$dyMwJkSWOolMFeGdFNhLdg$HjAupVXgmOp6qB3whl2cOSEhID55Unt45YS7GXTjxjM"
+  },
+  {
+    "patient_id": "john_doe",
+    "name": "John Doe",
+    "age": 55,
+    "gender": "Male",
+    "email": "john@test.com",
+    "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$dyMwJkSWOolMFeGdFNhLdg$HjAupVXgmOp6qB3whl2cOSEhID55Unt45YS7GXTjxjM"
   }
 ],
 "allergies": [
@@ -33,6 +45,11 @@
     "patient_id": "Elena Vance",
     "allergy_name": "Sulfa",
     "severity": "MEDIUM"
+  },
+  {
+    "patient_id": "john_doe",
+    "allergy_name": "Codeine",
+    "severity": "HIGH"
   }
 ],
 "prescriptions": [
@@ -187,6 +204,14 @@
     "frequency": "once daily",
     "doctor_id": "Dr_Arun_456",
     "date": "2026-06-09T09:00:00"
+  },
+  {
+    "patient_id": "john_doe",
+    "medicine": "Sildenafil",
+    "dosage": "50mg",
+    "frequency": "as needed",
+    "doctor_id": "Dr_Arun_456",
+    "date": "2026-06-20T14:46:00"
   }
 ],
 "doctors": [

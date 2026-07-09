@@ -24,7 +24,23 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
   static const _red = Color(0xFFB33A3A);
 
   bool _biometricUnlock = false;
-  final List<String> _allergies = ['Penicillin'];
+  final List<String> _allergies = [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final appState = Provider.of<AppState>(context, listen: false);
+      appState.fetchPatientProfile().then((_) {
+        if (mounted) {
+          setState(() {
+            _allergies.clear();
+            _allergies.addAll(appState.patientAllergies);
+          });
+        }
+      });
+    });
+  }
 
   // ── Personal Details Dialog ────────────────────────────────────
   void _openPersonalDetails(AppState appState) {
@@ -181,6 +197,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
 
   // ── Allergy Declarations Manager ──────────────────────────────
   void _openAllergyManager() {
+    final appState = Provider.of<AppState>(context, listen: false);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -190,11 +207,16 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
       ),
       builder: (ctx) => _AllergySheet(
         allergies: List<String>.from(_allergies),
-        onSave: (updated) {
+        onSave: (updated) async {
           setState(() => _allergies
             ..clear()
             ..addAll(updated));
-          _toast('Allergy list saved.');
+          final success = await appState.savePatientAllergies(updated);
+          if (success) {
+            _toast('Allergy list saved successfully.');
+          } else {
+            _toast('Allergy list updated locally.');
+          }
         },
       ),
     );

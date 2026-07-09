@@ -20,15 +20,23 @@ async def create_prescription(rx: PrescriptionCreate):
 
 
 @router.get("/prescriptions/{rx_id}", summary="Get a single prescription by ID")
-async def get_prescription_by_id(rx_id: str):
-    result = service.get_prescription_by_id(rx_id)
-    await log_activity(
-        "SCAN_PHARMACY", result.get("patientName", "Unknown"), "Pharmacy",
-        f"Pharmacy retrieved prescription details for {rx_id}."
-    )
-    return result
+async def get_prescription(rx_id: str):
+    return service.get_prescription_by_id(rx_id)
+
+
+@router.get("/doctor/consultations", summary="Get prescriptions written by doctor")
+async def get_doctor_consultations(doctor_id: str):
+    return service.get_prescriptions_by_doctor(doctor_id)
 
 
 @router.get("/doctor/patient-history/{patient_id}", summary="Doctor views patient history")
 async def get_patient_history(patient_id: str, doctor_id: Optional[str] = Query(None)):
     return service.get_patient_history(patient_id, doctor_id)
+
+
+@router.post("/doctor/patient-allergies", summary="Save patient allergies")
+async def save_patient_allergies(req: dict):
+    patient_id = req.get("patient_id")
+    allergies = req.get("allergies", [])
+    return await service.save_patient_allergies(patient_id, allergies)
+

@@ -6,16 +6,31 @@ import '../doctor_theme.dart';
 import 'doctor_patient_search_screen.dart';
 import 'doctor_patient_history_screen.dart';
 
-class DoctorDashboardScreen extends StatelessWidget {
+class DoctorDashboardScreen extends StatefulWidget {
   const DoctorDashboardScreen({super.key});
+
+  @override
+  State<DoctorDashboardScreen> createState() => _DoctorDashboardScreenState();
+}
+
+class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<AppState>(context, listen: false).fetchDoctorConsultations();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
     final docLicense = appState.doctorLicense ?? 'NPI-1002288';
-    final docHospital = appState.doctorHospital ?? 'Metropolitan Hospital Centre';
+    final docHospital =
+        appState.doctorHospital ?? 'Metropolitan Hospital Centre';
     final docSpecialty = appState.doctorSpecialty ?? 'Cardiology';
-    final docName = 'Dr. ${appState.doctorLicense ?? 'Alexander Vance'}';
+    final rawName = appState.doctorName ?? 'Alexander Vance';
+    final docName = rawName.startsWith('Dr.') ? rawName : 'Dr. $rawName';
 
     return ClinicalScaffold(
       appBar: clinicalAppBar(
@@ -44,27 +59,41 @@ class DoctorDashboardScreen extends StatelessWidget {
                       color: Dr.green.withOpacity(0.1),
                       shape: BoxShape.circle,
                       border: Border.all(
-                          color: Dr.green.withOpacity(0.3), width: 1),
+                        color: Dr.green.withOpacity(0.3),
+                        width: 1,
+                      ),
                     ),
-                    child: const Icon(Icons.local_hospital_rounded,
-                        size: 28, color: Dr.green),
+                    child: const Icon(
+                      Icons.local_hospital_rounded,
+                      size: 28,
+                      color: Dr.green,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(docName, style: Dr.heading(16),
-                            overflow: TextOverflow.ellipsis),
+                        Text(
+                          docName,
+                          style: Dr.heading(16),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         const SizedBox(height: 3),
-                        Text('$docSpecialty · $docHospital',
-                            style: Dr.meta(12),
-                            overflow: TextOverflow.ellipsis),
+                        Text(
+                          '$docSpecialty · $docHospital',
+                          style: Dr.meta(12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         const SizedBox(height: 4),
-                        Text(docLicense,
-                            style: GoogleFonts.jetBrainsMono(
-                                fontSize: 11, color: Dr.sub),
-                            overflow: TextOverflow.ellipsis),
+                        Text(
+                          docLicense,
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 11,
+                            color: Dr.sub,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                     ),
                   ),
@@ -92,8 +121,11 @@ class DoctorDashboardScreen extends StatelessWidget {
                         color: Dr.green.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.wifi_tethering_rounded,
-                          color: Dr.green, size: 20),
+                      child: const Icon(
+                        Icons.wifi_tethering_rounded,
+                        color: Dr.green,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -132,13 +164,18 @@ class DoctorDashboardScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
                       ),
-                      child: Text('Open Vault',
-                          style: GoogleFonts.inter(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Colors.white)),
+                      child: Text(
+                        'Open Vault',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -148,48 +185,54 @@ class DoctorDashboardScreen extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.wifi_tethering_off_rounded,
-                        color: Dr.sub, size: 20),
+                    const Icon(
+                      Icons.wifi_tethering_off_rounded,
+                      color: Dr.sub,
+                      size: 20,
+                    ),
                     const SizedBox(width: 10),
-                    Text('No active patient session.',
-                        style: Dr.meta(13)),
+                    Text('No active patient session.', style: Dr.meta(13)),
                   ],
                 ),
               ),
             ],
             const SizedBox(height: 24),
 
-            // ── Today's Appointments ──────────────────────────
-            sectionHeader("Today's Appointments"),
-            _appointmentTile(
-              context: context,
-              name: 'Priya Sharma',
-              time: '09:30 AM',
-              reason: 'Hypertension Follow-up',
-              patientId: 'priya_123',
-              status: 'Completed',
-              statusColor: Dr.green,
-            ),
-            const SizedBox(height: 10),
-            _appointmentTile(
-              context: context,
-              name: 'Elena Vance',
-              time: '11:00 AM',
-              reason: 'Post-op Cardiac Checkup',
-              patientId: 'elena_vance',
-              status: 'Upcoming',
-              statusColor: Dr.amber,
-            ),
-            const SizedBox(height: 10),
-            _appointmentTile(
-              context: context,
-              name: 'Raj Mehta',
-              time: '02:30 PM',
-              reason: 'Diabetes Management Review',
-              patientId: 'raj_mehta',
-              status: 'Upcoming',
-              statusColor: Dr.amber,
-            ),
+            // ── Past Consultations ──────────────────────────
+            sectionHeader("Past Consultations"),
+            if (appState.doctorConsultations.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: Text(
+                    'No past consultations recorded on the ledger.',
+                    style: Dr.meta(13).copyWith(fontStyle: FontStyle.italic),
+                  ),
+                ),
+              )
+            else
+              ...appState.doctorConsultations.map((rx) {
+                final String name = rx['patientName'] ?? 'Patient';
+                final String date = rx['date'] ?? '';
+                final String time = rx['time'] ?? '10:00';
+                final String mobile = rx['patient_mobile'] ?? 'N/A';
+                final String disease = rx['disease'] ?? 'Consultation';
+                final String patientId = rx['patient_id'] ?? rx['patientName'] ?? '';
+                final bool isDispensed = rx['isDispensed'] ?? false;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _appointmentTile(
+                    context: context,
+                    name: name,
+                    time: time,
+                    reason: '$disease · Mobile: $mobile · $date',
+                    patientId: patientId,
+                    status: isDispensed ? 'Completed' : 'Issued',
+                    statusColor: isDispensed ? Dr.green : Dr.amber,
+                  ),
+                );
+              }),
             const SizedBox(height: 28),
 
             // ── Primary CTA ───────────────────────────────────
@@ -199,7 +242,8 @@ class DoctorDashboardScreen extends StatelessWidget {
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const DoctorPatientSearchScreen()),
+                  builder: (context) => const DoctorPatientSearchScreen(),
+                ),
               ),
             ),
             const SizedBox(height: 32),
@@ -234,13 +278,11 @@ class DoctorDashboardScreen extends StatelessWidget {
           children: [
             // Time block
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
                 color: Dr.green.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                    color: Dr.green.withOpacity(0.3), width: 1),
+                border: Border.all(color: Dr.green.withOpacity(0.3), width: 1),
               ),
               child: Text(
                 time,
@@ -256,13 +298,17 @@ class DoctorDashboardScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name,
-                      style: Dr.heading(14),
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    name,
+                    style: Dr.heading(14),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 2),
-                  Text(reason,
-                      style: Dr.meta(12),
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    reason,
+                    style: Dr.meta(12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),

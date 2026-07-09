@@ -1,5 +1,5 @@
 """Auth Service — FastAPI routes"""
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, UploadFile, File
 from app.models import (
     PatientSignup, PatientLoginInput, PatientUpdateNameInput,
     DoctorRegisterInput, DoctorLoginInput, PharmacyLoginInput,
@@ -7,6 +7,11 @@ from app.models import (
 from app import service
 
 router = APIRouter(prefix="/api", tags=["Auth"])
+
+@router.post("/media/upload", summary="Upload ID Document")
+async def upload_document(file: UploadFile = File(...)):
+    return await service.upload_document(file)
+
 
 
 # ── Patient ───────────────────────────────────────────────────────────────────

@@ -27,4 +27,6 @@ async def dispense_prescription(input_data: DispenseInput):
         expiry_date=input_data.expiry_date,
         touch_signature=input_data.touch_signature,
         delivery_tracking_id=input_data.delivery_tracking_id,
+        billing_amount=input_data.billing_amount,
+        receipt_attached=input_data.receipt_attached,
     )

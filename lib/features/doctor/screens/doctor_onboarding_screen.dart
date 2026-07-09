@@ -39,8 +39,12 @@ class _DoctorOnboardingScreenState extends State<DoctorOnboardingScreen> {
     final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
 
-    if (name.isEmpty || license.isEmpty || hospital.isEmpty ||
-        specialty.isEmpty || email.isEmpty || phone.isEmpty) {
+    if (name.isEmpty ||
+        license.isEmpty ||
+        hospital.isEmpty ||
+        specialty.isEmpty ||
+        email.isEmpty ||
+        phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please complete all required fields.')),
       );
@@ -61,15 +65,16 @@ class _DoctorOnboardingScreenState extends State<DoctorOnboardingScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Registration successful! NPI authorized.')),
+            content: Text('Registration successful! NPI authorized.'),
+          ),
         );
         Navigator.pop(context);
       }
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error)));
       }
     }
   }
@@ -102,8 +107,10 @@ class _DoctorOnboardingScreenState extends State<DoctorOnboardingScreen> {
             ),
             filled: true,
             fillColor: Dr.bg,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
         ),
         const SizedBox(height: 14),
@@ -123,8 +130,7 @@ class _DoctorOnboardingScreenState extends State<DoctorOnboardingScreen> {
             // ── Header ─────────────────────────────────────────
             DoctorCard(
               borderColor: Dr.green.withOpacity(0.3),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
                   Container(
@@ -133,16 +139,18 @@ class _DoctorOnboardingScreenState extends State<DoctorOnboardingScreen> {
                       color: Dr.green.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.how_to_reg_rounded,
-                        color: Dr.green, size: 22),
+                    child: const Icon(
+                      Icons.how_to_reg_rounded,
+                      color: Dr.green,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Request a Doctor Account',
-                            style: Dr.heading(15)),
+                        Text('Request a Doctor Account', style: Dr.heading(15)),
                         const SizedBox(height: 2),
                         Text(
                           'Enter your medical license details for secure NPI verification.',
@@ -206,9 +214,10 @@ class _DoctorOnboardingScreenState extends State<DoctorOnboardingScreen> {
             Center(
               child: TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('Back to Login',
-                    style:
-                        GoogleFonts.inter(color: Dr.sub, fontSize: 13)),
+                child: Text(
+                  'Back to Login',
+                  style: GoogleFonts.inter(color: Dr.sub, fontSize: 13),
+                ),
               ),
             ),
             const SizedBox(height: 32),

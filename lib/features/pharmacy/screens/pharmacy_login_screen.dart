@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/state/app_state.dart';
@@ -19,7 +20,9 @@ class _PharmacyLoginScreenState extends State<PharmacyLoginScreen> {
     final license = _licenseController.text.trim();
     if (license.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your pharmacy license number.')),
+        const SnackBar(
+          content: Text('Please enter your pharmacy license number.'),
+        ),
       );
       return;
     }
@@ -28,42 +31,10 @@ class _PharmacyLoginScreenState extends State<PharmacyLoginScreen> {
     final error = await appState.loginPharmacy(license);
     if (mounted) setState(() => _isLoading = false);
     if (error != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
     }
-  }
-
-  void _showServerConfigDialog() {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final urlController = TextEditingController(text: appState.backendUrl);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Server Connection Config'),
-        content: TextField(
-          controller: urlController,
-          decoration: const InputDecoration(
-            labelText: 'Backend URL Gateway',
-            hintText: 'e.g. http://10.0.2.2:4000',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              appState.setBackendUrl(urlController.text.trim());
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Server gateway set to: ${urlController.text.trim()}')),
-              );
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -77,19 +48,65 @@ class _PharmacyLoginScreenState extends State<PharmacyLoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.medication, size: 64, color: Color(0xFF0F52BA)),
+                const Icon(
+                  Icons.medication,
+                  size: 64,
+                  color: Color(0xFF0F52BA),
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'AegisRx Pharmacy Portal',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 24),
-                TextField(
-                  controller: _licenseController,
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: 'Pharmacy License Number',
-                    prefixIcon: Icon(Icons.assignment),
+                    labelText: 'Select Registered Pharmacy',
+                    prefixIcon: Icon(Icons.local_pharmacy_rounded),
                   ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'PHARM-AMOY-01',
+                      child: Text(
+                        'Aegis Pharmacy (Amoy-01)',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'PHARM-AMOY-02',
+                      child: Text(
+                        'Sovereign Care (Amoy-02)',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'PHARM-APOLLO-09',
+                      child: Text(
+                        'Apollo Pharma (Apollo-09)',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'PHARM-CV-HEALTH',
+                      child: Text(
+                        'CV Health Desk (CV-Health)',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'PHARM-RX-SECURE',
+                      child: Text(
+                        'SafeRx Dispensary (Rx-Secure)',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      _licenseController.text = val;
+                    }
+                  },
                 ),
                 const SizedBox(height: 24),
                 GlassmorphicButton(
@@ -98,15 +115,12 @@ class _PharmacyLoginScreenState extends State<PharmacyLoginScreen> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Text('Access Dispensation Desk'),
-                ),
-                const SizedBox(height: 12),
-                TextButton.icon(
-                  onPressed: _showServerConfigDialog,
-                  icon: const Icon(Icons.settings_ethernet_rounded, size: 16),
-                  label: const Text('Server Connection Config', style: TextStyle(fontSize: 12)),
                 ),
                 const SizedBox(height: 8),
                 TextButton(

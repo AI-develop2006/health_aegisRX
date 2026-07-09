@@ -1,415 +1,269 @@
-# AegisRx Doctor Portal – Complete Flow Specification (Version 1)
+I’m building a Doctor Portal (Practitioner Console) for my app AegisRx / HealthLock. The portal should let doctors:
 
-This document specifies the **doctor portal** flow for AegisRx, matching the depth and structure of the patient flow. It assumes Splash + Onboarding are **shared** for all three portals and focuses only on the **doctor side**.
+Log in securely (JWT).
 
-All screens use the global 60‑30‑10 theme from `app_theme.dart` (same as patient app). [web:266][web:269]
+Open a dashboard with their profile and active sessions.
 
----
+Request and receive patient consent via QR/ID.
 
-## 1. High‑Level Flow (QR + Auto‑AI)
+View patient vault history (allergies, past prescriptions).
 
-1. Doctor logs in to the doctor portal.  
-2. Doctor opens dashboard → selects patient via search or QR scan.  
-3. QR scan starts a **live session** with that patient and auto‑fills patient + doctor header.  
-4. Doctor fills **structured fields**:
-   - Problem / diagnosis  
-   - Medicines (structured rows)  
-5. AI safety check runs **automatically** whenever problem/med fields change. [web:254][web:256][web:277]  
-6. AI result appears in a **separate panel/screen**:
-   - Risk band, score, reasons, safer alternatives.  
-7. Doctor either:
-   - Accepts AI suggestions, or  
-   - Overrides and signs with rationale → prescription committed to chain / vault. [web:276][web:279]
+Compose a new prescription with structured medication rows.
 
----
+Call an AI audit service to check allergies, interactions, and duplications.
 
-## 2. Onboarding & Verification (Doctor)
+Override with rationale if risk is high, then cryptographically sign.
 
-### 2.1 DoctorOnboardingRequestScreen (optional)
+Store the prescription in MongoDB and on a Polygon ledger, and generate a QR for pharmacy.
 
-**Purpose:** Capture doctor information for admin verification before enabling full console access.
+Right now, this flow has bugs from the login page to the signing page, and the AI audit is not always behaving as designed. I want you to act as a senior backend + mobile engineer and help me fix and complete it.
 
-**Suggested file:**  
-`lib/features/doctor/screens/auth/doctor_onboarding_request_screen.dart`
+Please do the following:
 
-**Fields:**
+1. Secure doctor login with JWT (no external JWT API key)
+Backend (FastAPI):
 
-- Full name (text)  
-- Medical license / registration ID (text)  
-- Hospital / clinic name (text)  
-- Specialty (dropdown: Cardiology, Internal Medicine, etc.)  
-- Official email (text)  
-- Official phone (text)  
-- Checkbox: “I confirm these details are accurate”
+Implement or correct POST /api/doctor/login:
 
-**Action:**
+Validate doctor credentials (NPI or mobile + password) against MongoDB.
 
-- Button: **“Submit verification request”**
-  - For now: mock submit  
-  - On success → `DoctorVerificationStatusScreen`
+Use a locally configured JWT secret (e.g. JWT_SECRET, JWT_ALGORITHM="HS256" in config.py) to sign tokens.
+Note: JWT does not need an external API key; it uses our own secret string for signing and verifying.
 
----
+Return:
 
-### 2.2 DoctorVerificationStatusScreen
+access_token (JWT)
 
-**Purpose:** Show whether the doctor is allowed to use the portal.
+token_type="bearer"
 
-**Suggested file:**  
-`lib/features/doctor/screens/auth/doctor_verification_status_screen.dart`
+doctor_profile (id, name, NPI, hospital, specialty)
 
-**Displays:**
+Implement get_current_doctor dependency:
 
-- Doctor name  
-- Hospital / clinic  
-- Specialty  
-- Status badge: **Pending / Verified / Suspended**
+Read Authorization: Bearer <token>.
 
-**Behavior:**
+Decode JWT using JWT_SECRET.
 
-- **Pending:**  
-  - Message: “Verification in progress. You can view limited data.”  
-  - No login button.
+Fetch doctor from DB and make it available to protected routes.
 
-- **Verified:**  
-  - Button: “Go to Doctor Login” → `DoctorLoginScreen`.
+Frontend (Flutter):
 
-- **Suspended:**  
-  - Message: “Your account is suspended. Contact support.”
+In doctor_login_screen.dart:
 
----
+Remove any hardcoded mock tokens.
 
-## 3. Doctor Login & Entry
+Call POST /api/doctor/login with the login form data.
 
-### 3.1 DoctorLoginScreen
+On success:
 
-**Purpose:** Authenticate doctor into the doctor portal.
+Store access_token securely (e.g. flutter_secure_storage) and in AppState.
 
-**Suggested file:**  
-`lib/features/doctor/screens/auth/doctor_login_screen.dart`
+Navigate to doctor_dashboard_screen with real doctor profile.
 
-**Fields:**
+On failure:
 
-- Email (text)  
-- Password (password)
+Show an error message and stay on the login screen.
 
-**Actions:**
+2. Consultation creation and patient vault access
+Backend:
 
-- Button: **“Sign in”**
-  - If fields not empty → mock success → navigate to `DoctorDashboardScreen`.
+Ensure POST /api/consultation/request:
 
----
+Creates a MongoDB record with:
 
-## 4. Doctor Dashboard & Starting a Session
+consultation_id
 
-### 4.1 DoctorDashboardScreen
+patient_id
 
-**Purpose:** Main landing screen after doctor login.
+doctor_id
 
-**Suggested file:**  
-`lib/features/doctor/screens/main/doctor_dashboard_screen.dart`
+status="pending"
 
-**Content (mock data acceptable):**
+timestamps
 
-- **Header:**
-  - Dr. [Name]  
-  - Specialty (e.g., Cardiologist)  
-  - Hospital / clinic
+Ensure POST /api/consultation/accept:
 
-- **Section: “Today’s appointments”**
-  - List of 2–3 appointments:
-    - Patient name / ID  
-    - Time  
-    - Reason
+Updates status to accepted.
 
-- **Section: “Active consultations”**
-  - List of currently active QR sessions (mock).
+Logs an ACCESS_GRANT event in the internal ledger.
 
-- **Section: “Alerts / AI findings” (optional)**  
-  - Simple cards:  
-    - “High‑risk override yesterday – Patient X”
+Frontend:
 
-**Primary action:**
+In doctor_patient_search_screen.dart:
 
-- Button: **“Search patient / Scan QR”** → `DoctorPatientSearchScreen`.
+When scanning patient QR or searching by ID:
 
----
+Call POST /api/consultation/request using the logged-in doctor and selected patient.
 
-## 5. Patient Selection & QR Session
+Enter a polling state until the patient accepts.
 
-### 5.1 DoctorPatientSearchScreen
+In doctor_dashboard_screen.dart:
 
-**Purpose:** Let doctor pick a patient via search or start a live session via QR scan.
+Call an endpoint like GET /api/consultation/active?doctor_id=<id> to show:
 
-**Suggested file:**  
-`lib/features/doctor/screens/session/doctor_patient_search_screen.dart`
+Current active patient session (name, id, “Open Vault” button)
 
-**Search part:**
+“No active session” if none.
 
-- Search input: “Patient name / ID / phone”  
-- Search button → fills list with mock patients:
-  - Name/initials  
-  - Age  
-  - Last encounter date  
+In doctor_patient_history_screen.dart:
 
-**On tapping a search result:**
+Use patient_id from the active consultation.
 
-- Navigate to `DoctorPatientHistoryScreen(patientId)`.
+Call:
 
-**QR section:**
+GET /api/patient/profile/<id> for allergies and conditions.
 
-- Label: “Scan patient QR”  
-- Camera preview placeholder  
-- Status text: “Scanning… / QR recognized / Invalid QR”
+GET /api/prescriptions?patient=<id> for prescription history.
 
-**On QR recognized:**
+3. Prescription editor wired to real AI audit
+Backend (audit-service / ai_service.py):
 
-- Mock validation of patient consent token.  
-- Start a **Doctor–Patient session** (sessionId).  
-- Navigate to `DoctorPatientHistoryScreen(sessionId, patientId)`. [web:272][web:278]
+Implement POST /api/audit to return a PrescriptionSafetyAnalysis object with fields:
 
----
+risk_band (LOW, MEDIUM, HIGH, CRITICAL)
 
-## 6. Patient History (Doctor View)
+risk_score (0–100)
 
-### 6.1 DoctorPatientHistoryScreen
+recommendation (short text)
 
-**Purpose:** Read‑only overview of this patient’s history, as seen by the doctor.
+flagged_medicines (each with name and reason)
 
-**Suggested file:**  
-`lib/features/doctor/screens/session/doctor_patient_history_screen.dart`
+backend_mode (real or mock)
 
-**Sections (mock data):**
+backend_reason (when fallback/mock is used)
 
-- **Patient header:**
-  - Name / initials  
-  - Age  
-  - Gender  
-  - Allergies (chips)  
-  - Chronic conditions (chips)
+Ensure:
 
-- **Encounter timeline:**
-  - List:
-    - Date  
-    - Reason / diagnosis  
-    - Short note summary
+Rule-based agents (Allergy, Interaction, Disease, Dosage) run first.
 
-- **Prescription history:**
-  - List:
-    - Date  
-    - Drugs summary, e.g., “Metformin 500 mg BD; Atorvastatin 10 mg OD”  
-    - Risk band badge: LOW / MOD / HIGH / CRITICAL  
-    - Override flag icon if any override was done
+MedGemma/Gemini are called when USE_MOCK_LLM=false and keys are valid.
 
-**Action:**
+If rules find a conflict but LLM says SAFE, the service overrides to HIGH/CRITICAL.
 
-- Button: **“Write new prescription”** → `DoctorPrescriptionEditorScreen(sessionId, patientId)`.
+Frontend (doctor_prescription_editor_screen.dart):
 
----
+On medication row changes (debounced ~600 ms):
 
-## 7. Structured Prescription Editor + Auto AI
+Call POST /api/audit with:
 
-### 7.1 DoctorPrescriptionEditorScreen
+patient_id
 
-**Purpose:** Allow doctor to write a new prescription in a **structured way** so AI can analyze it automatically.
+doctor_id
 
-**Suggested file:**  
-`lib/features/doctor/screens/prescription/doctor_prescription_editor_screen.dart`
+full draft prescription: drug list, diagnosis, notes, etc.
 
-**Header (auto‑filled, read‑only):**
+Display:
 
-- **Patient:**
-  - Name  
-  - Age  
-  - Gender  
-  - Allergies  
-  - Chronic conditions  
+Risk band, risk score, explanation from backend.
 
-- **Doctor:**
-  - Name  
-  - Specialty  
-  - License number  
-  - Hospital / clinic  
+Suggested alternatives from flagged_medicines or recommendation.
 
-These come from the QR session + doctor profile.
+Ensure:
 
----
+Local _runLocalMockAudit() is only used when ENV=dev or USE_MOCK_LLM=true.
 
-### 7.2 Encounter / Problem fields
+In hackathon/prod, always call the backend /api/audit.
 
-Editable fields:
+When “Apply Alternative” is tapped:
 
-- **Chief complaint / Problem**  
-  - Multi‑line text  
-  - Label: “Chief complaint / Problem *”  
-  - Example: “Fever and cough for 3 days, no breathlessness.”
+Replace the drug row in the editor model.
 
-- **Provisional diagnosis**  
-  - Single line text  
-  - Label: “Provisional diagnosis *”
+Re-run audit to show updated risk.
 
-- **Clinical notes (optional)**  
-  - Multi‑line text  
-  - Label: “Clinical notes”
+4. Override form and cryptographic signing with ledger + Polygon
+Backend (prescription_service.py, ledger_service.py, polygon_client.py):
 
-These map to encounter records for this session.
+Implement POST /api/prescriptions to:
 
----
+Check AI audit result:
 
-### 7.3 Structured medication rows
+If risk_band is HIGH or CRITICAL, require:
 
-Each prescription item row includes:
+Override Category
 
-- **Drug name** (Text / autocomplete)  
-- **Strength** (Text; e.g., “500 mg”)  
-- **Route** (Dropdown: Oral / IV / IM / Topical / Inhalation)  
-- **Frequency** (Dropdown or Text: “Twice daily”, “Once at night”)  
-- **Duration value** (Number; e.g., 7)  
-- **Duration unit** (Dropdown: days / weeks / months)  
-- **Special instructions** (Optional Text area; e.g., “After food”)
+Override Rationale
 
-UI:
+Responsibility checkbox
 
-- Button: **“Add medicine”** to append new rows.  
-- Ability to remove rows.
+Canonicalize prescription JSON (patient, doctor, medicines, diagnosis).
 
----
+Compute SHA‑256 hash.
 
-### 7.4 Automatic AI safety audit
+Apply hex‑shift signature using the doctor’s NPI.
 
-**Behavior:**  
-The AI safety check runs **automatically**; doctor does not need to manually “give access” or click a big “Run AI” button.
+Save prescription to prescriptions collection with:
 
-**When to trigger:**
+hash, signature, consultation_id, AI audit info, override fields.
 
-- When any of these change:
-  - Chief complaint / Problem  
-  - Provisional diagnosis  
-  - Any medication row field (name, dose, route, frequency, duration, instructions)
+Append a CREATE_PRESCRIPTION block to the MongoDB blockchain.
 
-**Implementation idea:**
+If ALLOW_MOCK_POLYGON_TX=false and Polygon keys are configured:
 
-- Debounce changes (e.g., 500–800 ms after last keystroke).  
-- Build an `AuditRequest` object with:
-  - Patient context: allergies, conditions, current medications (from history).  
-  - Encounter: problem, provisional diagnosis, clinical notes.  
-  - Draft prescription: all medication rows. [web:256][web:257][web:277]  
-- Call `/api/audit` (or a mock function) in the background.  
-- Update AI panel with the response.
+Use polygon_client.py to call the PrescriptionLedger contract and store the hash.
 
-There may still be a small **“Re‑run AI”** button for manual refresh, but AI should normally keep itself up‑to‑date.
+Return the real transaction hash in the response.
 
----
+Frontend (doctor_override_and_sign_screen.dart):
 
-## 8. AI Safety Panel / Screen
+If AI risk is HIGH/CRITICAL and alternatives are not fully applied:
 
-### 8.1 AI Safety & Suggestions Panel
+Show mandatory override fields:
 
-**Purpose:** Display AI analysis separately from the doctor’s text fields.
+Override Category dropdown
 
-**Implementation options:**
+Override Rationale text
 
-- **Desktop / tablet:** Right‑side panel next to editor.  
-- **Mobile:** Collapsible bottom sheet or modal.
+Responsibility checkbox
 
-**Fields in panel (from audit response):**
+On “Sign & Commit”:
 
-- **Risk band:** LOW / MODERATE / HIGH / CRITICAL  
-- **Risk score:** 0–100  
-- **Key risk reasons:** bullet list, e.g.:
-  - “Interaction with Warfarin – increased bleeding risk.”  
-  - “Dose exceeds recommended limit for age.”  
+Send POST /api/prescriptions with:
 
-- **Safe alternatives list:**
-  - “Paracetamol instead of Ibuprofen for this patient.”  
-  - “Reduce dose to 250 mg twice daily.”
+Full prescription payload
 
-- **Override policy note:**
-  - “Override allowed only with clinical rationale for HIGH/CRITICAL risks.”
+consultation id
 
-**Actions:**
+override data.
 
-- **Button: “Apply safe alternative”**
-  - Let doctor choose one suggestion.  
-  - Update the corresponding medication row(s) in the editor.
+Handle response:
 
-- **Button: “Proceed with override”**
-  - Enabled only if `override_allowed = true`.  
-  - Navigates to `DoctorOverrideAndSignScreen(draftPrescriptionId, auditId)`.
+Show ledger/Polygon transaction hash returned by backend.
 
-You can also keep a dedicated `DoctorAiAuditResultScreen` route that shows the same information if you prefer a full page instead of a panel.
+Generate a QR code representing the prescription (id + signature/hash reference) so the patient can use it at a pharmacy.
 
----
+5. Short test plan for the Doctor Portal
+Finally, provide a small checklist to verify the fixed portal:
 
-## 9. Override & Sign
+Doctor login:
 
-### 9.1 DoctorOverrideAndSignScreen
+Valid credentials → dashboard with correct profile.
 
-**Purpose:** Allow doctor to consciously override AI warnings and sign the prescription with rationale; then commit to chain/vault. [web:276][web:279]
+Invalid credentials → error, no navigation, no token stored.
 
-**Suggested file:**  
-`lib/features/doctor/screens/prescription/doctor_override_and_sign_screen.dart`
+Consultation:
 
-**Display (read‑only):**
+QR/search → consultation/request → patient accept → consultation saved with status="accepted" and visible in doctor dashboard.
 
-- Patient summary (name, age, key conditions).  
-- Problem / diagnosis.  
-- Final prescription summary:
-  - List of medicines with all fields.  
-- AI risk band + key reasons.
+Patient history:
 
-**Inputs (required when risk band ≥ HIGH):**
+Shows real allergies and prescriptions from backend, not static mock data.
 
-- **Override rationale** (multi‑line text area):  
-  - “Why are you proceeding despite the risk?”
+AI audit:
 
-- **Override category** (dropdown):  
-  - Emergency  
-  - Clinical judgment  
-  - Other
+Critical test case (e.g. Penicillin allergy + Penicillin prescription) → risk_band=CRITICAL, flagged drug and alternatives from backend.
 
-- **Acknowledgement checkbox:**  
-  - “I acknowledge the risks and take responsibility as the treating physician.”
+Safe case → risk_band=LOW/SAFE.
 
-**Actions:**
+Signing:
 
-- **Button: “Sign & Commit”**
+HIGH/CRITICAL risk requires override fields.
 
-  - Validation:
-    - If risk band ≥ HIGH:
-      - Rationale not empty  
-      - Category selected  
-      - Checkbox checked  
+On sign:
 
-  - Behavior (mock for now):
-    - Mark prescription as **SIGNED** in local/mock store.  
-    - Record override event with rationale and category.  
-    - Simulate a blockchain/IPFS commit by generating a fake transaction/hash.
+Prescription appears in DB with hash/signature.
 
-  - Navigation:
-    - Show success message.  
-    - Navigate back to `DoctorDashboardScreen`.
+Ledger block exists.
 
-- **Button: “Back to editor”**
-  - Returns to `DoctorPrescriptionEditorScreen` without signing.
+Polygon tx is recorded (if configured) and hash is visible in doctor UI.
 
----
-
-## 10. Doctor Screen List (Checklist)
-
-To mirror the completeness of the patient flow, you should have the following Flutter screens (even if some include only mock data initially):
-
-1. `DoctorOnboardingRequestScreen` (optional but recommended)  
-2. `DoctorVerificationStatusScreen`  
-3. `DoctorLoginScreen`  
-4. `DoctorDashboardScreen`  
-5. `DoctorPatientSearchScreen`  
-6. `DoctorPatientHistoryScreen`  
-7. `DoctorPrescriptionEditorScreen`  
-8. AI safety panel or `DoctorAiAuditResultScreen`  
-9. `DoctorOverrideAndSignScreen`
-
-All should:
-
-- Use the **same theme** as the main app. [web:266][web:269]  
-- Use **mock data only** at this stage (no real APIs required).  
-- Follow the QR → history → structured editor → auto AI → override & sign sequence described above.
+QR is generated and usable by pharmacy.

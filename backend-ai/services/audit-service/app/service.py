@@ -5,7 +5,7 @@ Self-contained: wraps the Multi-Agent AI system from app.ai.
 import logging
 from datetime import datetime
 from app.config import logger
-from app.db import patients_col, prescriptions_col
+from app.db import patients_col, prescriptions_col, allergies_col
 from app.schemas.patient import PatientContext
 from app.ai.services.ai_service import AIService
 
@@ -21,12 +21,41 @@ async def run_audit(patient_id: str, doctor_id: str, new_medicine: str, new_dosa
 
     try:
         # Find patient record to build context
-        patient_doc = patients_col().find_one({"name": patient_id})
+        patient_doc = patients_col().find_one({"patient_id": patient_id})
+        if not patient_doc:
+            patient_doc = patients_col().find_one({"name": patient_id})
         if not patient_doc:
             patient_doc = patients_col().find_one({"email": patient_id})
 
         if patient_doc:
-            allergies = patient_doc.get("allergies", [])
+            p_id = patient_doc.get("patient_id")
+            p_name = patient_doc.get("name")
+            
+            # Fetch from allergies collection
+            search_terms = []
+            if p_id:
+                search_terms.append(p_id)
+            if p_name:
+                search_terms.append(p_name)
+            
+            import re
+            allergy_filters = []
+            for term in search_terms:
+                safe_term = re.escape(term)
+                allergy_filters.append({"patient_id": {"$regex": f"^({safe_term})$", "$options": "i"}})
+                allergy_filters.append({"patient_name": {"$regex": f"^({safe_term})$", "$options": "i"}})
+                
+            if allergy_filters:
+                cursor = allergies_col().find({"$or": allergy_filters})
+                allergies = [doc.get("allergy_name") for doc in cursor if doc.get("allergy_name")]
+                
+            # Also fallback to doc fields
+            patient_allergies_field = patient_doc.get("allergies", [])
+            if patient_allergies_field:
+                allergies.extend(patient_allergies_field)
+                
+            allergies = list(set(allergies))
+
 
         # Fetch active prescriptions to extract current meds
         active_rxs = prescriptions_col().find({"patientName": patient_id, "isDispensed": False})

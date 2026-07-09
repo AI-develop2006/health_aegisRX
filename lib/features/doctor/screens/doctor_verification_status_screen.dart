@@ -16,8 +16,7 @@ class DoctorVerificationStatusScreen extends StatelessWidget {
     final stateIcon = isPending
         ? Icons.pending_actions_rounded
         : Icons.verified_rounded;
-    final stateTitle =
-        isPending ? 'Verification Pending' : 'License Verified';
+    final stateTitle = isPending ? 'Verification Pending' : 'License Verified';
     final stateBody = isPending
         ? 'Your license verification is in progress. We are confirming credentials with NPI records. You can view clinical guides but cannot write prescriptions yet.'
         : 'Your practitioner status has been successfully approved. You now have full access to the AI Safety audits and secure prescription signing console.';
@@ -28,8 +27,10 @@ class DoctorVerificationStatusScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => appState.resetFlow(),
-            child: Text('Sign Out',
-                style: GoogleFonts.inter(color: Dr.sub, fontSize: 13)),
+            child: Text(
+              'Sign Out',
+              style: GoogleFonts.inter(color: Dr.sub, fontSize: 13),
+            ),
           ),
         ],
       ),
@@ -46,14 +47,19 @@ class DoctorVerificationStatusScreen extends StatelessWidget {
                   color: stateColor.withOpacity(0.08),
                   shape: BoxShape.circle,
                   border: Border.all(
-                      color: stateColor.withOpacity(0.3), width: 1.5),
+                    color: stateColor.withOpacity(0.3),
+                    width: 1.5,
+                  ),
                 ),
                 child: Icon(stateIcon, size: 60, color: stateColor),
               ),
               const SizedBox(height: 24),
 
-              Text(stateTitle,
-                  style: Dr.heading(22), textAlign: TextAlign.center),
+              Text(
+                stateTitle,
+                style: Dr.heading(22),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 12),
 
               // ── Status card ──────────────────────────────────
@@ -64,11 +70,7 @@ class DoctorVerificationStatusScreen extends StatelessWidget {
                     // Progress row
                     Row(
                       children: [
-                        _step(
-                          label: 'Submitted',
-                          done: true,
-                          color: Dr.green,
-                        ),
+                        _step(label: 'Submitted', done: true, color: Dr.green),
                         _stepLine(active: !isPending),
                         _step(
                           label: 'NPI Check',
@@ -84,9 +86,11 @@ class DoctorVerificationStatusScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    Text(stateBody,
-                        textAlign: TextAlign.center,
-                        style: Dr.meta(13)),
+                    Text(
+                      stateBody,
+                      textAlign: TextAlign.center,
+                      style: Dr.meta(13),
+                    ),
                   ],
                 ),
               ),
@@ -116,11 +120,14 @@ class DoctorVerificationStatusScreen extends StatelessWidget {
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => appState.resetFlow(),
-                child: Text('Return to Role Selection',
-                    style: GoogleFonts.inter(
-                        color: Dr.sub,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13)),
+                child: Text(
+                  'Return to Role Selection',
+                  style: GoogleFonts.inter(
+                    color: Dr.sub,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ],
           ),
@@ -146,13 +153,11 @@ class DoctorVerificationStatusScreen extends StatelessWidget {
             border: Border.all(color: color, width: 1.5),
           ),
           child: done
-              ? const Icon(Icons.check_rounded,
-                  color: Colors.white, size: 14)
+              ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
               : null,
         ),
         const SizedBox(height: 4),
-        Text(label,
-            style: GoogleFonts.inter(fontSize: 10, color: Dr.sub)),
+        Text(label, style: GoogleFonts.inter(fontSize: 10, color: Dr.sub)),
       ],
     );
   }

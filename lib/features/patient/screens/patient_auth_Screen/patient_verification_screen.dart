@@ -279,7 +279,7 @@ class _PatientVerificationScreenState
                   const SizedBox(height: 20),
 
                   Text(
-                    'Verify your contact',
+                    'Verify your mobile number',
                     style: GoogleFonts.sora(
                         fontSize: 26,
                         fontWeight: FontWeight.w800,
@@ -290,7 +290,7 @@ class _PatientVerificationScreenState
                     text: TextSpan(
                       style: GoogleFonts.inter(fontSize: 14, color: _kMuted),
                       children: [
-                        const TextSpan(text: 'A 6-digit code was sent to '),
+                        const TextSpan(text: 'A 6-digit code was sent to your mobile: '),
                         TextSpan(
                           text: masked,
                           style: GoogleFonts.inter(

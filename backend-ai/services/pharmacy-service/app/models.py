@@ -20,6 +20,8 @@ class DispenseInput(BaseModel):
     expiry_date: Optional[str] = None
     touch_signature: Optional[str] = None
     delivery_tracking_id: Optional[str] = None
+    billing_amount: Optional[float] = None
+    receipt_attached: Optional[bool] = None
 
 
 class DispenseRequest(BaseModel):

@@ -137,8 +137,10 @@ async def forward(service_name: str, downstream_path: str, request: Request) -> 
 @app.api_route("/api/doctor/register",    methods=["POST"], operation_id="auth_doctor_register")
 @app.api_route("/api/doctor/login",       methods=["POST"], operation_id="auth_doctor_login")
 @app.api_route("/api/pharmacy/login",     methods=["POST"], operation_id="auth_pharmacy_login")
+@app.api_route("/api/media/upload",       methods=["POST"], operation_id="auth_media_upload")
 async def route_auth(request: Request):
     return await forward("auth", request.url.path, request)
+
 
 
 # Patient Service (4002) — /api/patient/dashboard/*, /api/patient/prescriptions/*

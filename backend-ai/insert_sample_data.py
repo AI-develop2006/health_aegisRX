@@ -31,6 +31,10 @@ def seed_mock_db(data):
 
     # 1. Seed Patients
     patients = data.get("patients", [])
+    from argon2 import PasswordHasher
+    ph = PasswordHasher()
+    for p in patients:
+        p["password_hash"] = ph.hash("AegisRx@2026")
     with open(os.path.join(db_dir, "patients.json"), "w") as f:
         json.dump(patients, f, default=str, indent=2)
     logger.info(f"Seeded mock DB: patients.json ({len(patients)} records)")
@@ -189,8 +193,12 @@ def populate_database():
         # Insert patients
         patients = data.get("patients", [])
         if patients:
+            from argon2 import PasswordHasher
+            ph = PasswordHasher()
+            for p in patients:
+                p["password_hash"] = ph.hash("AegisRx@2026")
             db["patients"].insert_many(patients)
-            logger.info(f"Inserted {len(patients)} patients")
+            logger.info(f"Inserted {len(patients)} patients (passwords set to AegisRx@2026)")
             
         # Insert doctors
         doctors = data.get("doctors", [])

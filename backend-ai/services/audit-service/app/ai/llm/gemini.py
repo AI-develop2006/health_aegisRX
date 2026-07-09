@@ -53,7 +53,7 @@ class GeminiClient(BaseLLM):
             import asyncio
             content = await asyncio.wait_for(
                 self.real_generate_response(system_prompt, user_prompt, response_format),
-                timeout=5.0
+                timeout=15.0
             )
             return {"content": content, "mode": "real", "reason": None}
         except asyncio.TimeoutError:

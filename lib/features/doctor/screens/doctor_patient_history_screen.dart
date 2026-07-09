@@ -328,6 +328,35 @@ class _DoctorPatientHistoryScreenState
                               style: Dr.body(13).copyWith(
                                   fontWeight: FontWeight.bold),
                               overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Icon(
+                                rx['onchain_tx_hash'] != null
+                                    ? Icons.verified_user_rounded
+                                    : Icons.cloud_done_outlined,
+                                size: 14,
+                                color: rx['onchain_tx_hash'] != null
+                                    ? Dr.green
+                                    : Dr.sub,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  rx['onchain_tx_hash'] != null
+                                      ? 'Ledger Anchor Verified (Hash: ${rx['onchain_tx_hash'].toString().length > 18 ? rx['onchain_tx_hash'].toString().substring(0, 16) : rx['onchain_tx_hash']}...)'
+                                      : 'Local Sync (Offline Vault)',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 10.5,
+                                    color: rx['onchain_tx_hash'] != null
+                                        ? Dr.green
+                                        : Dr.sub,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                           if (override != null &&
                               override.toString().isNotEmpty) ...[
                             const SizedBox(height: 10),

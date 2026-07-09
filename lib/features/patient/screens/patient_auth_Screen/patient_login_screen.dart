@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -5,13 +6,13 @@ import 'package:provider/provider.dart';
 import '../../../../core/state/app_state.dart';
 
 // ── Design Tokens ─────────────────────────────────────────────────────────
-const _kBg     = Color(0xFF0A0F1D);
-const _kCard   = Color(0xFF1E293B);
+const _kBg = Color(0xFF0A0F1D);
+const _kCard = Color(0xFF1E293B);
 const _kBorder = Color(0xFF334155);
 const _kAccent = Color(0xFF0EA5E9);
-const _kText   = Color(0xFFFFFFFF);
-const _kMuted  = Color(0xFF94A3B8);
-const _kError  = Color(0xFFEF4444);
+const _kText = Color(0xFFFFFFFF);
+const _kMuted = Color(0xFF94A3B8);
+const _kError = Color(0xFFEF4444);
 
 class PatientLoginScreen extends StatefulWidget {
   const PatientLoginScreen({super.key});
@@ -22,9 +23,9 @@ class PatientLoginScreen extends StatefulWidget {
 
 class _PatientLoginScreenState extends State<PatientLoginScreen> {
   final _emailCtrl = TextEditingController();
-  final _passCtrl  = TextEditingController();
-  bool _isLoading  = false;
-  bool _obscure    = true;
+  final _passCtrl = TextEditingController();
+  bool _isLoading = false;
+  bool _obscure = true;
   String? _errorMsg;
 
   @override
@@ -35,9 +36,11 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
   }
 
   Future<void> _login() async {
-    setState(() { _errorMsg = null; });
+    setState(() {
+      _errorMsg = null;
+    });
     final email = _emailCtrl.text.trim();
-    final pass  = _passCtrl.text;
+    final pass = _passCtrl.text;
 
     if (email.isEmpty || pass.isEmpty) {
       setState(() => _errorMsg = 'Please enter your email and password.');
@@ -56,71 +59,6 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
     }
   }
 
-  void _showServerConfigDialog() {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final urlController = TextEditingController(text: appState.backendUrl);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _kCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: _kBorder, width: 1),
-        ),
-        title: Text(
-          'Server Connection Config',
-          style: GoogleFonts.sora(fontWeight: FontWeight.bold, color: _kText),
-        ),
-        content: TextField(
-          controller: urlController,
-          style: GoogleFonts.inter(color: _kText),
-          decoration: InputDecoration(
-            labelText: 'Backend URL Gateway',
-            labelStyle: GoogleFonts.inter(color: _kMuted),
-            hintText: 'e.g. http://10.0.2.2:4000',
-            hintStyle: GoogleFonts.inter(color: _kMuted),
-            enabledBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: _kBorder),
-            ),
-            focusedBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: _kAccent),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: GoogleFonts.inter(color: _kMuted)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _kAccent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () {
-              appState.setBackendUrl(urlController.text.trim());
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: _kCard,
-                  content: Text(
-                    'Server gateway set to: ${urlController.text.trim()}',
-                    style: GoogleFonts.inter(color: _kText),
-                  ),
-                ),
-              );
-            },
-            child: Text(
-              'Save',
-              style: GoogleFonts.inter(color: _kText, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -131,9 +69,7 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
       body: Stack(
         children: [
           // Security mesh background
-          Positioned.fill(
-            child: CustomPaint(painter: _AuthMeshBg()),
-          ),
+          Positioned.fill(child: CustomPaint(painter: _AuthMeshBg())),
 
           SafeArea(
             child: SingleChildScrollView(
@@ -143,10 +79,14 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
                 children: [
                   // Back
                   IconButton(
-                    onPressed: () =>
-                        appState.setPatientAuthState(PatientAuthState.authChoice),
-                    icon: const Icon(CupertinoIcons.arrow_left,
-                        color: _kMuted, size: 22),
+                    onPressed: () => appState.setPatientAuthState(
+                      PatientAuthState.authChoice,
+                    ),
+                    icon: const Icon(
+                      CupertinoIcons.arrow_left,
+                      color: _kMuted,
+                      size: 22,
+                    ),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -160,12 +100,15 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
                     decoration: BoxDecoration(
                       color: _kCard,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: _kAccent.withValues(alpha: 0.4), width: 1.5),
+                      border: Border.all(
+                        color: _kAccent.withValues(alpha: 0.4),
+                        width: 1.5,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: _kAccent.withValues(alpha: 0.2),
                           blurRadius: 16,
-                        )
+                        ),
                       ],
                     ),
                     child: const Icon(
@@ -218,7 +161,9 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
                       icon: CupertinoIcons.lock,
                       suffix: IconButton(
                         icon: Icon(
-                          _obscure ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
+                          _obscure
+                              ? CupertinoIcons.eye
+                              : CupertinoIcons.eye_slash,
                           color: _kMuted,
                           size: 18,
                         ),
@@ -234,7 +179,10 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
                     child: TextButton(
                       onPressed: () => _showForgotDialog(context),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 8,
+                        ),
                       ),
                       child: Text(
                         'Forgot password?',
@@ -253,22 +201,33 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: _kError.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kError.withValues(alpha: 0.35), width: 1),
+                        border: Border.all(
+                          color: _kError.withValues(alpha: 0.35),
+                          width: 1,
+                        ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(CupertinoIcons.exclamationmark_circle,
-                              color: _kError, size: 16),
+                          const Icon(
+                            CupertinoIcons.exclamationmark_circle,
+                            color: _kError,
+                            size: 16,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               _errorMsg!,
                               style: GoogleFonts.inter(
-                                  fontSize: 13, color: _kError, height: 1.4),
+                                fontSize: 13,
+                                color: _kError,
+                                height: 1.4,
+                              ),
                             ),
                           ),
                         ],
@@ -288,14 +247,22 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
                   const SizedBox(height: 24),
 
                   // Divider
-                  Row(children: [
-                    const Expanded(child: Divider(color: _kBorder)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text('OR', style: GoogleFonts.inter(fontSize: 12, color: _kMuted)),
-                    ),
-                    const Expanded(child: Divider(color: _kBorder)),
-                  ]),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider(color: _kBorder)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          'OR',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: _kMuted,
+                          ),
+                        ),
+                      ),
+                      const Expanded(child: Divider(color: _kBorder)),
+                    ],
+                  ),
 
                   const SizedBox(height: 20),
 
@@ -334,18 +301,9 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
                           onPressed: () => appState.resetFlow(),
                           child: Text(
                             'Back to role selection',
-                            style: GoogleFonts.inter(fontSize: 13, color: _kMuted),
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: _showServerConfigDialog,
-                          icon: const Icon(Icons.settings_ethernet_rounded, size: 16, color: _kAccent),
-                          label: Text(
-                            'Server Connection Config',
                             style: GoogleFonts.inter(
                               fontSize: 13,
-                              color: _kAccent,
-                              fontWeight: FontWeight.bold,
+                              color: _kMuted,
                             ),
                           ),
                         ),
@@ -368,27 +326,25 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
     required IconData icon,
     Widget? suffix,
     String? hint,
-  }) =>
-      InputDecoration(
-        labelText: label,
-        hintText: hint,
-        hintStyle: GoogleFonts.inter(color: _kMuted, fontSize: 14),
-        labelStyle: GoogleFonts.inter(color: _kMuted, fontSize: 14),
-        prefixIcon: Icon(icon, color: _kMuted, size: 20),
-        suffixIcon: suffix,
-        filled: true,
-        fillColor: _kCard,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _kBorder, width: 1.5),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _kAccent, width: 1.5),
-        ),
-      );
+  }) => InputDecoration(
+    labelText: label,
+    hintText: hint,
+    hintStyle: GoogleFonts.inter(color: _kMuted, fontSize: 14),
+    labelStyle: GoogleFonts.inter(color: _kMuted, fontSize: 14),
+    prefixIcon: Icon(icon, color: _kMuted, size: 20),
+    suffixIcon: suffix,
+    filled: true,
+    fillColor: _kCard,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: _kBorder, width: 1.5),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: _kAccent, width: 1.5),
+    ),
+  );
 
   void _showForgotDialog(BuildContext ctx) {
     showDialog(
@@ -404,24 +360,32 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(CupertinoIcons.lock_rotation, color: _kAccent, size: 36),
+              const Icon(
+                CupertinoIcons.lock_rotation,
+                color: _kAccent,
+                size: 36,
+              ),
               const SizedBox(height: 16),
-              Text('Password Recovery',
-                  style: GoogleFonts.sora(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: _kText)),
+              Text(
+                'Password Recovery',
+                style: GoogleFonts.sora(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: _kText,
+                ),
+              ),
               const SizedBox(height: 10),
               Text(
                 'Self-sovereign password recovery will be available soon. Contact your vault administrator.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(fontSize: 13, color: _kMuted, height: 1.5),
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: _kMuted,
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 24),
-              _PrimaryBtn(
-                label: 'OK',
-                onPressed: () => Navigator.pop(context),
-              ),
+              _PrimaryBtn(label: 'OK', onPressed: () => Navigator.pop(context)),
             ],
           ),
         ),
@@ -474,19 +438,27 @@ class _PrimaryBtn extends StatelessWidget {
           backgroundColor: _kAccent,
           disabledBackgroundColor: _kAccent.withValues(alpha: 0.4),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
         child: isLoading
             ? const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               )
-            : Text(label,
+            : Text(
+                label,
                 style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white)),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
       ),
     );
   }

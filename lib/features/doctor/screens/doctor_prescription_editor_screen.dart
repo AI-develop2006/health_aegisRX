@@ -116,7 +116,9 @@ class _DoctorPrescriptionEditorScreenState
     Map<String, dynamic>? firstValidRow;
     int rowIndex = -1;
     for (int i = 0; i < _medicationRows.length; i++) {
-      final name = (_medicationRows[i]['nameController'] as TextEditingController).text.trim();
+      final name =
+          (_medicationRows[i]['nameController'] as TextEditingController).text
+              .trim();
       if (name.isNotEmpty) {
         firstValidRow = _medicationRows[i];
         rowIndex = i;
@@ -137,8 +139,12 @@ class _DoctorPrescriptionEditorScreenState
     setState(() => _isAuditing = true);
 
     final appState = Provider.of<AppState>(context, listen: false);
-    final medName = (firstValidRow['nameController'] as TextEditingController).text.trim();
-    final medStrength = (firstValidRow['strengthController'] as TextEditingController).text.trim();
+    final medName = (firstValidRow['nameController'] as TextEditingController)
+        .text
+        .trim();
+    final medStrength =
+        (firstValidRow['strengthController'] as TextEditingController).text
+            .trim();
     final dosage = '$medStrength ${firstValidRow['frequency']}'.trim();
 
     final res = await appState.runAiSafetyAudit(
@@ -146,7 +152,9 @@ class _DoctorPrescriptionEditorScreenState
       doctorId: appState.doctorLicense ?? '889218',
       newMedicine: medName,
       newDosage: dosage,
-      disease: _diagnosisController.text.trim().isNotEmpty ? _diagnosisController.text.trim() : 'Hypertension',
+      disease: _diagnosisController.text.trim().isNotEmpty
+          ? _diagnosisController.text.trim()
+          : 'Hypertension',
     );
 
     if (!mounted) return;
@@ -161,21 +169,29 @@ class _DoctorPrescriptionEditorScreenState
       if (allergyCheck['allergy_conflict'] == true) {
         reasons.add('Allergy Conflict: Severe risk matching patient profile.');
       }
-      if (interactionCheck['interaction_risk'] == 'HIGH' || interactionCheck['interaction_risk'] == 'CRITICAL') {
-        reasons.add('Drug Interaction: ${interactionCheck['interaction_details']}');
+      if (interactionCheck['interaction_risk'] == 'HIGH' ||
+          interactionCheck['interaction_risk'] == 'CRITICAL') {
+        reasons.add(
+          'Drug Interaction: ${interactionCheck['interaction_details']}',
+        );
       }
       if (dupCheck['is_duplicate'] == true) {
         reasons.add('Duplicate Therapy: ${dupCheck['duplicate_details']}');
       }
 
-      final List<dynamic> altsRaw = allergyCheck['suggested_alternatives'] ?? interactionCheck['alternatives'] ?? [];
+      final List<dynamic> altsRaw =
+          allergyCheck['suggested_alternatives'] ??
+          interactionCheck['alternatives'] ??
+          [];
       final List<Map<String, String>> altsParsed = altsRaw.map((a) {
         final String label = a.toString();
         final drug = label.split(' ').first;
         return {
           'label': label,
           'drug': drug,
-          'strength': label.contains('500mg') ? '500mg' : (label.contains('250mg') ? '250mg' : '500mg'),
+          'strength': label.contains('500mg')
+              ? '500mg'
+              : (label.contains('250mg') ? '250mg' : '500mg'),
           'frequency': label.contains('twice') ? 'Twice daily' : 'Once daily',
           'rowIndex': rowIndex.toString(),
         };
@@ -183,14 +199,24 @@ class _DoctorPrescriptionEditorScreenState
 
       setState(() {
         final riskLevelStr = res['risk_level'] ?? 'SAFE';
-        _riskBand = riskLevelStr == 'SAFE' ? 'LOW' : (riskLevelStr == 'WARNING' ? 'HIGH' : 'CRITICAL');
-        _riskScore = res['risk_score'] ?? (res['confidence_score'] != null ? (res['confidence_score'] * 100).round() : 10);
+        _riskBand = riskLevelStr == 'SAFE'
+            ? 'LOW'
+            : (riskLevelStr == 'WARNING' ? 'HIGH' : 'CRITICAL');
+        _riskScore =
+            res['risk_score'] ??
+            (res['confidence_score'] != null
+                ? (res['confidence_score'] * 100).round()
+                : 10);
         if (_riskBand == 'CRITICAL') {
           _riskScore = max(90, _riskScore);
         } else if (_riskBand == 'HIGH') {
           _riskScore = max(70, _riskScore);
         }
-        _riskReasons = reasons.isNotEmpty ? reasons : (res['clinical_explanation'] != null ? [res['clinical_explanation']] : []);
+        _riskReasons = reasons.isNotEmpty
+            ? reasons
+            : (res['clinical_explanation'] != null
+                  ? [res['clinical_explanation']]
+                  : []);
         _alternatives = altsParsed;
       });
     } else {
@@ -200,7 +226,8 @@ class _DoctorPrescriptionEditorScreenState
 
   void _runLocalMockAudit(String drugName, int offendingRowIndex) {
     setState(() {
-      if (drugName.toLowerCase().contains('penicillin') && widget.patientId == 'elena_vance') {
+      if (drugName.toLowerCase().contains('penicillin') &&
+          widget.patientId == 'elena_vance') {
         _riskBand = 'CRITICAL';
         _riskScore = 95;
         _riskReasons = [
@@ -230,15 +257,16 @@ class _DoctorPrescriptionEditorScreenState
     if (index >= 0 && index < _medicationRows.length) {
       setState(() {
         (_medicationRows[index]['nameController'] as TextEditingController)
-            .text = alt['drug']!;
-        (_medicationRows[index]['strengthController']
-                as TextEditingController)
-            .text = alt['strength']!;
+                .text =
+            alt['drug']!;
+        (_medicationRows[index]['strengthController'] as TextEditingController)
+                .text =
+            alt['strength']!;
         _medicationRows[index]['frequency'] = alt['frequency']!;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Applied: ${alt['drug']}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Applied: ${alt['drug']}')));
     }
   }
 
@@ -247,8 +275,10 @@ class _DoctorPrescriptionEditorScreenState
         _diagnosisController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text(
-                'Please complete Chief Complaint and Provisional Diagnosis.')),
+          content: Text(
+            'Please complete Chief Complaint and Provisional Diagnosis.',
+          ),
+        ),
       );
       return;
     }
@@ -273,7 +303,8 @@ class _DoctorPrescriptionEditorScreenState
     if (finalMeds.any((med) => med['name'].trim().isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Please enter drug names for all medication rows.')),
+          content: Text('Please enter drug names for all medication rows.'),
+        ),
       );
       return;
     }
@@ -312,8 +343,7 @@ class _DoctorPrescriptionEditorScreenState
       ),
       filled: true,
       fillColor: Dr.bg,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     );
   }
 
@@ -340,19 +370,26 @@ class _DoctorPrescriptionEditorScreenState
                   // ── Encounter Header Card ─────────────────────
                   DoctorCard(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     child: Row(
                       children: [
-                        const Icon(Icons.person_outline_rounded,
-                            color: Dr.sub, size: 18),
+                        const Icon(
+                          Icons.person_outline_rounded,
+                          color: Dr.sub,
+                          size: 18,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(widget.patientName,
-                                  style: Dr.heading(14),
-                                  overflow: TextOverflow.ellipsis),
+                              Text(
+                                widget.patientName,
+                                style: Dr.heading(14),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                               Text(
                                 'Provider: Dr. — · $docSpecialty · $docHospital',
                                 style: Dr.meta(11),
@@ -375,7 +412,9 @@ class _DoctorPrescriptionEditorScreenState
                           controller: _chiefComplaintController,
                           maxLines: 2,
                           style: GoogleFonts.inter(
-                              fontSize: 14, color: Dr.text),
+                            fontSize: 14,
+                            color: Dr.text,
+                          ),
                           decoration: _inputDec(
                             'Chief Complaint / Problem *',
                             hint: 'e.g. Severe dry cough, chest tightness',
@@ -385,7 +424,9 @@ class _DoctorPrescriptionEditorScreenState
                         TextField(
                           controller: _diagnosisController,
                           style: GoogleFonts.inter(
-                              fontSize: 14, color: Dr.text),
+                            fontSize: 14,
+                            color: Dr.text,
+                          ),
                           decoration: _inputDec(
                             'Provisional Diagnosis *',
                             hint: 'e.g. Bronchial Asthma Exacerbation',
@@ -396,7 +437,9 @@ class _DoctorPrescriptionEditorScreenState
                           controller: _notesController,
                           maxLines: 2,
                           style: GoogleFonts.inter(
-                              fontSize: 14, color: Dr.text),
+                            fontSize: 14,
+                            color: Dr.text,
+                          ),
                           decoration: _inputDec('Clinical Notes (Optional)'),
                         ),
                       ],
@@ -408,17 +451,25 @@ class _DoctorPrescriptionEditorScreenState
                   Row(
                     children: [
                       Expanded(
-                          child: sectionHeader(
-                              'Medication Regimen (${_medicationRows.length})')),
+                        child: sectionHeader(
+                          'Medication Regimen (${_medicationRows.length})',
+                        ),
+                      ),
                       TextButton.icon(
                         onPressed: _addMedicationRow,
-                        icon: const Icon(Icons.add_rounded,
-                            size: 16, color: Dr.green),
-                        label: Text('Add Medicine',
-                            style: GoogleFonts.inter(
-                                fontSize: 13,
-                                color: Dr.green,
-                                fontWeight: FontWeight.bold)),
+                        icon: const Icon(
+                          Icons.add_rounded,
+                          size: 16,
+                          color: Dr.green,
+                        ),
+                        label: Text(
+                          'Add Medicine',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: Dr.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -447,31 +498,53 @@ class _DoctorPrescriptionEditorScreenState
                 // Audit Status Row
                 Row(
                   children: [
-                    if (_isAuditing) ...[
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Dr.green),
+                    Expanded(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_isAuditing) ...[
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.8,
+                                color: Dr.green,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'AI Auditing...',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 11,
+                                  color: Dr.sub,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ] else ...[
+                            Flexible(
+                              child: DoctorStatusBadge(
+                                label: 'AI: $_riskBand',
+                                color: auditColor,
+                                icon: isCritical
+                                    ? Icons.dangerous_rounded
+                                    : Icons.verified_rounded,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '$_riskScore/100',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 11,
+                                color: Dr.sub,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text('AI Safety Auditing...',
-                          style: GoogleFonts.jetBrainsMono(
-                              fontSize: 11, color: Dr.sub)),
-                    ] else ...[
-                      DoctorStatusBadge(
-                        label: 'AI: $_riskBand',
-                        color: auditColor,
-                        icon: isCritical
-                            ? Icons.dangerous_rounded
-                            : Icons.verified_rounded,
-                      ),
-                      const SizedBox(width: 8),
-                      Text('$_riskScore/100',
-                          style: GoogleFonts.jetBrainsMono(
-                              fontSize: 12, color: Dr.sub)),
-                    ],
-                    const Spacer(),
+                    ),
+                    const SizedBox(width: 8),
                     ElevatedButton.icon(
                       onPressed: _proceedToOverride,
                       icon: Icon(
@@ -481,16 +554,24 @@ class _DoctorPrescriptionEditorScreenState
                         size: 16,
                         color: Colors.white,
                       ),
-                      label: Text('Proceed to Sign',
-                          style: GoogleFonts.inter(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: Colors.white)),
+                      label: Text(
+                        'Proceed to Sign',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Colors.white,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: auditColor,
                         elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                   ],
@@ -505,85 +586,97 @@ class _DoctorPrescriptionEditorScreenState
                     decoration: BoxDecoration(
                       color: Dr.red.withOpacity(0.06),
                       borderRadius: BorderRadius.circular(10),
-                      border:
-                          Border.all(color: Dr.red.withOpacity(0.3)),
+                      border: Border.all(color: Dr.red.withOpacity(0.3)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Contraindications:',
-                            style: GoogleFonts.sora(
-                                color: Dr.red,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold)),
+                        Text(
+                          'Contraindications:',
+                          style: GoogleFonts.sora(
+                            color: Dr.red,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 6),
-                        ..._riskReasons.map((reason) => Padding(
-                              padding:
-                                  const EdgeInsets.only(bottom: 3),
-                              child: Row(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  const Text('· ',
-                                      style: TextStyle(
-                                          color: Dr.red,
-                                          fontWeight:
-                                              FontWeight.bold)),
-                                  Expanded(
-                                    child: Text(reason,
-                                        style: Dr.body(12)
-                                            .copyWith(color: Dr.red)),
-                                  ),
-                                ],
-                              ),
-                            )),
-                        if (_alternatives.isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          Text('Safe Alternatives:',
-                              style: GoogleFonts.sora(
-                                  color: Dr.green,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 6),
-                          ..._alternatives.map((alt) => Padding(
-                                padding:
-                                    const EdgeInsets.only(bottom: 6),
-                                child: OutlinedButton(
-                                  onPressed: () =>
-                                      _applyAlternative(alt),
-                                  style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(
-                                        color: Dr.green, width: 1),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8)),
-                                    padding:
-                                        const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 8),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.check_rounded,
-                                          size: 14, color: Dr.green),
-                                      const SizedBox(width: 6),
-                                      Flexible(
-                                        child: Text(
-                                          'Apply: ${alt['label']}',
-                                          style: GoogleFonts.inter(
-                                              fontSize: 12,
-                                              color: Dr.green,
-                                              fontWeight:
-                                                  FontWeight.bold),
-                                          overflow:
-                                              TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
+                        ..._riskReasons.map(
+                          (reason) => Padding(
+                            padding: const EdgeInsets.only(bottom: 3),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  '· ',
+                                  style: TextStyle(
+                                    color: Dr.red,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              )),
+                                Expanded(
+                                  child: Text(
+                                    reason,
+                                    style: Dr.body(12).copyWith(color: Dr.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (_alternatives.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            'Safe Alternatives:',
+                            style: GoogleFonts.sora(
+                              color: Dr.green,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          ..._alternatives.map(
+                            (alt) => Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: OutlinedButton(
+                                onPressed: () => _applyAlternative(alt),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(
+                                    color: Dr.green,
+                                    width: 1,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.check_rounded,
+                                      size: 14,
+                                      color: Dr.green,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        'Apply: ${alt['label']}',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: Dr.green,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
                       ],
                     ),
@@ -614,8 +707,7 @@ class _DoctorPrescriptionEditorScreenState
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: Dr.green.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(6),
@@ -623,15 +715,19 @@ class _DoctorPrescriptionEditorScreenState
                 child: Text(
                   'Medicine #${index + 1}',
                   style: GoogleFonts.jetBrainsMono(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Dr.green),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Dr.green,
+                  ),
                 ),
               ),
               const Spacer(),
               IconButton(
-                icon: const Icon(Icons.delete_outline_rounded,
-                    color: Dr.red, size: 18),
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: Dr.red,
+                  size: 18,
+                ),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 onPressed: () => _removeMedicationRow(index),
@@ -657,8 +753,7 @@ class _DoctorPrescriptionEditorScreenState
                   controller:
                       row['strengthController'] as TextEditingController,
                   style: GoogleFonts.inter(fontSize: 14, color: Dr.text),
-                  decoration:
-                      _inputDec('Strength', hint: 'e.g. 500mg'),
+                  decoration: _inputDec('Strength', hint: 'e.g. 500mg'),
                 ),
               ),
               const SizedBox(width: 10),
@@ -669,11 +764,18 @@ class _DoctorPrescriptionEditorScreenState
                   style: GoogleFonts.inter(fontSize: 13, color: Dr.text),
                   dropdownColor: Dr.card,
                   items: ['Oral', 'IV', 'IM', 'Topical', 'Inhalation']
-                      .map((r) => DropdownMenuItem(
+                      .map(
+                        (r) => DropdownMenuItem(
                           value: r,
-                          child: Text(r,
-                              style: GoogleFonts.inter(
-                                  fontSize: 13, color: Dr.text))))
+                          child: Text(
+                            r,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: Dr.text,
+                            ),
+                          ),
+                        ),
+                      )
                       .toList(),
                   onChanged: (val) {
                     setState(() => row['route'] = val);
@@ -685,41 +787,45 @@ class _DoctorPrescriptionEditorScreenState
           ),
           const SizedBox(height: 10),
 
-          // Frequency + Duration
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: DropdownButtonFormField<String>(
-                  value: row['frequency'] as String,
-                  decoration: _inputDec('Frequency'),
-                  style: GoogleFonts.inter(fontSize: 13, color: Dr.text),
-                  dropdownColor: Dr.card,
-                  items: [
-                    'Once daily',
-                    'Twice daily',
-                    'Three times daily',
-                    'Once at night',
-                  ]
-                      .map((f) => DropdownMenuItem(
-                          value: f,
-                          child: Text(f,
-                              style: GoogleFonts.inter(
-                                  fontSize: 13, color: Dr.text))))
-                      .toList(),
-                  onChanged: (val) {
-                    setState(() => row['frequency'] = val);
-                    _triggerAutoAudit();
-                  },
+          // Frequency (Full width)
+          DropdownButtonFormField<String>(
+            value: row['frequency'] as String,
+            decoration: _inputDec('Frequency'),
+            style: GoogleFonts.inter(fontSize: 13, color: Dr.text),
+            dropdownColor: Dr.card,
+            items: [
+              'Once daily',
+              'Twice daily',
+              'Three times daily',
+              'Once at night',
+            ].map(
+              (f) => DropdownMenuItem(
+                value: f,
+                child: Text(
+                  f,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Dr.text,
+                  ),
                 ),
               ),
-              const SizedBox(width: 10),
+            ).toList(),
+            onChanged: (val) {
+              setState(() => row['frequency'] = val);
+              _triggerAutoAudit();
+            },
+          ),
+          const SizedBox(height: 10),
+
+          // Duration (Days + Unit)
+          Row(
+            children: [
               Expanded(
                 child: TextFormField(
                   initialValue: row['durationValue'] as String,
                   keyboardType: TextInputType.number,
                   style: GoogleFonts.inter(fontSize: 14, color: Dr.text),
-                  decoration: _inputDec('Days'),
+                  decoration: _inputDec('Duration Days', hint: 'e.g. 7'),
                   onChanged: (val) {
                     row['durationValue'] = val;
                     _triggerAutoAudit();
@@ -734,11 +840,18 @@ class _DoctorPrescriptionEditorScreenState
                   style: GoogleFonts.inter(fontSize: 13, color: Dr.text),
                   dropdownColor: Dr.card,
                   items: ['days', 'weeks', 'months']
-                      .map((u) => DropdownMenuItem(
+                      .map(
+                        (u) => DropdownMenuItem(
                           value: u,
-                          child: Text(u,
-                              style: GoogleFonts.inter(
-                                  fontSize: 13, color: Dr.text))))
+                          child: Text(
+                            u,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: Dr.text,
+                            ),
+                          ),
+                        ),
+                      )
                       .toList(),
                   onChanged: (val) {
                     setState(() => row['durationUnit'] = val);
@@ -751,9 +864,10 @@ class _DoctorPrescriptionEditorScreenState
           const SizedBox(height: 12),
 
           // Timings chips
-          Text('Dose Timings',
-              style: Dr.meta(12)
-                  .copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            'Dose Timings',
+            style: Dr.meta(12).copyWith(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
@@ -776,11 +890,15 @@ class _DoctorPrescriptionEditorScreenState
             style: GoogleFonts.inter(fontSize: 13, color: Dr.text),
             dropdownColor: Dr.card,
             items: ['None', 'Before Food', 'After Food']
-                .map((fr) => DropdownMenuItem(
+                .map(
+                  (fr) => DropdownMenuItem(
                     value: fr,
-                    child: Text(fr,
-                        style: GoogleFonts.inter(
-                            fontSize: 13, color: Dr.text))))
+                    child: Text(
+                      fr,
+                      style: GoogleFonts.inter(fontSize: 13, color: Dr.text),
+                    ),
+                  ),
+                )
                 .toList(),
             onChanged: (val) {
               setState(() {
@@ -794,32 +912,33 @@ class _DoctorPrescriptionEditorScreenState
 
           // Custom instructions
           TextField(
-            controller:
-                row['instructionsController'] as TextEditingController,
+            controller: row['instructionsController'] as TextEditingController,
             style: GoogleFonts.inter(fontSize: 14, color: Dr.text),
-            decoration: _inputDec('Custom Instructions',
-                hint: 'e.g. Take with warm water'),
+            decoration: _inputDec(
+              'Custom Instructions',
+              hint: 'e.g. Take with warm water',
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _timingChip(
-      String label, Map<String, dynamic> row, String key) {
+  Widget _timingChip(String label, Map<String, dynamic> row, String key) {
     final selected = row[key] == true;
     return FilterChip(
-      label: Text(label,
-          style: GoogleFonts.inter(
-              fontSize: 12,
-              color: selected ? Colors.white : Dr.sub,
-              fontWeight:
-                  selected ? FontWeight.bold : FontWeight.normal)),
+      label: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          color: selected ? Colors.white : Dr.sub,
+          fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
       selected: selected,
       selectedColor: Dr.green,
       backgroundColor: Dr.bg,
-      side: BorderSide(
-          color: selected ? Dr.green : Dr.border, width: 1),
+      side: BorderSide(color: selected ? Dr.green : Dr.border, width: 1),
       checkmarkColor: Colors.white,
       onSelected: (val) {
         setState(() => row[key] = val);

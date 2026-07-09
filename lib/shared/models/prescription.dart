@@ -68,6 +68,8 @@ class Prescription {
   final String signature;
   final String doctorSignId;
   final bool isDispensed;
+  final String? riskBand;
+  final String? overrideReason;
 
   Prescription({
     required this.id,
@@ -81,6 +83,8 @@ class Prescription {
     required this.signature,
     required this.doctorSignId,
     this.isDispensed = false,
+    this.riskBand,
+    this.overrideReason,
   });
 
   Map<String, dynamic> toJson() => {
@@ -93,6 +97,8 @@ class Prescription {
     'time': time,
     'medicines': medicines.map((m) => m.toJson()).toList(),
     'doctorSignId': doctorSignId,
+    'riskBand': riskBand,
+    'overrideReason': overrideReason,
   };
 
   factory Prescription.fromJson(Map<String, dynamic> json) {
@@ -110,6 +116,8 @@ class Prescription {
       signature: json['signature'] ?? '',
       doctorSignId: json['doctorSignId'] ?? '',
       isDispensed: json['isDispensed'] ?? false,
+      riskBand: json['riskBand'],
+      overrideReason: json['overrideReason'],
     );
   }
 
@@ -128,6 +136,8 @@ class Prescription {
       signature: signature,
       doctorSignId: doctorSignId,
       isDispensed: isDispensed ?? this.isDispensed,
+      riskBand: riskBand,
+      overrideReason: overrideReason,
     );
   }
 
@@ -144,6 +154,8 @@ class Prescription {
       signature: newSig,
       doctorSignId: doctorSignId,
       isDispensed: isDispensed,
+      riskBand: riskBand,
+      overrideReason: overrideReason,
     );
   }
 }

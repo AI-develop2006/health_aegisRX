@@ -42,6 +42,18 @@ class PatientDashboardScreen extends StatefulWidget {
 class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   final Set<String> _takenMeds = {};
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final appState = Provider.of<AppState>(context, listen: false);
+      appState.fetchPatientProfile();
+      appState.fetchPrescriptions();
+      appState.fetchVisitHistory();
+      appState.fetchActivityLogs();
+    });
+  }
+
   void _toggleStatus(String name) {
     setState(() {
       if (_takenMeds.contains(name)) {
@@ -81,8 +93,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     }
 
     int riskScore = 8;
-    bool hasPenicillinAllergy = appState.patientName.toLowerCase().contains('elena') ||
-        appState.patientName.toLowerCase().contains('vance');
+    bool hasPenicillinAllergy = appState.patientAllergies.any(
+      (a) => a.toLowerCase().contains('penicillin'),
+    );
     bool takingPenicillin = false;
     for (var rx in activePrescriptions) {
       for (var med in rx.medicines) {
@@ -168,7 +181,11 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
               child: Row(
                 children: [
-                  const Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
+                  const Icon(
+                    Icons.wifi_off_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -275,7 +292,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                   if (hasPenicillinAllergy) ...[
                     const SizedBox(height: 16),
                     const DangerBanner(
-                      message: 'CRITICAL ALERT: Documented severe Penicillin allergy.',
+                      message:
+                          'CRITICAL ALERT: Documented severe Penicillin allergy.',
                     ),
                   ],
                   const SizedBox(height: 24),
@@ -296,7 +314,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                         child: _buildStatusCard(
                           icon: Icons.warning_amber_rounded,
                           label: 'Allergy Alerts',
-                          value: hasPenicillinAllergy ? '1' : '0',
+                          value: '${appState.patientAllergies.length}',
                           iconColor: _P.amber,
                         ),
                       ),
@@ -314,19 +332,21 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: _buildFlatCard(
-                          child: Center(
-                            child: RiskGauge(severityScore: riskScore),
+                  if (riskScore > 30) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: _buildFlatCard(
+                            child: Center(
+                              child: RiskGauge(severityScore: riskScore),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
 
                   // ── Today's Medications card ─────────────────
                   _buildFlatCard(
@@ -487,9 +507,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                   const SizedBox(height: 24),
 
                   // ── Inventory Tracker card ───────────────────
-                  _buildFlatCard(
-                    child: InventoryTracker(prescriptions: vault),
-                  ),
+                  _buildFlatCard(child: InventoryTracker(prescriptions: vault)),
                   const SizedBox(height: 24),
 
                   const SizedBox(height: 40),
@@ -825,6 +843,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       ),
     );
   }
+
 
   // ── Stat pill widget ──────────────────────────────────────────
   Widget _statPill({

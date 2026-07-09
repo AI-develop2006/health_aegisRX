@@ -13,7 +13,13 @@ void showQrPopup(BuildContext context, Prescription prescription) {
 
   // Format QR code data as: DATA##SIGNATURE
   final String medsJson = jsonEncode(prescription.medicines.map((m) => m.toJson()).toList());
-  final String rawPayload = '${prescription.id}|${prescription.doctorName}|${prescription.hospitalName}|${prescription.patientName}|${prescription.disease}|${prescription.date}|${prescription.time}|$medsJson|${prescription.doctorSignId}';
+  
+  // Item 3: Add expiry timestamp (10 minutes from now), nonce, and narrow scope (DISPENSE)
+  final int expiry = DateTime.now().add(const Duration(minutes: 10)).millisecondsSinceEpoch ~/ 1000;
+  final String nonce = '${UniqueKey().hashCode}-${DateTime.now().microsecondsSinceEpoch}';
+  const String scope = 'DISPENSE';
+
+  final String rawPayload = '${prescription.id}|${prescription.doctorName}|${prescription.hospitalName}|${prescription.patientName}|${prescription.disease}|${prescription.date}|${prescription.time}|$medsJson|${prescription.doctorSignId}|$expiry|$nonce|$scope';
   final String qrCodeData = '$rawPayload##${prescription.signature}';
 
   showGeneralDialog(

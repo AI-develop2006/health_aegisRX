@@ -24,6 +24,11 @@ x-shared-env: &shared-env
   DUPLICATE_TOLERANCE_DAYS: ${DUPLICATE_TOLERANCE_DAYS:-30}
   PRESCRIPTION_HISTORY_DAYS: ${PRESCRIPTION_HISTORY_DAYS:-90}
   AUDIT_SERVICE_URL: ${AUDIT_SERVICE_URL:-http://audit-service:4005}
+  FORCE_MOCK_DB: ${FORCE_MOCK_DB:-false}
+  ALLOW_MOCK_POLYGON_TX: ${ALLOW_MOCK_POLYGON_TX:-true}
+  USE_MOCK_AUDIT: ${USE_MOCK_AUDIT:-false}
+  USE_MOCK_LLM: ${USE_MOCK_LLM:-false}
+  RUN_DB_SEED_ON_STARTUP: ${RUN_DB_SEED_ON_STARTUP:-true}
 
 services:
 
@@ -78,7 +83,7 @@ services:
     networks:
       - aegisrx-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/health')"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -99,7 +104,7 @@ services:
     networks:
       - aegisrx-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4001/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4001/health')"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -120,7 +125,7 @@ services:
     networks:
       - aegisrx-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4002/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4002/health')"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -141,7 +146,7 @@ services:
     networks:
       - aegisrx-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4003/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4003/health')"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -162,7 +167,7 @@ services:
     networks:
       - aegisrx-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4004/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4004/health')"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -185,7 +190,7 @@ services:
     networks:
       - aegisrx-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4005/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4005/health')"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -206,7 +211,7 @@ services:
     networks:
       - aegisrx-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4006/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4006/health')"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -227,10 +232,24 @@ services:
     networks:
       - aegisrx-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4007/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4007/health')"]
       interval: 15s
       timeout: 5s
       retries: 3
+
+  # ── Database Seeder (runs once on startup) ──────────────────────
+  db-seed:
+    build:
+      context: .
+      dockerfile: Dockerfile.seed
+    container_name: aegisrx-db-seed
+    environment:
+      <<: *shared-env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - aegisrx-network
 
 volumes:
   mongo-data:
@@ -238,3 +257,4 @@ volumes:
 networks:
   aegisrx-network:
     driver: bridge
+
