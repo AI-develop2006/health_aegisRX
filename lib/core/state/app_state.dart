@@ -180,9 +180,10 @@ class AppState extends ChangeNotifier {
 
   Future<void> _discoverBackendUrl() async {
     final candidates = [
+      'http://13.63.53.53:4000',
       'http://127.0.0.1:4000',
       'http://10.0.2.2:4000',
-      'http://10.1.0.243:4000',
+      'http://192.168.0.15:4000',
     ];
     debugPrint('[AUTO-DISCOVERY] Starting backend gateway discovery...');
     for (final url in candidates) {
@@ -535,12 +536,7 @@ class AppState extends ChangeNotifier {
       final uri = Uri.parse('$_backendUrl/api/media/upload');
       final request = http.MultipartRequest('POST', uri);
 
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'file',
-          file.path,
-        ),
-      );
+      request.files.add(await http.MultipartFile.fromPath('file', file.path));
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -561,7 +557,6 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     }
   }
-
 
   // Patient Login
   Future<String?> loginWithEmail(String email, String password) async {
@@ -753,10 +748,7 @@ class AppState extends ChangeNotifier {
       final response = await http.post(
         Uri.parse('$_backendUrl/api/doctor/patient-allergies'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'patient_id': patientName,
-          'allergies': list,
-        }),
+        body: jsonEncode({'patient_id': patientName, 'allergies': list}),
       );
       if (response.statusCode == 200) {
         _patientAllergies = List<String>.from(list);
@@ -774,7 +766,6 @@ class AppState extends ChangeNotifier {
     _selectedPrescription = rx;
     notifyListeners();
   }
-
 
   // --- Doctor API ---
 
