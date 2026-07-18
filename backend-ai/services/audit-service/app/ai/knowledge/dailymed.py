@@ -15,7 +15,8 @@ class DailyMedMock(BaseDailyMed):
                 "contraindications": [
                     "Active gastrointestinal bleeding",
                     "Severe renal impairment",
-                    "Coronary artery bypass graft (CABG) surgery peri-operative pain"
+                    "Coronary artery bypass graft (CABG) surgery peri-operative pain",
+                    "Active peptic ulcer disease"
                 ],
                 "boxed_warning": "Cardiovascular Risk: NSAIDs may cause an increased risk of serious cardiovascular thrombotic events. Gastrointestinal Risk: NSAIDs cause an increased risk of serious gastrointestinal adverse events including bleeding and perforation."
             },
@@ -33,7 +34,8 @@ class DailyMedMock(BaseDailyMed):
                 "contraindications": [
                     "Pregnancy",
                     "Active hemorrhage or bleeding tendencies",
-                    "Severe, uncontrolled hypertension"
+                    "Severe, uncontrolled hypertension",
+                    "Active peptic ulcer disease"
                 ],
                 "boxed_warning": "Bleeding Risk: Warfarin can cause major or fatal bleeding. Perform regular INR monitoring."
             },
@@ -60,7 +62,8 @@ class DailyMedMock(BaseDailyMed):
                 "pregnancy_warning": "Avoid in the third trimester. Can cause premature closure of the ductus arteriosus, bleeding, and prolonged labor.",
                 "contraindications": [
                     "Hypersensitivity to NSAIDs",
-                    "Asthma with nasal polyps"
+                    "Asthma with nasal polyps",
+                    "Active peptic ulcer disease"
                 ],
                 "boxed_warning": None
             },

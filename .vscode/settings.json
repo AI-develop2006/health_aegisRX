@@ -1,0 +1,10 @@
+{
+  "python.analysis.extraPaths": [
+    "./backend-ai/services/ledger-service",
+    "./backend-ai/services/audit-service",
+    "./backend-ai/services/consultation-service",
+    "./backend-ai/services/prescription-service",
+    "./backend-ai/services/patient-service",
+    "./backend-ai/services/pharmacy-service"
+  ]
+}

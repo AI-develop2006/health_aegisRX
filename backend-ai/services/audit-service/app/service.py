@@ -59,13 +59,48 @@ async def run_audit(patient_id: str, doctor_id: str, new_medicine: str, new_dosa
 
         # Fetch active prescriptions to extract current meds
         active_rxs = prescriptions_col().find({"patientName": patient_id, "isDispensed": False})
+        from datetime import datetime
+        from app.ai.services.patient_context import parse_duration_days
+        now = datetime.now()
         for rx in active_rxs:
+            rx_date = rx.get("date")
+            if rx_date:
+                if isinstance(rx_date, str):
+                    try:
+                        date_clean = rx_date.split("+")[0]
+                        rx_date = datetime.fromisoformat(date_clean)
+                    except Exception:
+                        pass
+
             for med in rx.get("medicines", []):
                 name = med.get("name")
                 if name:
-                    current_meds.append(name)
+                    is_active = True
+                    if rx_date and isinstance(rx_date, datetime):
+                        diff_days = abs((now - rx_date).days)
+                        dur_str = med.get("duration", "30 days")
+                        dur_days = parse_duration_days(dur_str)
+                        if diff_days > dur_days:
+                            is_active = False
+                    
+                    if is_active:
+                        current_meds.append(name)
+        # Fetch ALL prescriptions written by doctors for this patient (database history)
+        all_rxs_cursor = prescriptions_col().find({"patientName": patient_id})
+        all_prescriptions = []
+        for rx in all_rxs_cursor:
+            rx_clean = rx.copy()
+            if "_id" in rx_clean:
+                rx_clean["_id"] = str(rx_clean["_id"])
+            if "date" in rx_clean:
+                if isinstance(rx_clean["date"], datetime):
+                    rx_clean["date"] = rx_clean["date"].isoformat()
+                else:
+                    rx_clean["date"] = str(rx_clean["date"])
+            all_prescriptions.append(rx_clean)
     except Exception as e:
         logger.error(f"Error querying patient info for AI context: {e}")
+        all_prescriptions = []
 
     # Build patient context
     context = PatientContext(
@@ -75,7 +110,9 @@ async def run_audit(patient_id: str, doctor_id: str, new_medicine: str, new_dosa
         allergies=allergies,
         diseases=[disease] if disease else [],
         current_medications=list(set(current_meds)),
-        new_prescription=[new_medicine]
+        new_prescription=[new_medicine],
+        all_prescriptions=all_prescriptions,
+        doctor_id=doctor_id
     )
 
     # Execute safety checks

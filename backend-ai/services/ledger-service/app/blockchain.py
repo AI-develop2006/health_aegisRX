@@ -1,6 +1,5 @@
 """
 Ledger Service — Self-Contained Blockchain Manager + Activity Logs
-Copied logic from monolith ledger_service.py — no cross-service imports.
 """
 import re
 import json
@@ -8,38 +7,14 @@ import time
 import hashlib
 import logging
 from datetime import datetime
-from pymongo import MongoClient
 from app.config import MONGODB_URI, MONGODB_DATABASE, FORCE_MOCK_DB
+from shared_core.database import get_shared_db
 
 logger = logging.getLogger("ledger-service")
 
-_client: MongoClient | None = None
-_db_instance = None
-
 
 def get_db():
-    global _client, _db_instance
-    if _db_instance is None:
-        if FORCE_MOCK_DB:
-            logger.info("Ledger Service — FORCE_MOCK_DB is active. Connecting directly to local Mock DB.")
-            from app.mock_db import MockMongoClient
-            client = MockMongoClient(MONGODB_URI)
-            _db_instance = client[MONGODB_DATABASE]
-            _client = client
-            return _db_instance
-        try:
-            client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=2000, timeoutMS=10000)
-            client.server_info()
-            _db_instance = client[MONGODB_DATABASE]
-            _client = client
-            logger.info(f"Ledger Service — MongoDB connected: {MONGODB_DATABASE}")
-        except Exception as e:
-            logger.warning(f"Ledger Service — MongoDB Atlas unreachable ({e}). Falling back to Mock DB.")
-            from app.mock_db import MockMongoClient
-            client = MockMongoClient(MONGODB_URI)
-            _db_instance = client[MONGODB_DATABASE]
-            _client = client
-    return _db_instance
+    return get_shared_db("ledger", MONGODB_URI, MONGODB_DATABASE, FORCE_MOCK_DB)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

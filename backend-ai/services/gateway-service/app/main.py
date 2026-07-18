@@ -38,6 +38,7 @@ SERVICES = {
     "audit":        os.getenv("AUDIT_SERVICE_URL",        "http://127.0.0.1:4005"),
     "pharmacy":     os.getenv("PHARMACY_SERVICE_URL",     "http://127.0.0.1:4006"),
     "ledger":       os.getenv("LEDGER_SERVICE_URL",       "http://127.0.0.1:4007"),
+    "ai":           os.getenv("AI_SERVICE_URL",           "http://127.0.0.1:4008"),
 }
 
 
@@ -83,7 +84,8 @@ async def forward(service_name: str, downstream_path: str, request: Request) -> 
                 "prescription": 4004,
                 "audit": 4005,
                 "pharmacy": 4006,
-                "ledger": 4007
+                "ledger": 4007,
+                "ai": 4008
             }
             port = fallback_ports.get(service_name)
             if port:
@@ -183,6 +185,12 @@ async def route_prescription(request: Request, path: str = ""):
 @app.api_route("/api/recommendations",   methods=["POST"], operation_id="audit_recommendations_router")
 async def route_audit(request: Request):
     return await forward("audit", request.url.path, request)
+
+
+# AI Service (4008) — /api/ai/*
+@app.api_route("/api/ai/{path:path}",     methods=["GET", "POST", "PUT", "PATCH", "DELETE"], operation_id="ai_router")
+async def route_ai(path: str, request: Request):
+    return await forward("ai", request.url.path, request)
 
 
 # Pharmacy Service (4006) — /api/pharmacy/*

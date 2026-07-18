@@ -2,6 +2,8 @@ import asyncio
 import logging
 import time
 import json
+import httpx
+import hashlib
 from uuid import uuid4, UUID
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -13,7 +15,8 @@ from app.schemas.response import (
     AuditLogEntry, 
     DrugInteractionDetail, 
     AllergyRiskDetail, 
-    DiseaseContraindicationDetail
+    DiseaseContraindicationDetail,
+    AuditResponse
 )
 from app.ai.knowledge import (
     RxNormMock, 
@@ -29,8 +32,13 @@ from app.ai.agents import (
     DosageAgent, 
     RecommendationAgent
 )
-from app.ai.llm import GPTClient, MedGemmaClient, GeminiClient, PromptBuilder
-from app.ai.services.patient_context import PatientContextService
+from app.ai.agents.base_agent import AgentResult
+from app.ai.agents.allergy_agent import run_allergy_agent
+from app.ai.agents.disease_agent import run_disease_agent
+from app.ai.agents.dosage_agent import run_dosage_agent
+from app.ai.agents.interaction_agent import run_interaction_agent
+from app.ai.agents.doctor_agent import run_doctor_agent, DoctorAgent
+from app.ai.services.patient_context import PatientContextService, build_patient_context
 
 logger = logging.getLogger("AegisRx.AIService")
 
@@ -39,35 +47,20 @@ audit_store: Dict[str, AuditLogEntry] = {}
 
 class AIService:
     def __init__(self):
-        # 1. Initialize Medical Knowledge Layer
+        # Initialize Medical Knowledge Layer
         self.rxnorm = RxNormMock()
         self.drugbank = DrugBankMock()
         self.dailymed = DailyMedMock()
         self.openfda = OpenFDAMock()
         self.snomed = SNOMEDMock()
 
-        # 2. Initialize Safety Agents
+        # Initialize Safety Agents
         self.interaction_agent = InteractionAgent(self.rxnorm, self.drugbank, self.dailymed, self.openfda, self.snomed)
         self.allergy_agent = AllergyAgent(self.rxnorm, self.drugbank, self.dailymed, self.openfda, self.snomed)
         self.disease_agent = DiseaseAgent(self.rxnorm, self.drugbank, self.dailymed, self.openfda, self.snomed)
         self.dosage_agent = DosageAgent(self.rxnorm, self.drugbank, self.dailymed, self.openfda, self.snomed)
+        self.doctor_agent = DoctorAgent(self.rxnorm, self.drugbank, self.dailymed, self.openfda, self.snomed)
         self.recommendation_agent = RecommendationAgent(self.rxnorm, self.drugbank, self.dailymed, self.openfda, self.snomed)
-
-        # 3. Initialize LLM Client
-        provider = settings.LLM_PROVIDER.lower()
-        if provider == "gpt":
-            self.llm = GPTClient()
-        elif provider == "medgemma":
-            self.llm = MedGemmaClient()
-        elif provider == "gemini":
-            self.llm = GeminiClient()
-        elif provider == "hybrid":
-            self.medgemma_client = MedGemmaClient()
-            self.gemini_client = GeminiClient()
-            self.llm = self.gemini_client
-        else:
-            logger.warning(f"Unknown LLM Provider '{provider}'. Defaulting to GPTClient.")
-            self.llm = GPTClient()
 
     async def analyze_prescription(self, patient: PatientContext) -> PrescriptionSafetyAnalysis:
         start_time = time.time()
@@ -77,293 +70,362 @@ class AIService:
         # Step 1: Preprocess patient context
         cleaned_patient = PatientContextService.preprocess_context(patient)
 
-        # Step 2: Run sub-agents in parallel to check clinical rules
+        # Step 2: Run safety rule sub-agents in parallel (deterministic CDSS)
         logger.info("Executing clinical safety agents in parallel...")
         interaction_task = self.interaction_agent.analyze(cleaned_patient)
         allergy_task = self.allergy_agent.analyze(cleaned_patient)
         disease_task = self.disease_agent.analyze(cleaned_patient)
         dosage_task = self.dosage_agent.analyze(cleaned_patient)
+        doctor_task = self.doctor_agent.analyze(cleaned_patient)
 
         agent_results = await asyncio.gather(
             interaction_task,
             allergy_task,
             disease_task,
-            dosage_task
+            dosage_task,
+            doctor_task
         )
 
-        interaction_res, allergy_res, disease_res, dosage_res = agent_results
+        interaction_res, allergy_res, disease_res, dosage_res, doctor_res = agent_results
         logger.info("Clinical agents successfully finished execution.")
 
-        # Step 3: Compile rule-based safety overrides
+        # Step 3: Compile rule-based safety overrides (Ground-truth safety outcomes)
         clinical_overrides = self.recommendation_agent.compile_clinical_overrides(
-            interaction_res, allergy_res, disease_res, dosage_res
+            interaction_res, allergy_res, disease_res, dosage_res, doctor_res
         )
 
-        # Step 4: Gather fact retrievals to provide context to LLM
-        knowledge_facts = await self._gather_knowledge_facts(cleaned_patient)
-
-        # Step 5: Build prompt
-        system_prompt = PromptBuilder.build_system_prompt()
-        user_prompt = PromptBuilder.build_user_prompt(
-            cleaned_patient,
-            {
-                "interactions": interaction_res,
-                "allergies": allergy_res,
-                "diseases": disease_res,
-                "demographics": dosage_res
-            },
-            knowledge_facts
-        )
+        # Determine immutable risk score, level, and recommended action based on deterministic check
+        risk_level = clinical_overrides["risk_level"]
+        recommended_action = clinical_overrides["recommended_action"]
+        reasons = clinical_overrides["reasons"]
         
-        logger.info("Built prompts for LLM call.")
-        logger.debug(f"System Prompt:\n{system_prompt}\nUser Prompt:\n{user_prompt}")
+        risk_band = "LOW" if risk_level == "SAFE" else "MEDIUM" if risk_level == "WARNING" else "CRITICAL"
+        risk_score = 10 if risk_band == "LOW" else 60 if risk_band == "MEDIUM" else 95
 
-        # Step 6: Call LLM with error handling, timeouts, and fallback
-        raw_llm_response = ""
-        parsed_llm_analysis = None
-        llm_error_flag = False
-        provider = settings.LLM_PROVIDER.lower()
-        
-        llm_mode = "mock"
-        llm_reason = None
+        # Format lists compatibility schemas
+        interactions_list = [
+            DrugInteractionDetail(**i) for i in interaction_res.get("drug_interactions", [])
+        ]
+        allergies_list = [
+            AllergyRiskDetail(**a) for a in allergy_res.get("allergy_conflicts", [])
+        ]
+        diseases_list = [
+            DiseaseContraindicationDetail(**d) for d in disease_res.get("disease_contraindications", [])
+        ]
+
+        # Step 4: Call external standalone AI explanation service (zero-trust pattern)
+        ai_service_url = getattr(settings, "AI_SERVICE_URL", "http://localhost:4008")
+        logger.info(f"Submitting audit outcomes to decoupled AI explanation service: {ai_service_url}")
+
+        ai_payload = {
+            "risk_score": risk_score,
+            "risk_level": risk_level,
+            "triggered_rules": reasons,
+            "recommended_action": recommended_action,
+            "patient_age": cleaned_patient.age or 35,
+            "patient_gender": cleaned_patient.gender or "Male",
+            "patient_allergies": cleaned_patient.allergies,
+            "patient_diseases": cleaned_patient.diseases,
+            "current_medicines": cleaned_patient.current_medications,
+            "new_prescription_medicines": cleaned_patient.new_prescription
+        }
+
+        clinical_explanation = ""
+        patient_friendly_summary = ""
+        suggested_alternatives = clinical_overrides["suggested_alternative_medicines"]
+        medication_education = ""
+        backend_mode = "real"
+        backend_reason = None
 
         try:
-            if provider == "hybrid":
-                logger.info("Hybrid AI Mode: Running local MedGemma inference first...")
-                medgemma_prompt = (
-                    "You are a clinical NLP model. Analyze the following patient case and medication request. "
-                    "Extract clinical summaries and highlight potential drug interactions, allergies, or contraindications."
-                )
-                medgemma_res = await self.medgemma_client.safe_generate_response(medgemma_prompt, user_prompt)
-                medgemma_summary = medgemma_res["content"]
-                
-                llm_mode = medgemma_res["mode"]
-                if medgemma_res["reason"]:
-                    llm_reason = f"MedGemma: {medgemma_res['reason']}"
-
-                hybrid_user_prompt = (
-                    f"{user_prompt}\n\n"
-                    f"--- Local MedGemma Clinical Analysis ---\n"
-                    f"{medgemma_summary}\n"
-                    f"-----------------------------------------\n"
-                    f"Using the local MedGemma analysis and your own medical reasoning, perform the final safety analysis."
-                )
-                
-                logger.info("Hybrid AI Mode: Calling Gemini cloud model for final safety determination...")
-                gemini_res = await self.gemini_client.safe_generate_response(system_prompt, hybrid_user_prompt)
-                raw_llm_response = gemini_res["content"]
-                
-                # If either is mock, overall is mock
-                if gemini_res["mode"] == "mock":
-                    llm_mode = "mock"
-                    gem_reason = gemini_res["reason"] or "Gemini fallback"
-                    llm_reason = f"{llm_reason or ''}; Gemini: {gem_reason}".strip("; ")
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                res = await client.post(f"{ai_service_url}/api/ai/explain", json=ai_payload)
+                if res.status_code == 200:
+                    ai_data = res.json()
+                    clinical_explanation = ai_data.get("clinical_explanation", "")
+                    patient_friendly_summary = ai_data.get("patient_friendly_summary", "")
+                    medication_education = ai_data.get("medication_education", "")
+                    backend_mode = ai_data.get("mode", "real")
+                    backend_reason = ai_data.get("fallback_reason")
+                    
+                    # Merge alternatives from LLM if any
+                    llm_alts = ai_data.get("suggested_alternatives", [])
+                    for alt in llm_alts:
+                        if alt not in suggested_alternatives:
+                            suggested_alternatives.append(alt)
                 else:
-                    if llm_mode == "real":
-                        llm_mode = "real"
-            else:
-                res = await self.llm.safe_generate_response(system_prompt, user_prompt)
-                raw_llm_response = res["content"]
-                llm_mode = res["mode"]
-                llm_reason = res["reason"]
-            
-            # Remove any possible markdown blocks around JSON (like ```json ... ```)
-            cleaned_json = raw_llm_response.strip()
-            if cleaned_json.startswith("```"):
-                lines = cleaned_json.split("\n")
-                if lines[0].startswith("```"):
-                    lines = lines[1:]
-                if lines[-1].startswith("```"):
-                    lines = lines[:-1]
-                cleaned_json = "\n".join(lines).strip()
-
-            parsed_json = json.loads(cleaned_json)
-            
-            # Map lists to schema models
-            interactions_list = [
-                DrugInteractionDetail(**i) for i in parsed_json.get("detected_drug_interactions", [])
-            ]
-            allergies_list = [
-                AllergyRiskDetail(**a) for a in parsed_json.get("detected_allergy_risks", [])
-            ]
-            diseases_list = [
-                DiseaseContraindicationDetail(**d) for d in parsed_json.get("disease_contraindications", [])
-            ]
-
-            parsed_llm_analysis = PrescriptionSafetyAnalysis(
-                analysis_id=analysis_id,
-                risk_level=parsed_json.get("risk_level", "SAFE"),
-                confidence_score=parsed_json.get("confidence_score", 0.90),
-                reasons=parsed_json.get("reasons", []),
-                detected_drug_interactions=interactions_list,
-                detected_allergy_risks=allergies_list,
-                disease_contraindications=diseases_list,
-                suggested_alternative_medicines=parsed_json.get("suggested_alternative_medicines", []),
-                clinical_explanation=parsed_json.get("clinical_explanation", "Analysis completed."),
-                recommended_action=parsed_json.get("recommended_action", "SAFE_TO_DISPENSE"),
-                metadata={"provider": settings.LLM_PROVIDER, "fallback_mode": False},
-                backend_mode=llm_mode,
-                backend_reason=llm_reason
-            )
-
-            # Map the RiskSnapshot fields
-            parsed_llm_analysis.risk_band = parsed_json.get("risk_band") or parsed_json.get("riskBand") or (
-                "LOW" if parsed_llm_analysis.risk_level == "SAFE" else
-                "MEDIUM" if parsed_llm_analysis.risk_level == "WARNING" else "CRITICAL"
-            )
-            parsed_llm_analysis.risk_score = int(parsed_json.get("risk_score") or parsed_json.get("riskScore") or (
-                10 if parsed_llm_analysis.risk_band == "LOW" else
-                50 if parsed_llm_analysis.risk_band == "MEDIUM" else 95
-            ))
-            parsed_llm_analysis.recommendation = parsed_json.get("recommendation") or parsed_llm_analysis.clinical_explanation[:120]
-
+                    logger.warning(f"AI Service returned error status {res.status_code}. Using failsafe fallback.")
+                    raise RuntimeError(f"AI Service HTTP status {res.status_code}")
         except Exception as e:
-            logger.error(f"LLM execution, JSON parsing, or timeout failed: {str(e)}. Falling back to deterministic rules.")
-            llm_error_flag = True
-            raw_llm_response = f"ERROR_FALLBACK: {str(e)}"
-            
-            # Formulate response based purely on clinical rules engine
-            parsed_llm_analysis = PrescriptionSafetyAnalysis(
-                analysis_id=analysis_id,
-                risk_level=clinical_overrides["risk_level"],
-                confidence_score=clinical_overrides["confidence_score"],
-                reasons=clinical_overrides["reasons"],
-                detected_drug_interactions=[
-                    DrugInteractionDetail(**i) for i in interaction_res.get("drug_interactions", [])
-                ],
-                detected_allergy_risks=[
-                    AllergyRiskDetail(**a) for a in allergy_res.get("allergy_conflicts", [])
-                ],
-                disease_contraindications=[
-                    DiseaseContraindicationDetail(**d) for d in disease_res.get("disease_contraindications", [])
-                ],
-                suggested_alternative_medicines=clinical_overrides["suggested_alternative_medicines"],
-                clinical_explanation=(
-                    "Failsafe Mode active (LLM timeout or connection failure). Reasoning generated via the clinical rule engine. "
-                    "Detected conflicts present in allergies, diseases, or drug interactions."
-                ) if clinical_overrides["risk_level"] != "SAFE" else "Failsafe Mode active (LLM timeout or connection failure). No safety rules violated.",
-                recommended_action=clinical_overrides["recommended_action"],
-                metadata={"provider": "rules_engine_fallback", "fallback_mode": True, "error": str(e)},
-                backend_mode="mock",
-                backend_reason=f"LLM parsing or unexpected error: {str(e)}"
-            )
+            logger.error(f"Failed to fetch explanation from AI service: {e}. Utilizing rules engine fallback.")
+            backend_mode = "failsafe"
+            backend_reason = str(e)
+            clinical_explanation = (
+                "Failsafe Mode active (AI service unavailable). Reasoning generated via the clinical rule engine. "
+                f"Detected conflicts present: {', '.join(reasons)}."
+            ) if risk_level != "SAFE" else "Failsafe Mode active (AI service unavailable). No safety rules violated."
+            patient_friendly_summary = "This prescription combination has been flagged as high risk. Please review with your doctor."
+            medication_education = "Report any adverse events to your doctor immediately."
 
-            # Map the RiskSnapshot fields for fallback
-            parsed_llm_analysis.risk_band = (
-                "LOW" if parsed_llm_analysis.risk_level == "SAFE" else
-                "MEDIUM" if parsed_llm_analysis.risk_level == "WARNING" else "CRITICAL"
-            )
-            parsed_llm_analysis.risk_score = (
-                10 if parsed_llm_analysis.risk_band == "LOW" else
-                50 if parsed_llm_analysis.risk_band == "MEDIUM" else 95
-            )
-            parsed_llm_analysis.recommendation = "Safety Warning: rules-engine flagged potential risks." if parsed_llm_analysis.risk_band != "LOW" else "Prescription evaluated as safe by clinical rules."
-
-        # Step 7: Apply Clinical Safety Overrides (Safe-by-design policy)
-        # Even if LLM says SAFE, if rules engine found HIGH_RISK or WARNING, upgrade the rating
-        if not llm_error_flag:
-            safety_triggered = False
-            
-            # Override to HIGH_RISK if rule engine found HIGH_RISK
-            if clinical_overrides["risk_level"] == "HIGH_RISK" and parsed_llm_analysis.risk_level != "HIGH_RISK":
-                parsed_llm_analysis.risk_level = "HIGH_RISK"
-                parsed_llm_analysis.recommended_action = clinical_overrides["recommended_action"]
-                parsed_llm_analysis.risk_band = "CRITICAL"
-                parsed_llm_analysis.risk_score = 95
-                parsed_llm_analysis.recommendation = "Clinical override triggered: High-risk patient safety conflict detected."
-                safety_triggered = True
-                logger.warning("Clinical Policy Override: Risk level upgraded to HIGH_RISK.")
-                
-            # Override to WARNING if rules engine found WARNING and LLM said SAFE
-            elif clinical_overrides["risk_level"] == "WARNING" and parsed_llm_analysis.risk_level == "SAFE":
-                parsed_llm_analysis.risk_level = "WARNING"
-                parsed_llm_analysis.recommended_action = clinical_overrides["recommended_action"]
-                parsed_llm_analysis.risk_band = "MEDIUM"
-                parsed_llm_analysis.risk_score = 60
-                parsed_llm_analysis.recommendation = "Clinical override triggered: Medium-risk patient safety caution detected."
-                safety_triggered = True
-                logger.warning("Clinical Policy Override: Risk level upgraded to WARNING.")
-
-            if safety_triggered:
-                # Merge clinical reasons not mentioned by LLM
-                for r in clinical_overrides["reasons"]:
-                    if r not in parsed_llm_analysis.reasons:
-                        parsed_llm_analysis.reasons.append(r)
-                parsed_llm_analysis.clinical_explanation += (
-                    " [Clinical Override Applied: Risk level has been upgraded for safety based on CDSS rules.]"
-                )
-                
-                # Merge alternatives
-                for alt in clinical_overrides["suggested_alternative_medicines"]:
-                    if alt not in parsed_llm_analysis.suggested_alternative_medicines:
-                        parsed_llm_analysis.suggested_alternative_medicines.append(alt)
-
-        # Scan all list items to dynamically compile flagged_medicines and enforce reasons
+        # Scan list items to dynamically compile flagged_medicines
         flagged = set()
-        for item in parsed_llm_analysis.detected_drug_interactions:
+        for item in interactions_list:
             flagged.update(item.drugs)
             if not item.reason:
                 item.reason = f"{item.drugs[0]} + {item.drugs[1]} – interaction risk ({item.severity})"
-        for item in parsed_llm_analysis.detected_allergy_risks:
+        for item in allergies_list:
             flagged.add(item.drug)
             if not item.reason:
                 item.reason = f"{item.drug} – allergy risk ({item.allergy})"
-        for item in parsed_llm_analysis.disease_contraindications:
+        for item in diseases_list:
             flagged.add(item.drug)
             if not item.reason:
                 item.reason = f"{item.drug} – contraindicated in {item.disease}"
-                
+
+        # Construct safe output structure
+        parsed_llm_analysis = PrescriptionSafetyAnalysis(
+            analysis_id=analysis_id,
+            risk_level=risk_level,
+            confidence_score=0.98 if risk_level in ("HIGH_RISK", "WARNING") else 0.95,
+            reasons=reasons,
+            detected_drug_interactions=interactions_list,
+            detected_allergy_risks=allergies_list,
+            disease_contraindications=diseases_list,
+            suggested_alternative_medicines=suggested_alternatives,
+            clinical_explanation=clinical_explanation,
+            recommended_action=recommended_action,
+            metadata={"provider": "rules_engine", "fallback_mode": (backend_mode == "failsafe")},
+            backend_mode=backend_mode,
+            backend_reason=backend_reason
+        )
+
+        parsed_llm_analysis.risk_band = risk_band
+        parsed_llm_analysis.risk_score = risk_score
+        parsed_llm_analysis.recommendation = clinical_explanation[:120] if clinical_explanation else "Evaluated safe by clinical rules."
         parsed_llm_analysis.flagged_medicines = list(flagged)
 
-        # Compute total latency
+        # Compute latency
         latency_ms = (time.time() - start_time) * 1000
         parsed_llm_analysis.metadata["latency_ms"] = latency_ms
-        logger.info(f"Prescription safety analysis completed in {latency_ms:.2f}ms. Outcome: {parsed_llm_analysis.risk_level}")
 
-        # Save to Audit Log Store
+        # Save to local Audit Log database
         audit_entry = AuditLogEntry(
             analysis_id=analysis_id,
             timestamp=datetime.utcnow().isoformat() + "Z",
             patient_context=patient.model_dump(),
             analysis_result=parsed_llm_analysis,
-            raw_prompt_system=system_prompt,
-            raw_prompt_user=user_prompt,
-            raw_llm_response=raw_llm_response,
+            raw_prompt_system="decoupled",
+            raw_prompt_user="decoupled",
+            raw_llm_response=json.dumps(ai_payload),
             latency_ms=latency_ms,
-            token_usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}  # Mocked / logged in clients
+            token_usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         )
         audit_store[str(analysis_id)] = audit_entry
 
         return parsed_llm_analysis
 
     async def _gather_knowledge_facts(self, patient: PatientContext) -> List[str]:
-        """Queries the Medical Knowledge Layer to gather facts for prompt context."""
-        facts = []
-        for med in patient.new_prescription:
-            rx_info = await self.rxnorm.get_concept_details(med)
-            generic = rx_info["generic_name"]
+        return []
 
-            # Pregnancy
-            dm_warn = await self.dailymed.get_drug_warnings(generic)
-            facts.append(f"DailyMed {generic.upper()} pregnancy category: {dm_warn['pregnancy_category']}. Warning: {dm_warn['pregnancy_warning']}")
-            
-            # Contraindications
-            for c in dm_warn.get("contraindications", []):
-                facts.append(f"DailyMed {generic.upper()} Contraindication: {c}")
+def combine_results(*agents: AgentResult):
+    severities = [a.severity.upper() for a in agents if a.severity]
+    if "CRITICAL" in severities:
+        risk_band = "CRITICAL"
+        risk_score = 99
+        override_required = True
+    elif "HIGH" in severities:
+        risk_band = "HIGH"
+        risk_score = 95
+        override_required = True
+    elif "MEDIUM" in severities:
+        risk_band = "MEDIUM"
+        risk_score = 60
+        override_required = False
+    else:
+        risk_band = "LOW"
+        risk_score = 10
+        override_required = False
+    return risk_band, risk_score, override_required
 
-            # OpenFDA
-            fda_warn = await self.openfda.get_adverse_events(generic)
-            if fda_warn["age_risks"] and "no specific" not in fda_warn["age_risks"].lower():
-                facts.append(f"OpenFDA {generic.upper()} Geriatric/Pediatric risk: {fda_warn['age_risks']}")
-            if fda_warn["kidney_risks"] and "no specific" not in fda_warn["kidney_risks"].lower():
-                facts.append(f"OpenFDA {generic.upper()} Renal risk: {fda_warn['kidney_risks']}")
-            if fda_warn["liver_risks"] and "no specific" not in fda_warn["liver_risks"].lower():
-                facts.append(f"OpenFDA {generic.upper()} Hepatic risk: {fda_warn['liver_risks']}")
+def collect_flags(*agents: AgentResult) -> List[Dict[str, Any]]:
+    flags = []
+    for a in agents:
+        for issue in a.issues:
+            flags.append({
+                "agent": a.name,
+                "issue": issue,
+                "affected_medicines": a.affected_medicines,
+                "meta": a.meta
+            })
+    return flags
 
-        # Drug interactions
-        all_drugs = list(patient.new_prescription) + list(patient.current_medications)
-        raw_ints = await self.drugbank.get_drug_interactions(all_drugs)
-        for r in raw_ints:
-            facts.append(f"DrugBank Interaction ({r['severity']}) between {', '.join(r['drugs'])}: {r['description']}")
+async def run_full_audit(request) -> AuditResponse:
+    context = await build_patient_context(request)
+    logger.info(f"AegisRx: Initiating full audit. patient_id={context.patient_id} drugs={context.new_prescription}")
 
-        return facts
+    # Run intermediate checks in parallel
+    allergy, disease, dosage, interaction, doctor = await asyncio.gather(
+        run_allergy_agent(context),
+        run_disease_agent(context),
+        run_dosage_agent(context),
+        run_interaction_agent(context),
+        run_doctor_agent(context)
+    )
+
+    risk_band, risk_score, override_required = combine_results(
+        allergy, disease, dosage, interaction, doctor
+    )
+
+    # 1. Gather all rule reasons
+    reasons = []
+    has_allergy_issues = len(allergy.issues) > 0
+    for issue in allergy.issues:
+        reasons.append(f"Allergy conflict: {issue}")
+
+    has_interaction_issues = len(interaction.issues) > 0
+    for issue in interaction.issues:
+        reasons.append(f"Drug Interaction: {issue}")
+
+    has_disease_issues = len(disease.issues) > 0
+    for issue in disease.issues:
+        reasons.append(f"Contraindication: {issue}")
+
+    has_dosage_issues = len(dosage.issues) > 0
+    for issue in dosage.issues:
+        reasons.append(f"Dosing Alert: {issue}")
+
+    has_doc_issues = len(doctor.issues) > 0
+    for issue in doctor.issues:
+        reasons.append(f"Clinical Chart Warning: {issue}")
+
+    if not reasons:
+        reasons.append("No clinical contraindications, drug-drug interactions, or safety warnings detected.")
+
+    legacy_risk_level = "SAFE" if risk_band == "LOW" else ("WARNING" if risk_band == "MEDIUM" else "CRITICAL")
+    recommended_action = "SAFE_TO_DISPENSE"
+    if legacy_risk_level == "CRITICAL":
+        recommended_action = "DO_NOT_DISPENSE"
+    elif legacy_risk_level == "WARNING":
+        recommended_action = "DOCTOR_REVIEW"
+
+    # Deterministic alternatives suggestion
+    from app.ai.knowledge import RxNormMock, DrugBankMock, DailyMedMock, OpenFDAMock, SNOMEDMock
+    rx = RxNormMock()
+    db = DrugBankMock()
+    dm = DailyMedMock()
+    fda = OpenFDAMock()
+    sn = SNOMEDMock()
+    rec_agent = RecommendationAgent(rx, db, dm, fda, sn)
+    suggested_alternatives = rec_agent.suggest_alternatives(
+        interaction.meta, allergy.meta, disease.meta, dosage.meta
+    )
+
+    # Call Decoupled AI Explanation Service
+    ai_service_url = getattr(settings, "AI_SERVICE_URL", "http://localhost:4008")
+    logger.info(f"Submitting AuditResponse outcomes to AI explain service: {ai_service_url}")
+
+    ai_payload = {
+        "risk_score": risk_score,
+        "risk_level": legacy_risk_level if legacy_risk_level != "CRITICAL" else "HIGH_RISK",
+        "triggered_rules": reasons,
+        "recommended_action": recommended_action,
+        "patient_age": context.age or 35,
+        "patient_gender": context.gender or "Male",
+        "patient_allergies": context.allergies,
+        "patient_diseases": context.diseases,
+        "current_medicines": context.current_medications,
+        "new_prescription_medicines": context.new_prescription
+    }
+
+    explanation = ""
+    patient_friendly = ""
+    med_edu = ""
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            res = await client.post(f"{ai_service_url}/api/ai/explain", json=ai_payload)
+            if res.status_code == 200:
+                ai_data = res.json()
+                explanation = ai_data.get("clinical_explanation", "")
+                patient_friendly = ai_data.get("patient_friendly_summary", "")
+                med_edu = ai_data.get("medication_education", "")
+                llm_alts = ai_data.get("suggested_alternatives", [])
+                for alt in llm_alts:
+                    if alt not in suggested_alternatives:
+                        suggested_alternatives.append(alt)
+            else:
+                raise RuntimeError(f"AI Service status {res.status_code}")
+    except Exception as e:
+        logger.error(f"AuditResponse AI service connection failed: {e}. Activating failsafe explanation.")
+        explanation = (
+            "Failsafe Mode active (AI service unavailable). Reasoning generated via the clinical rule engine. "
+            f"Detected conflicts: {', '.join(reasons)}."
+        ) if legacy_risk_level != "SAFE" else "Failsafe Mode active (AI service unavailable). No safety rules violated."
+        patient_friendly = "Safety warning: prescription has potential risks. Consult your physician."
+
+    has_dup_issues = len(doctor.issues) > 0 or any("duplicate" in iss.lower() for iss in interaction.issues)
+    dup_details = []
+    if len(doctor.issues) > 0:
+        dup_details.extend(doctor.issues)
+    for iss in interaction.issues:
+        if "duplicate" in iss.lower():
+            dup_details.append(iss)
+
+    response = AuditResponse(
+        risk_band=risk_band,
+        risk_score=risk_score,
+        override_required=override_required,
+        flagged_medicines=collect_flags(allergy, disease, dosage, interaction, doctor),
+        explanation=explanation,
+        alternatives=suggested_alternatives,
+        risk_level=legacy_risk_level,
+        confidence_score=float(risk_score) / 100.0,
+        clinical_explanation=explanation,
+        allergy_check={
+            "allergy_conflict": has_allergy_issues,
+            "allergy_details": "; ".join(allergy.issues) if has_allergy_issues else "",
+            "suggested_alternatives": suggested_alternatives
+        },
+        interaction_check={
+            "interaction_risk": interaction.severity.upper() if has_interaction_issues else "LOW",
+            "interaction_details": "; ".join(interaction.issues) if has_interaction_issues else "",
+            "alternatives": suggested_alternatives
+        },
+        duplicate_check={
+            "is_duplicate": has_dup_issues,
+            "duplicate_details": "; ".join(dup_details) if has_dup_issues else ""
+        }
+    )
+
+    # Submit audit metadata to Ledger Service (Fabric queueing simulation)
+    try:
+        response_json = response.model_dump_json()
+        audit_hash = hashlib.sha256(response_json.encode("utf-8")).hexdigest()
+        
+        patient_id_anon = f"anon-patient-{hashlib.sha256(context.patient_id.encode('utf-8')).hexdigest()[:8]}"
+        doctor_id_anon = context.doctor_id or "unknown-doc"
+        audit_id = str(uuid4())
+        
+        payload = {
+            "audit_id": audit_id,
+            "patient_id": patient_id_anon,
+            "doctor_id": doctor_id_anon,
+            "risk_band": risk_band,
+            "decision_type": "rejected" if override_required else "approved",
+            "audit_hash": f"SHA256-{audit_hash}",
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+        
+        ledger_url = getattr(settings, "LEDGER_SERVICE_URL", "http://localhost:4007")
+        logger.info(f"Posting audit event metadata to Ledger Service: {ledger_url}")
+        
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            res = await client.post(f"{ledger_url}/api/ledger/audit-event", json=payload)
+            if res.status_code in (200, 202):
+                logger.info(f"Audit event successfully logged on Fabric: {res.json()}")
+            else:
+                logger.warning(f"Ledger service returned status {res.status_code}: {res.text}")
+    except Exception as lex:
+        logger.error(f"Failed to log audit event to Hyperledger Fabric: {lex}")
+
+    return response

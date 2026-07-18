@@ -143,3 +143,39 @@ class DosageAgent(BaseAgent):
             "has_high_risk": is_high_risk,
             "has_issues": len(warnings) > 0
         }
+
+from app.ai.agents.base_agent import AgentResult
+from app.ai.knowledge.rxnorm import RxNormMock
+from app.ai.knowledge.drugbank import DrugBankMock
+from app.ai.knowledge.dailymed import DailyMedMock
+from app.ai.knowledge.openfda import OpenFDAMock
+from app.ai.knowledge.snomed import SNOMEDMock
+
+async def run_dosage_agent(context: PatientContext) -> AgentResult:
+    rxnorm = RxNormMock()
+    drugbank = DrugBankMock()
+    dailymed = DailyMedMock()
+    openfda = OpenFDAMock()
+    snomed = SNOMEDMock()
+    
+    agent = DosageAgent(rxnorm, drugbank, dailymed, openfda, snomed)
+    res = await agent.analyze(context)
+    
+    issues = [w["description"] for w in res["dosage_and_demographic_warnings"]]
+    affected = [w["drug"] for w in res["dosage_and_demographic_warnings"]]
+    
+    if res["has_high_risk"]:
+        severity = "HIGH"
+    elif res["has_issues"]:
+        severity = "MEDIUM"
+    else:
+        severity = "LOW"
+        
+    return AgentResult(
+        name="dosage",
+        severity=severity,
+        issues=issues,
+        affected_medicines=affected,
+        meta={"warnings": res["dosage_and_demographic_warnings"]}
+    )
+

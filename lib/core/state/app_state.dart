@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../shared/models/prescription.dart';
 import '../utils/error_mapper.dart';
 
@@ -21,6 +22,7 @@ enum PatientAuthState {
 }
 
 class AppState extends ChangeNotifier {
+  static const _secureStorage = FlutterSecureStorage();
   UserRole? _role;
   String? _token; // session token (e.g. from backend)
   String _backendUrl = 'http://10.91.100.79:4000';
@@ -218,9 +220,9 @@ class AppState extends ChangeNotifier {
       if (_backendUrl == 'http://127.0.0.1:4000') {
         _backendUrl = prefs.getString('backend_url') ?? 'http://127.0.0.1:4000';
       }
-      _savedPin = prefs.getString('saved_pin');
+      _savedPin = await _secureStorage.read(key: 'saved_pin');
 
-      final patientJson = prefs.getString('session_patient');
+      final patientJson = await _secureStorage.read(key: 'session_patient');
       if (patientJson != null) {
         _currentPatient = jsonDecode(patientJson) as Map<String, dynamic>;
         _isOfflineGuest = false;
@@ -244,7 +246,7 @@ class AppState extends ChangeNotifier {
 
       final savedRoleStr = prefs.getString('saved_role');
       if (savedRoleStr != null && savedRoleStr != 'patient') {
-        _token = prefs.getString('saved_token');
+        _token = await _secureStorage.read(key: 'saved_token');
         if (_token != null) {
           if (savedRoleStr == 'doctor') {
             _role = UserRole.doctor;
@@ -279,15 +281,15 @@ class AppState extends ChangeNotifier {
       await prefs.setBool('completed_onboarding', _hasSeenOnboarding);
       await prefs.setString('backend_url', _backendUrl);
       if (_savedPin != null) {
-        await prefs.setString('saved_pin', _savedPin!);
+        await _secureStorage.write(key: 'saved_pin', value: _savedPin!);
       } else {
-        await prefs.remove('saved_pin');
+        await _secureStorage.delete(key: 'saved_pin');
       }
 
       if (_currentPatient != null) {
-        await prefs.setString('session_patient', jsonEncode(_currentPatient));
+        await _secureStorage.write(key: 'session_patient', value: jsonEncode(_currentPatient));
       } else {
-        await prefs.remove('session_patient');
+        await _secureStorage.delete(key: 'session_patient');
       }
       await prefs.setBool('session_offline_guest', _isOfflineGuest);
       await prefs.setString('patient_mobile_or_id', _patientMobileOrId);
@@ -296,11 +298,11 @@ class AppState extends ChangeNotifier {
       if (_role != null) {
         await prefs.setString('saved_role', _role.toString().split('.').last);
         if (_token != null) {
-          await prefs.setString('saved_token', _token!);
+          await _secureStorage.write(key: 'saved_token', value: _token!);
         }
       } else {
         await prefs.remove('saved_role');
-        await prefs.remove('saved_token');
+        await _secureStorage.delete(key: 'saved_token');
       }
 
       if (_doctorLicense != null) {
@@ -482,9 +484,9 @@ class AppState extends ChangeNotifier {
           'dob': dob,
           'gender': gender,
           'country': country,
-          'idType': idType,
-          'idNumber': idNumber,
-          'uploadedFileName': uploadedFileName,
+          'id_type': idType,
+          'id_number': idNumber,
+          'uploaded_file_name': uploadedFileName,
         }),
       );
       if (response.statusCode == 200) {
@@ -1306,8 +1308,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> savePin(String pin) async {
     _savedPin = pin;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('saved_pin', pin);
+    await _secureStorage.write(key: 'saved_pin', value: pin);
     notifyListeners();
   }
 }

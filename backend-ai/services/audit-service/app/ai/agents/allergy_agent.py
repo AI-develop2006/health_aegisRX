@@ -83,3 +83,33 @@ class AllergyAgent(BaseAgent):
             "allergy_conflicts": allergy_conflicts,
             "has_issues": len(allergy_conflicts) > 0
         }
+
+from app.ai.agents.base_agent import AgentResult
+from app.ai.knowledge.rxnorm import RxNormMock
+from app.ai.knowledge.drugbank import DrugBankMock
+from app.ai.knowledge.dailymed import DailyMedMock
+from app.ai.knowledge.openfda import OpenFDAMock
+from app.ai.knowledge.snomed import SNOMEDMock
+
+async def run_allergy_agent(context: PatientContext) -> AgentResult:
+    rxnorm = RxNormMock()
+    drugbank = DrugBankMock()
+    dailymed = DailyMedMock()
+    openfda = OpenFDAMock()
+    snomed = SNOMEDMock()
+    
+    agent = AllergyAgent(rxnorm, drugbank, dailymed, openfda, snomed)
+    res = await agent.analyze(context)
+    
+    issues = [c["description"] for c in res["allergy_conflicts"]]
+    affected = [c["drug"] for c in res["allergy_conflicts"]]
+    severity = "HIGH" if res["has_issues"] else "LOW"
+    
+    return AgentResult(
+        name="allergy",
+        severity=severity,
+        issues=issues,
+        affected_medicines=affected,
+        meta={"conflicts": res["allergy_conflicts"]}
+    )
+

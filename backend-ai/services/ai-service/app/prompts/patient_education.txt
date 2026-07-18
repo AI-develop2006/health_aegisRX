@@ -1,0 +1,4 @@
+Generate a patient-friendly education guide for:
+Medication: {medication_name}
+Instructions: {instructions}
+Include side effects, when to seek immediate medical help, and lifestyle tips.

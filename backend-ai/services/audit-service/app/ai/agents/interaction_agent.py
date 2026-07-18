@@ -20,18 +20,24 @@ class InteractionAgent(BaseAgent):
         # Resolve generic names for new prescription drugs
         for med in patient.new_prescription:
             rx_details = await self.rxnorm.get_concept_details(med)
+            gen = rx_details["generic_name"].strip().lower()
+            if gen == "paracetamol":
+                gen = "acetaminophen"
             resolved_new.append({
                 "original": med,
-                "generic": rx_details["generic_name"],
+                "generic": gen,
                 "class": rx_details["drug_class"]
             })
 
         # Resolve generic names for current medications
         for med in patient.current_medications:
             rx_details = await self.rxnorm.get_concept_details(med)
+            gen = rx_details["generic_name"].strip().lower()
+            if gen == "paracetamol":
+                gen = "acetaminophen"
             resolved_current.append({
                 "original": med,
-                "generic": rx_details["generic_name"],
+                "generic": gen,
                 "class": rx_details["drug_class"]
             })
 
@@ -97,3 +103,48 @@ class InteractionAgent(BaseAgent):
             "drug_interactions": interactions,
             "has_issues": len(duplicates) > 0 or len(interactions) > 0
         }
+
+from app.ai.agents.base_agent import AgentResult
+from app.ai.knowledge.rxnorm import RxNormMock
+from app.ai.knowledge.drugbank import DrugBankMock
+from app.ai.knowledge.dailymed import DailyMedMock
+from app.ai.knowledge.openfda import OpenFDAMock
+from app.ai.knowledge.snomed import SNOMEDMock
+
+async def run_interaction_agent(context: PatientContext) -> AgentResult:
+    rxnorm = RxNormMock()
+    drugbank = DrugBankMock()
+    dailymed = DailyMedMock()
+    openfda = OpenFDAMock()
+    snomed = SNOMEDMock()
+    
+    agent = InteractionAgent(rxnorm, drugbank, dailymed, openfda, snomed)
+    res = await agent.analyze(context)
+    
+    issues = [d["description"] for d in res["duplicate_detections"]] + [i["description"] for i in res["drug_interactions"]]
+    affected = [d["drug"] for d in res["duplicate_detections"]]
+    for i in res["drug_interactions"]:
+        affected.extend(i["drugs"])
+    affected = list(set(affected))
+    
+    severities = [i.get("severity", "LOW") for i in res["drug_interactions"]]
+    if any(s.upper() == "MAJOR" for s in severities) or len(res["duplicate_detections"]) > 0:
+        severity = "HIGH"
+    elif any(s.upper() == "MODERATE" for s in severities):
+        severity = "MEDIUM"
+    elif res["has_issues"]:
+        severity = "MEDIUM"
+    else:
+        severity = "LOW"
+        
+    return AgentResult(
+        name="interaction",
+        severity=severity,
+        issues=issues,
+        affected_medicines=affected,
+        meta={
+            "duplicate_detections": res["duplicate_detections"],
+            "drug_interactions": res["drug_interactions"]
+        }
+    )
+

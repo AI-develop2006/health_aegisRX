@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 from fastapi import HTTPException
 
-from app.config import TEST_DOCTOR_PRIVATE_KEY, ALLOW_MOCK_POLYGON_TX, logger
+from app.config import TEST_DOCTOR_PRIVATE_KEY, ALLOW_MOCK_POLYGON_TX, AUDIT_SERVICE_URL, logger
 from app.db import prescriptions_col, get_db
 from app.blockchain import BlockchainManager, log_activity
 from app.utils.signature import json_stringify_rx, sha256_hash, sign
@@ -144,6 +144,50 @@ async def create_prescription(rx_dict: dict) -> dict:
             f"and patient {patient_name_str}. Prescription recorded with warning."
         )
         logger.warning(access_warning)
+
+    import httpx
+    audit_url = AUDIT_SERVICE_URL
+    
+    # Audit each medicine in the prescription
+    for med in rx_dict.get("medicines", []):
+        med_name = med.get("name", "")
+        med_dosage = med.get("dosage", "")
+        
+        audit_payload = {
+            "patient_id": rx_dict["patientName"],
+            "doctor_id": doctor_sign_id,
+            "new_medicine": med_name,
+            "new_dosage": med_dosage,
+            "disease": rx_dict.get("disease")
+        }
+        
+        try:
+            logger.info(f"CDSS Interceptor: Auditing medication '{med_name}' for Patient '{rx_dict['patientName']}'...")
+            with httpx.Client(timeout=10.0) as client:
+                res = client.post(f"{audit_url}/api/audit", json=audit_payload)
+                if res.status_code == 200:
+                    audit_res = res.json()
+                    risk_level = audit_res.get("risk_level", "SAFE").upper()
+                    
+                    if risk_level in ("CRITICAL", "HIGH_RISK", "HIGH"):
+                        # Require doctor override reason
+                        override_reason = rx_dict.get("overrideReason")
+                        if not override_reason or not override_reason.strip():
+                            logger.error(f"CDSS Interceptor: Blocked creation of prescription for patient '{rx_dict['patientName']}' due to un-override safety risk '{risk_level}' with medicine '{med_name}'")
+                            raise HTTPException(
+                                status_code=403,
+                                detail=f"CDSS Safety Alert: Medication '{med_name}' has been flagged as high risk. A signed override reason is required to bypass this safety block."
+                            )
+                        else:
+                            logger.warning(f"CDSS Interceptor: Overridden warning for '{med_name}' allowed. Reason: {override_reason}")
+                else:
+                    logger.warning(f"CDSS Interceptor: Audit service returned status {res.status_code}. Bypassing block for reliability.")
+        except httpx.RequestError as req_err:
+            logger.error(f"CDSS Interceptor: Failed to connect to Audit Service at {audit_url}: {req_err}. Bypassing for reliability.")
+        except HTTPException as http_exc:
+            raise http_exc
+        except Exception as exc:
+            logger.error(f"CDSS Interceptor: Unexpected exception during audit check: {exc}. Bypassing for reliability.")
 
     # 4. Save to MongoDB
     rx_mongo = rx_dict.copy()

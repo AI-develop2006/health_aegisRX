@@ -1,269 +1,470 @@
-I’m building a Doctor Portal (Practitioner Console) for my app AegisRx / HealthLock. The portal should let doctors:
+# AegisRx - Patient History Acquisition & Verification Workflow
 
-Log in securely (JWT).
+## Overview
 
-Open a dashboard with their profile and active sessions.
+To provide safe AI-assisted prescription analysis, AegisRx requires a continuous and trustworthy longitudinal medical history for every patient. Since not every hospital uses the AegisRx platform, the system adopts a hybrid patient history acquisition model.
 
-Request and receive patient consent via QR/ID.
+Rather than depending on a single source, AegisRx collects patient history from three different sources while maintaining different trust levels for every record. This ensures that AI-powered Clinical Decision Support (CDSS) only relies on verified medical information.
 
-View patient vault history (allergies, past prescriptions).
+---
 
-Compose a new prescription with structured medication rows.
+# Architecture Overview
 
-Call an AI audit service to check allergies, interactions, and duplications.
+```
+                    +----------------------------+
+                    |     Patient Medical History |
+                    +-------------+--------------+
+                                  |
+        ----------------------------------------------------
+        |                    |                             |
+        |                    |                             |
+        ▼                    ▼                             ▼
+ AegisRx Network      External Hospital          Patient Self Entry
+     Records             Record Import
+        |                    |                             |
+ HIGH TRUST           MEDIUM TRUST                 LOW TRUST
+        |                    |                             |
+        ----------------------                             |
+                     |                                    |
+                     ▼                                    ▼
+          Verification & Trust Engine
+                     |
+                     ▼
+              AI Safety Engine (CDSS)
+                     |
+                     ▼
+          Prescription Risk Analysis
+```
 
-Override with rationale if risk is high, then cryptographically sign.
+---
 
-Store the prescription in MongoDB and on a Polygon ledger, and generate a QR for pharmacy.
+# Source 1 – AegisRx Network Records
 
-Right now, this flow has bugs from the login page to the signing page, and the AI audit is not always behaving as designed. I want you to act as a senior backend + mobile engineer and help me fix and complete it.
+## Description
 
-Please do the following:
+Whenever a patient receives treatment from a hospital or clinic that participates in the AegisRx network, all consultations and prescriptions are created directly inside AegisRx.
 
-1. Secure doctor login with JWT (no external JWT API key)
-Backend (FastAPI):
+This becomes the most trusted source of patient history.
 
-Implement or correct POST /api/doctor/login:
+---
 
-Validate doctor credentials (NPI or mobile + password) against MongoDB.
+## Workflow
 
-Use a locally configured JWT secret (e.g. JWT_SECRET, JWT_ALGORITHM="HS256" in config.py) to sign tokens.
-Note: JWT does not need an external API key; it uses our own secret string for signing and verifying.
+1. Doctor searches using the AegisRx Patient ID.
+2. Patient grants consultation consent.
+3. Doctor creates prescription.
+4. Prescription is stored in MongoDB.
+5. Audit SHA-256 hash is anchored in Hyperledger Fabric.
+6. Medical history is automatically updated.
 
-Return:
+---
 
-access_token (JWT)
+## Metadata
 
-token_type="bearer"
+| Field | Value |
+|--------|-------|
+| Source | AegisRx Network |
+| Trust Level | HIGH |
+| Verification | Doctor Verified |
+| Blockchain | Yes |
+| AI Usage | Always |
 
-doctor_profile (id, name, NPI, hospital, specialty)
+---
 
-Implement get_current_doctor dependency:
+# Source 2 – External Hospital Record Import
 
-Read Authorization: Bearer <token>.
+## Description
 
-Decode JWT using JWT_SECRET.
+Patients may have previously visited hospitals that do not use AegisRx.
 
-Fetch doctor from DB and make it available to protected routes.
+Instead of losing that historical information, AegisRx allows patients to import those records into their personal health timeline.
 
-Frontend (Flutter):
+Supported document types include:
 
-In doctor_login_screen.dart:
+- Prescription PDFs
+- Discharge Summaries
+- Laboratory Reports
+- Scan Reports
+- Medical Certificates
 
-Remove any hardcoded mock tokens.
+---
 
-Call POST /api/doctor/login with the login form data.
+# Step 1 – Upload
 
-On success:
+The patient uploads a medical document using the mobile application.
 
-Store access_token securely (e.g. flutter_secure_storage) and in AppState.
+The uploaded document is **NOT** immediately added to the official medical history.
 
-Navigate to doctor_dashboard_screen with real doctor profile.
+Instead, it is stored inside a temporary collection.
 
-On failure:
+Collection Name:
 
-Show an error message and stay on the login screen.
+```
+pending_imports
+```
 
-2. Consultation creation and patient vault access
-Backend:
+---
 
-Ensure POST /api/consultation/request:
+# Step 2 – OCR Processing
 
-Creates a MongoDB record with:
+The OCR engine extracts structured clinical information.
 
-consultation_id
+Example extracted fields:
 
-patient_id
+- Medicine Name
+- Strength
+- Dosage
+- Frequency
+- Duration
+- Diagnosis
+- Allergies
+- Laboratory Values
+- Hospital Name
+- Visit Date
 
-doctor_id
+---
 
-status="pending"
+# Step 3 – AI Structuring
 
-timestamps
+The AI converts the OCR output into structured medical records.
 
-Ensure POST /api/consultation/accept:
+Example:
 
-Updates status to accepted.
+```json
+{
+    "medicine": "Amoxicillin",
+    "strength": "500 mg",
+    "frequency": "Twice Daily",
+    "duration": "7 Days",
+    "diagnosis": "Upper Respiratory Infection",
+    "allergy": "None"
+}
+```
 
-Logs an ACCESS_GRANT event in the internal ledger.
+The AI also calculates extraction confidence.
 
-Frontend:
+Example:
 
-In doctor_patient_search_screen.dart:
+```
+Medicine : 98%
 
-When scanning patient QR or searching by ID:
+Diagnosis : 95%
 
-Call POST /api/consultation/request using the logged-in doctor and selected patient.
+Dosage : 99%
+```
 
-Enter a polling state until the patient accepts.
+---
 
-In doctor_dashboard_screen.dart:
+# Step 4 – Pending Verification
 
-Call an endpoint like GET /api/consultation/active?doctor_id=<id> to show:
+The imported record receives the status:
 
-Current active patient session (name, id, “Open Vault” button)
+```
+Pending Clinical Verification
+```
 
-“No active session” if none.
+Characteristics:
 
-In doctor_patient_history_screen.dart:
+- Visible to Patient
+- Visible to Doctors
+- Not used for AI Prescription Analysis
+- Awaiting clinical review
 
-Use patient_id from the active consultation.
+---
 
-Call:
+# Step 5 – Doctor Review
 
-GET /api/patient/profile/<id> for allergies and conditions.
+During the patient's next consultation, the doctor reviews imported records.
 
-GET /api/prescriptions?patient=<id> for prescription history.
+The doctor may choose one of the following actions.
 
-3. Prescription editor wired to real AI audit
-Backend (audit-service / ai_service.py):
+---
 
-Implement POST /api/audit to return a PrescriptionSafetyAnalysis object with fields:
+## Option A – Approve
 
-risk_band (LOW, MEDIUM, HIGH, CRITICAL)
+If the uploaded document is correct:
 
-risk_score (0–100)
+- Move record into official Medical History
+- Store verification metadata
+- Optional blockchain audit event
+- Available for AI analysis
 
-recommendation (short text)
+Status
 
-flagged_medicines (each with name and reason)
+```
+Doctor Verified
 
-backend_mode (real or mock)
+Trust Level : HIGH
+```
 
-backend_reason (when fallback/mock is used)
+---
 
-Ensure:
+## Option B – Edit
 
-Rule-based agents (Allergy, Interaction, Disease, Dosage) run first.
+If OCR extracted incorrect information:
 
-MedGemma/Gemini are called when USE_MOCK_LLM=false and keys are valid.
+Example
 
-If rules find a conflict but LLM says SAFE, the service overrides to HIGH/CRITICAL.
+OCR
 
-Frontend (doctor_prescription_editor_screen.dart):
+```
+250 mg
+```
 
-On medication row changes (debounced ~600 ms):
+Doctor Corrects
 
-Call POST /api/audit with:
+```
+500 mg
+```
 
-patient_id
+The corrected version becomes the official medical record.
 
-doctor_id
+Status
 
-full draft prescription: drug list, diagnosis, notes, etc.
+```
+Doctor Verified
 
-Display:
+Trust Level : HIGH
+```
 
-Risk band, risk score, explanation from backend.
+---
 
-Suggested alternatives from flagged_medicines or recommendation.
+## Option C – Reject
 
-Ensure:
+If the uploaded record is:
 
-Local _runLocalMockAudit() is only used when ENV=dev or USE_MOCK_LLM=true.
+- Invalid
+- Fake
+- Poor OCR Quality
+- Unreadable
 
-In hackathon/prod, always call the backend /api/audit.
+The record remains stored for auditing but is excluded from AI analysis.
 
-When “Apply Alternative” is tapped:
+Status
 
-Replace the drug row in the editor model.
+```
+Rejected
 
-Re-run audit to show updated risk.
+Reason :
+Invalid Document
+```
 
-4. Override form and cryptographic signing with ledger + Polygon
-Backend (prescription_service.py, ledger_service.py, polygon_client.py):
+---
 
-Implement POST /api/prescriptions to:
+## Option D – No Review Yet
 
-Check AI audit result:
+If the patient uploads records before meeting a doctor, the system does not discard them.
 
-If risk_band is HIGH or CRITICAL, require:
+Instead:
 
-Override Category
+Status
 
-Override Rationale
+```
+Pending Verification
+```
 
-Responsibility checkbox
+When another doctor opens the patient profile, they see:
 
-Canonicalize prescription JSON (patient, doctor, medicines, diagnosis).
+```
+Pending Imported Records (2)
 
-Compute SHA‑256 hash.
+• Apollo Discharge Summary
 
-Apply hex‑shift signature using the doctor’s NPI.
+• Blood Test Report
 
-Save prescription to prescriptions collection with:
+Review Before Consultation
+```
 
-hash, signature, consultation_id, AI audit info, override fields.
+The doctor can review them during the consultation.
 
-Append a CREATE_PRESCRIPTION block to the MongoDB blockchain.
+Until verification:
 
-If ALLOW_MOCK_POLYGON_TX=false and Polygon keys are configured:
+- AI ignores these records for critical safety checks.
+- Doctors may still manually review them.
 
-Use polygon_client.py to call the PrescriptionLedger contract and store the hash.
+---
 
-Return the real transaction hash in the response.
+# Source 3 – Patient Self-Entered Health Information
 
-Frontend (doctor_override_and_sign_screen.dart):
+Patients may manually enter:
 
-If AI risk is HIGH/CRITICAL and alternatives are not fully applied:
+- Allergies
+- Chronic Diseases
+- Current Medications
+- Past Surgeries
+- Lifestyle Habits
+- Emergency Medical Information
 
-Show mandatory override fields:
+Initially these records receive:
 
-Override Category dropdown
+```
+Patient Entered
 
-Override Rationale text
+Trust Level : LOW
+```
 
-Responsibility checkbox
+During consultation:
 
-On “Sign & Commit”:
+Doctor may verify these records.
 
-Send POST /api/prescriptions with:
+After verification:
 
-Full prescription payload
+```
+Doctor Verified
 
-consultation id
+Trust Level : HIGH
+```
 
-override data.
+---
 
-Handle response:
+# Trust Engine
 
-Show ledger/Polygon transaction hash returned by backend.
+Every medical record inside AegisRx contains trust metadata.
 
-Generate a QR code representing the prescription (id + signature/hash reference) so the patient can use it at a pharmacy.
+| Source | Verification | Trust Level | AI Usage |
+|---------|--------------|-------------|----------|
+| AegisRx Consultation | Doctor Verified | HIGH | YES |
+| Imported PDF | Doctor Verified | HIGH | YES |
+| Imported PDF | Pending Review | PENDING | WARNING ONLY |
+| Patient Self Entry | Not Verified | LOW | LIMITED |
+| Rejected Record | Rejected | NONE | NO |
 
-5. Short test plan for the Doctor Portal
-Finally, provide a small checklist to verify the fixed portal:
+---
 
-Doctor login:
+# AI Safety Engine Rules
 
-Valid credentials → dashboard with correct profile.
+The AI Prescription Safety Engine follows these rules:
 
-Invalid credentials → error, no navigation, no token stored.
+## HIGH Trust
 
-Consultation:
+Used for:
 
-QR/search → consultation/request → patient accept → consultation saved with status="accepted" and visible in doctor dashboard.
+- Allergy Detection
+- Drug Interaction Analysis
+- Disease Contraindications
+- Dosage Validation
+- Risk Scoring
 
-Patient history:
+---
 
-Shows real allergies and prescriptions from backend, not static mock data.
+## Pending Records
 
-AI audit:
+Visible to doctors but excluded from automatic prescription decisions.
 
-Critical test case (e.g. Penicillin allergy + Penicillin prescription) → risk_band=CRITICAL, flagged drug and alternatives from backend.
+Doctors receive a warning.
 
-Safe case → risk_band=LOW/SAFE.
+Example:
 
-Signing:
+```
+Pending Imported Records Found
 
-HIGH/CRITICAL risk requires override fields.
+These records have not been clinically verified.
+Please review before prescribing medication.
+```
 
-On sign:
+---
 
-Prescription appears in DB with hash/signature.
+## LOW Trust
 
-Ledger block exists.
+Patient-entered information is considered advisory.
 
-Polygon tx is recorded (if configured) and hash is visible in doctor UI.
+Doctors are encouraged to confirm these details before prescribing.
 
-QR is generated and usable by pharmacy.
+---
+
+## Rejected Records
+
+Rejected records:
+
+- remain archived
+- never participate in AI analysis
+- remain available for audit history
+
+---
+
+# Database Collections
+
+```
+patients
+
+medical_history
+
+pending_imports
+
+prescriptions
+
+audit_logs
+
+consent_events
+
+blockchain_metadata
+```
+
+---
+
+# Benefits
+
+This hybrid architecture provides several advantages.
+
+### Continuity of Care
+
+Patients carry their complete medical history across participating hospitals.
+
+---
+
+### Trustworthy AI
+
+The AI only relies on verified medical information when calculating prescription risks.
+
+---
+
+### Interoperability
+
+Patients can import records from hospitals that do not use AegisRx.
+
+---
+
+### Clinical Safety
+
+Doctors remain the final authority.
+
+AI assists.
+
+Doctors decide.
+
+---
+
+### Blockchain Integrity
+
+Only verified clinical events are anchored on Hyperledger Fabric, ensuring tamper-evident audit trails without exposing sensitive patient information.
+
+---
+
+# Future Scope
+
+The Import Service is designed to support future healthcare interoperability standards.
+
+Possible future integrations include:
+
+- HL7 FHIR APIs
+- National Health Records
+- ABHA Health ID
+- Hospital Information Systems (HIS)
+- Electronic Health Records (EHR)
+- Laboratory Information Systems (LIS)
+
+No architectural redesign is required to support these integrations.
+
+---
+
+# Final Architecture Principle
+
+AegisRx is **not** intended to replace existing hospital Electronic Health Record (EHR) systems.
+
+Instead, it functions as a **patient-centric longitudinal healthcare companion platform** that:
+
+- Maintains a continuous medical history.
+- Supports AI-assisted prescription safety.
+- Provides blockchain-backed audit integrity.
+- Enables secure patient-controlled data sharing.
+- Bridges fragmented healthcare records through verified imports and participating healthcare providers.

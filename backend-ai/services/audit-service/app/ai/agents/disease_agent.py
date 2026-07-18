@@ -12,10 +12,12 @@ class DiseaseAgent(BaseAgent):
         drug contraindications, boxed warnings, and FDA safety data.
         """
         contraindications = []
+        disease_warnings = []
 
         if not patient.diseases:
             logger.info(f"Disease Check: Patient {patient.patient_id} has no documented chronic diseases.")
-            return {"disease_contraindications": [], "has_issues": False}
+            return {"disease_contraindications": [], "disease_warnings": [], "has_issues": False}
+
 
         logger.info(f"Disease Check: Checking new drugs {patient.new_prescription} against conditions {patient.diseases} for Patient {patient.patient_id}...")
 
@@ -52,11 +54,12 @@ class DiseaseAgent(BaseAgent):
                 liver_terms = ["liver", "hepatic", "cirrhosis", "hepatitis"]
                 cardio_terms = ["hypertension", "heart", "cardio", "cabg", "bp"]
                 diabetes_terms = ["diabetes", "diabetic", "acidosis", "metformin"]
+                ulcer_terms = ["ulcer", "peptic", "stomach", "gastric", "duodenal", "bleeding"]
 
                 # Check 1: Check DailyMed contraindications text
                 for contra in dm_contras:
                     contra_lower = contra.lower()
-                    if disease_lower in contra_lower:
+                    if disease_lower in contra_lower or contra_lower in disease_lower:
                         conflict_reason = f"FDA Contraindication: '{contra}'"
                         rule_name = "DAILYMED_CONTRAINDICATION"
                         break
@@ -70,6 +73,11 @@ class DiseaseAgent(BaseAgent):
                         conflict_reason = f"FDA Contraindication (Hepatic): '{contra}'"
                         rule_name = "DAILYMED_HEPATIC_CONTRAINDICATION"
                         break
+                    if any(t in disease_lower for t in ulcer_terms) and any(w in contra_lower for w in ulcer_terms):
+                        conflict_reason = f"FDA Contraindication (Peptic Ulcer): '{contra}'"
+                        rule_name = "DAILYMED_PEPTIC_ULCER_CONTRAINDICATION"
+                        break
+
 
                 # Check 2: Check DailyMed Boxed Warning text
                 if not conflict_reason and boxed_warning:
@@ -93,6 +101,13 @@ class DiseaseAgent(BaseAgent):
                         conflict_reason = f"OpenFDA Hepatic Risk: '{liver_risks}'"
                         rule_name = "OPENFDA_HEPATIC_RISK"
 
+                # Check 4: Corticosteroid glucose warnings/cautions (Medium risk)
+                warning_reason = None
+                if not conflict_reason:
+                    if any(t in disease_lower for t in ["diabetes", "diabetic", "hyperglycemia"]) and drug_generic in ["prednisone", "dexamethasone", "methylprednisolone"]:
+                        warning_reason = f"Corticosteroid Glycemic Risk: '{drug_generic.capitalize()}' is associated with corticosteroid-induced hyperglycemia and insulin resistance, requiring close glycemic monitoring."
+                        rule_name = "CORTICOSTEROID_DIABETES_CAUTION"
+
                 if conflict_reason:
                     logger.warning(
                         f"Disease Check: Alert! Rule '{rule_name}' triggered for drug '{drug}' "
@@ -105,8 +120,63 @@ class DiseaseAgent(BaseAgent):
                         "reason": f"{drug} – contraindicated in {disease['original']}",
                         "snomed_code": disease["snomed_code"]
                     })
+                elif warning_reason:
+                    logger.warning(
+                        f"Disease Check: Alert! Rule '{rule_name}' triggered for drug '{drug}' "
+                        f"due to patient condition '{disease['original']}'. Details: {warning_reason}"
+                    )
+                    disease_warnings.append({
+                        "disease": disease["original"],
+                        "drug": drug,
+                        "description": f"Glycemic caution for '{disease['original']}': {warning_reason}",
+                        "reason": f"{drug} – caution in {disease['original']}",
+                        "snomed_code": disease["snomed_code"]
+                    })
 
         return {
             "disease_contraindications": contraindications,
-            "has_issues": len(contraindications) > 0
+            "disease_warnings": disease_warnings,
+            "has_high_risk": len(contraindications) > 0,
+            "has_issues": len(contraindications) > 0 or len(disease_warnings) > 0
         }
+
+from app.ai.agents.base_agent import AgentResult
+from app.ai.knowledge.rxnorm import RxNormMock
+from app.ai.knowledge.drugbank import DrugBankMock
+from app.ai.knowledge.dailymed import DailyMedMock
+from app.ai.knowledge.openfda import OpenFDAMock
+from app.ai.knowledge.snomed import SNOMEDMock
+
+async def run_disease_agent(context: PatientContext) -> AgentResult:
+    rxnorm = RxNormMock()
+    drugbank = DrugBankMock()
+    dailymed = DailyMedMock()
+    openfda = OpenFDAMock()
+    snomed = SNOMEDMock()
+    
+    agent = DiseaseAgent(rxnorm, drugbank, dailymed, openfda, snomed)
+    res = await agent.analyze(context)
+    
+    issues = [c["description"] for c in res.get("disease_contraindications", [])] + [w["description"] for w in res.get("disease_warnings", [])]
+    affected = [c["drug"] for c in res.get("disease_contraindications", [])] + [w["drug"] for w in res.get("disease_warnings", [])]
+    affected = list(set(affected))
+    
+    if res.get("has_high_risk", False):
+        severity = "HIGH"
+    elif res.get("has_issues", False):
+        severity = "MEDIUM"
+    else:
+        severity = "LOW"
+        
+    return AgentResult(
+        name="disease",
+        severity=severity,
+        issues=issues,
+        affected_medicines=affected,
+        meta={
+            "contraindications": res.get("disease_contraindications", []),
+            "warnings": res.get("disease_warnings", [])
+        }
+    )
+
+

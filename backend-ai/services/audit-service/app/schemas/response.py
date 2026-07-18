@@ -54,3 +54,20 @@ class AuditLogEntry(BaseModel):
 
 class AuditRequest(BaseModel):
     analysis_id: Optional[UUID] = None
+
+class AuditResponse(BaseModel):
+    risk_band: str
+    risk_score: int
+    override_required: bool
+    flagged_medicines: List[Dict[str, Any]]
+    explanation: str
+    alternatives: List[str]
+
+    # Backward compatibility fields for legacy clients / Flutter app
+    risk_level: Optional[str] = "SAFE"
+    confidence_score: Optional[float] = 0.90
+    clinical_explanation: Optional[str] = ""
+    allergy_check: Optional[Dict[str, Any]] = None
+    interaction_check: Optional[Dict[str, Any]] = None
+    duplicate_check: Optional[Dict[str, Any]] = None
+

@@ -1,115 +1,33 @@
 import json
 import logging
-import time
-from typing import Optional, Type
-from openai import AsyncOpenAI, APIConnectionError, APITimeoutError, APIStatusError
+from abc import ABC, abstractmethod
+from typing import Optional, Type, Dict, Any
 from pydantic import BaseModel
-from app.core.config import settings
-from app.ai.llm.base import BaseLLM
 
-logger = logging.getLogger("AegisRx.GPTClient")
+logger = logging.getLogger("ai-service.BaseLLM")
 
-class GPTClient(BaseLLM):
-    def __init__(self):
-        self.api_key = settings.OPENAI_API_KEY
-        if settings.USE_MOCK_LLM:
-            self.client = None
-            logger.warning("USE_MOCK_LLM is enabled. GPTClient will operate in Mock Fallback Mode.")
-        elif self.api_key and not self.api_key.startswith("mock"):
-            self.client = AsyncOpenAI(api_key=self.api_key)
-        else:
-            self.client = None
-            logger.warning("OPENAI_API_KEY is not configured or is a mock key. GPTClient will operate in Mock Fallback Mode.")
-
+class BaseLLM(ABC):
+    @abstractmethod
     async def generate_response(
         self, 
         system_prompt: str, 
         user_prompt: str, 
         response_format: Optional[Type[BaseModel]] = None
     ) -> str:
-        res = await self.safe_generate_response(system_prompt, user_prompt, response_format)
-        return res["content"]
-
-    async def safe_generate_response(
-        self,
-        system_prompt: str,
-        user_prompt: str,
-        response_format: Optional[Type[BaseModel]] = None
-    ) -> dict:
-        if settings.USE_MOCK_LLM:
-            logger.warning("USE_MOCK_LLM enabled. Using GPT mock fallback.")
-            fallback = self._generate_mock_fallback(user_prompt)
-            return {"content": fallback, "mode": "mock", "reason": "USE_MOCK_LLM enabled"}
-
-        if not self.client:
-            logger.warning("No valid GPT client initialized. Using mock fallback.")
-            fallback = self._generate_mock_fallback(user_prompt)
-            return {"content": fallback, "mode": "mock", "reason": "Invalid or mock API key"}
-
-        try:
-            import asyncio
-            content = await asyncio.wait_for(
-                self.real_generate_response(system_prompt, user_prompt, response_format),
-                timeout=5.0
-            )
-            return {"content": content, "mode": "real", "reason": None}
-        except asyncio.TimeoutError:
-            logger.error("GPT API call timed out. Falling back to mock.")
-            fallback = self._generate_mock_fallback(user_prompt)
-            return {"content": fallback, "mode": "mock", "reason": "GPT timeout"}
-        except Exception as e:
-            logger.error(f"GPT API call failed: {e}. Falling back to mock.")
-            fallback = self._generate_mock_fallback(user_prompt)
-            return {"content": fallback, "mode": "mock", "reason": f"GPT error: {str(e)}"}
-
-    async def real_generate_response(
-        self, 
-        system_prompt: str, 
-        user_prompt: str, 
-        response_format: Optional[Type[BaseModel]] = None
-    ) -> str:
-        logger.info("Sending request to OpenAI GPT model...")
-        start_time = time.time()
-        
-        # Use structured output if a response format is provided
-        kwargs = {
-            "model": "gpt-4o",  # Standard production model
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            "temperature": 0.1,
-            "timeout": 15.0
-        }
-        
-        if response_format:
-            # Use OpenAI's structured outputs via response_format parameter
-            kwargs["response_format"] = response_format
-            
-        response = await self.client.beta.chat.completions.parse(**kwargs)
-        latency = (time.time() - start_time) * 1000
-        
-        choice = response.choices[0]
-        logger.info(f"OpenAI GPT response received in {latency:.2f}ms. Finish reason: {choice.finish_reason}")
-        
-        # Record token usage for auditing (could be attached to request context or logging)
-        usage = response.usage
-        logger.info(f"Tokens used: Prompt={usage.prompt_tokens}, Completion={usage.completion_tokens}, Total={usage.total_tokens}")
-        
-        # Return raw message string
-        return choice.message.content
+        """
+        Generate text response from the LLM.
+        """
+        pass
 
     def _generate_mock_fallback(self, user_prompt: str) -> str:
         """
-        Deterministic Mock LLM generator that parses the user prompt inputs 
-        and creates realistic CDSS structured JSON matches.
+        Shared high-fidelity mock generator for clinical safety tests.
         """
-        logger.info("Executing mock LLM fallback generation...")
-        
+        logger.info("Executing mock LLM fallback generation in BaseLLM...")
         user_prompt_lower = user_prompt.lower()
+        
+        # Try to parse patient clinical profile JSON from prompt
         patient_data = None
-
-        # Try to extract patient clinical profile JSON
         try:
             profile_start = user_prompt.find("--- PATIENT CLINICAL PROFILE ---")
             if profile_start != -1:
@@ -173,7 +91,7 @@ class GPTClient(BaseLLM):
 
         # 1. Drug-drug interactions: Warfarin + Ibuprofen
         if "warfarin" in all_meds and "ibuprofen" in all_meds:
-            if "ibuprofen" in new_prescription or "warfarin" in new_prescription or not patient_data:
+            if "ibuprofen" in new_prescription or "warfarin" in new_prescription:
                 risk_level = "HIGH_RISK"
                 confidence_score = 0.98
                 reasons = ["Severe drug-drug interaction detected between Warfarin and Ibuprofen."]
@@ -255,4 +173,3 @@ class GPTClient(BaseLLM):
             "recommended_action": recommended_action
         }
         return json.dumps(mock_response)
-

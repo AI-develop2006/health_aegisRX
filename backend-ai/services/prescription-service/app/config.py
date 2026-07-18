@@ -22,4 +22,4 @@ POLYGON_CONTRACT_ADDRESS = os.getenv("POLYGON_CONTRACT_ADDRESS", "")
 TEST_DOCTOR_PRIVATE_KEY  = os.getenv("TEST_DOCTOR_PRIVATE_KEY", "")
 
 # Audit Service URL (Internal microservice call)
-AUDIT_SERVICE_URL        = os.getenv("AUDIT_SERVICE_URL", "http://audit-service:4005")
+AUDIT_SERVICE_URL        = os.getenv("AUDIT_SERVICE_URL", "http://localhost:4005")

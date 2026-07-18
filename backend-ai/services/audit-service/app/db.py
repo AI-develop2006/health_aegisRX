@@ -1,32 +1,13 @@
-"""Audit Service — MongoDB connection"""
+"""Audit Service — MongoDB connection using shared_core"""
 import logging
-from pymongo import MongoClient
 from app.config import MONGODB_URI, MONGODB_DATABASE, COLLECTION_PRESCRIPTIONS, COLLECTION_ALLERGIES, FORCE_MOCK_DB
+from shared_core.database import get_shared_db
 
 logger = logging.getLogger("audit-service")
-_db = None
 
 
 def get_db():
-    global _db
-    if _db is None:
-        if FORCE_MOCK_DB:
-            logger.info("Audit Service — FORCE_MOCK_DB is active. Connecting directly to local Mock DB.")
-            from app.mock_db import MockMongoClient
-            client = MockMongoClient(MONGODB_URI)
-            _db = client[MONGODB_DATABASE]
-            return _db
-        try:
-            client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=2000, timeoutMS=10000)
-            client.server_info()
-            _db = client[MONGODB_DATABASE]
-            logger.info(f"Audit Service — MongoDB connected: {MONGODB_DATABASE}")
-        except Exception as e:
-            logger.warning(f"Audit Service — MongoDB Atlas unreachable ({e}). Falling back to Mock DB.")
-            from app.mock_db import MockMongoClient
-            client = MockMongoClient(MONGODB_URI)
-            _db = client[MONGODB_DATABASE]
-    return _db
+    return get_shared_db("audit", MONGODB_URI, MONGODB_DATABASE, FORCE_MOCK_DB)
 
 
 def prescriptions_col():

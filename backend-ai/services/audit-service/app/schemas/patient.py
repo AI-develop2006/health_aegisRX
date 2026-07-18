@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, field_validator
 
 class PatientContext(BaseModel):
@@ -12,6 +12,8 @@ class PatientContext(BaseModel):
     previous_prescriptions: List[str] = Field(default_factory=list, description="List of previously prescribed drugs")
     new_prescription: List[str] = Field(..., description="List of newly prescribed medications to evaluate")
     is_pregnant: Optional[bool] = Field(None, description="Pregnancy status of the patient (if applicable)")
+    all_prescriptions: List[Dict[str, Any]] = Field(default_factory=list, description="All historical prescriptions written by doctors")
+    doctor_id: Optional[str] = Field(None, description="The ID of the prescribing doctor")
 
     @field_validator("patient_id")
     @classmethod

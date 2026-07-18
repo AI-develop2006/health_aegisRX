@@ -28,6 +28,7 @@ SERVICES = {
     "audit":        ("services/audit-service",        4005),
     "pharmacy":     ("services/pharmacy-service",     4006),
     "ledger":       ("services/ledger-service",       4007),
+    "ai":           ("services/ai-service",           4008),
 }
 
 
@@ -40,9 +41,9 @@ def start_service(name: str, folder: str, port: int) -> subprocess.Popen:
         "--port", str(port),
         "--reload",
     ]
-    # Set CWD and PYTHONPATH to the service folder to isolate imports
+    # Set CWD and PYTHONPATH to the service folder to isolate imports, adding the base project root
     svc_path = BASE_DIR / folder
-    env = {**os.environ, "PYTHONPATH": str(svc_path)}
+    env = {**os.environ, "PYTHONPATH": f"{svc_path}{os.pathsep}{BASE_DIR}"}
     print(f"  [START] Starting {name}-service on port {port} (Cwd: {folder})")
     return subprocess.Popen(cmd, cwd=str(svc_path), env=env)
 

@@ -1,10 +1,19 @@
+"""
+Shared Core — Database Client and Mock DB Engine
+Provides a unified MongoDB connector and reusable simulated MockMongoClient.
+"""
 import os
 import re
 import json
 import logging
 from datetime import datetime
+from pymongo import MongoClient
 
-logger = logging.getLogger("mock-db")
+logger = logging.getLogger("shared-core.database")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. MOCK MONGO CLIENT ENGINE (DEDUPLICATED)
+# ─────────────────────────────────────────────────────────────────────────────
 
 class MockCursor:
     def __init__(self, documents):
@@ -33,15 +42,14 @@ class MockCursor:
     def count(self):
         return len(self.documents)
 
+
 class MockCollection:
     def __init__(self, db_name, col_name):
         self.db_name = db_name
         self.col_name = col_name
         
-        # Use workspace directory for persistent database files
-        # Walk up from this file's folder to find 'backend-ai' or use parent path
+        # Resolve backend root to find .mock_db folder
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        # Walk up to find backend-ai root
         backend_root = current_dir
         for _ in range(5):
             if os.path.exists(os.path.join(backend_root, "start_local.py")):
@@ -66,7 +74,7 @@ class MockCollection:
             with open(self.filepath, "w") as f:
                 json.dump(data, f, default=str, indent=2)
         except Exception as e:
-            logger.error(f"MockDB write failed: {e}")
+            logger.error(f"MockDB write failed for {self.col_name}: {e}")
 
     def _get_nested(self, doc, key):
         parts = key.split(".")
@@ -175,7 +183,6 @@ class MockCollection:
         if not found and upsert:
             import uuid
             new_doc = {}
-            # simple filter parsing
             for k, v in filter.items():
                 if not k.startswith("$") and not isinstance(v, dict):
                     new_doc[k] = v
@@ -208,6 +215,7 @@ class MockCollection:
             except Exception:
                 pass
 
+
 class MockDatabase:
     def __init__(self, db_name):
         self.db_name = db_name
@@ -218,8 +226,9 @@ class MockDatabase:
             self.collections[col_name] = MockCollection(self.db_name, col_name)
         return self.collections[col_name]
 
+
 class MockMongoClient:
-    def __init__(self, uri, *args, **kwargs):
+    def __init__(self, uri=None, *args, **kwargs):
         self.uri = uri
         self.databases = {}
 
@@ -229,8 +238,56 @@ class MockMongoClient:
         return self.databases[db_name]
 
     def server_info(self):
-        # Mock successful handshake
         return {"version": "mock-5.0.0"}
 
     def close(self):
         pass
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. SINGLETON DATABASE CONNECTOR FACTORY
+# ─────────────────────────────────────────────────────────────────────────────
+
+_connectors = {}
+
+class DatabaseConnector:
+    def __init__(self, service_name: str, uri: str, db_name: str, force_mock: bool = False):
+        self.service_name = service_name
+        self.uri = uri
+        self.db_name = db_name
+        self.force_mock = force_mock
+        self.client = None
+        self.db = None
+        self.logger = logging.getLogger(f"shared-core.db-connector.{service_name}")
+        self._connect()
+
+    def _connect(self):
+        if self.force_mock:
+            self.logger.info("FORCE_MOCK_DB is active. Spawning local Mock DB client.")
+            self.client = MockMongoClient(self.uri)
+            self.db = self.client[self.db_name]
+            return
+
+        try:
+            self.client = MongoClient(self.uri, serverSelectionTimeoutMS=2000, timeoutMS=10000)
+            self.client.server_info()  # triggers connection attempt
+            self.db = self.client[self.db_name]
+            self.logger.info(f"MongoDB connected successfully to database: '{self.db_name}'")
+        except Exception as e:
+            self.logger.warning(f"MongoDB Atlas unreachable ({e}). Spawning local Mock DB client fallback.")
+            self.client = MockMongoClient(self.uri)
+            self.db = self.client[self.db_name]
+
+    def get_collection(self, col_name: str):
+        return self.db[col_name]
+
+
+def get_shared_db(service_name: str, uri: str, db_name: str, force_mock: bool = False):
+    """
+    Returns the singleton DatabaseConnector instance for a given service.
+    Reuses connections to prevent port/connection leaks.
+    """
+    key = f"{service_name}:{db_name}"
+    if key not in _connectors:
+        _connectors[key] = DatabaseConnector(service_name, uri, db_name, force_mock)
+    return _connectors[key].db

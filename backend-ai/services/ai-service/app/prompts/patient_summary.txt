@@ -1,0 +1,3 @@
+Summarize the following patient history narrative. Break it down into key active conditions, medications, and allergies.
+Report:
+{patient_history}

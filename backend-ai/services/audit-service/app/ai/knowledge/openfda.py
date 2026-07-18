@@ -55,7 +55,7 @@ class OpenFDAMock(BaseOpenFDA):
         try:
             import httpx
             logger.info(f"USE_MOCK_AUDIT is false. Querying public openFDA API for: {drug_name}...")
-            async with httpx.AsyncClient(timeout=3.0) as client:
+            async with httpx.AsyncClient(timeout=10.0) as client:
                 url = f"https://api.fda.gov/drug/event.json?search=patient.drug.medicinalproduct:{drug_name}&limit=1"
                 res = await client.get(url)
                 res.raise_for_status()
@@ -70,8 +70,8 @@ class OpenFDAMock(BaseOpenFDA):
                     "weight_risks": "Refer to FDA weight guidelines."
                 }
         except Exception as e:
-            logger.warning(f"openFDA query failed: {e}. Falling back to mock database.")
-            return self._get_mock_adverse_events(drug_name)
+            logger.error(f"openFDA query failed: {e}")
+            raise e
 
     def _get_mock_adverse_events(self, drug_name: str) -> Dict[str, Any]:
         normalized = drug_name.strip().lower()

@@ -26,10 +26,10 @@ if not use_mock_local:
         client = pymongo.MongoClient(mongo_uri, serverSelectionTimeoutMS=2000, timeoutMS=4000)
         client.server_info()  # Trigger connection check
         db = client[db_name]
-        print("✅ SUCCESS: Connected to live cloud MongoDB Atlas.")
+        print("SUCCESS: Connected to live cloud MongoDB Atlas.")
     except Exception as e:
-        print(f"⚠️ Cloud MongoDB Atlas unreachable: {e}")
-        print("🔄 SWITCHING TO LOCAL MOCK DB (.mock_db folder) Fallback...")
+        print(f"Cloud MongoDB Atlas unreachable: {e}")
+        print("SWITCHING TO LOCAL MOCK DB (.mock_db folder) Fallback...")
         use_mock_local = True
 
 # Helper to load local mock json files
@@ -44,12 +44,12 @@ def load_local_collection(col_name):
     return []
 
 if use_mock_local:
-    print("📂 STATUS: Loading database collections from local mock JSON folder.")
+    print("STATUS: Loading database collections from local mock JSON folder.")
     collections = ["activity_logs", "allergies", "doctor", "patients", "prescriptions", "blockchain"]
-    print(f"📂 Found local collections: {', '.join(collections)}")
+    print(f"Found local collections: {', '.join(collections)}")
 
 # --- Load and Print Activity Logs ---
-print("\n📝 RECENT SYSTEM ACTIVITY LOGS (Immutable Audit Ledger):")
+print("\nRECENT SYSTEM ACTIVITY LOGS (Immutable Audit Ledger):")
 logs = []
 if not use_mock_local and db is not None:
     try:
@@ -68,12 +68,12 @@ for log in logs:
     ts = log.get('timestamp')
     if isinstance(ts, datetime):
         ts = ts.isoformat()
-    print(f"   • [{ts}] {log.get('eventType')} - {log.get('actorId')}: {log.get('details')}")
+    print(f"   * [{ts}] {log.get('eventType')} - {log.get('actorId')}: {log.get('details')}")
     if "hash" in log:
-        print(f"     └─ Block SHA-256: {log.get('hash')}")
+        print(f"     |-- Block SHA-256: {log.get('hash')}")
 
 # --- Load and Print Prescriptions ---
-print("\n💊 REGISTERED PRESCRIPTIONS:")
+print("\nREGISTERED PRESCRIPTIONS:")
 prescriptions = []
 if not use_mock_local and db is not None:
     try:
@@ -88,30 +88,30 @@ else:
 if not prescriptions:
     print("   (No prescriptions registered yet)")
 for rx in prescriptions:
-    status = "Dispensed ✅" if rx.get("isDispensed") else "Pending/Active ⏳"
-    print(f"   • [Rx ID: {rx.get('id')}] Patient: {rx.get('patientName')} - Status: {status}")
-    print(f"     ├─ Diagnosis: {rx.get('disease')}")
+    status = "Dispensed" if rx.get("isDispensed") else "Pending/Active"
+    print(f"   * [Rx ID: {rx.get('id')}] Patient: {rx.get('patientName')} - Status: {status}")
+    print(f"     |-- Diagnosis: {rx.get('disease')}")
     
     meds = rx.get('medicines', [])
     med_names = [m.get('name', 'Unknown') for m in meds] if isinstance(meds, list) else []
-    print(f"     ├─ Prescribed Meds: {', '.join(med_names)}")
+    print(f"     |-- Prescribed Meds: {', '.join(med_names)}")
     
     # Override Justification
     if rx.get("overrideReason"):
-        print(f"     ├─ Clinical Override justification: \"{rx.get('overrideReason')}\"")
+        print(f"     |-- Clinical Override justification: \"{rx.get('overrideReason')}\"")
     
     # Billing details
     if rx.get("billing_amount") is not None:
         receipt_status = "Attached" if rx.get("receipt_attached") else "Not Attached"
         try:
             val = float(rx.get("billing_amount"))
-            print(f"     ├─ Total Bill: ${val:.2f} (Receipt: {receipt_status})")
+            print(f"     |-- Total Bill: ${val:.2f} (Receipt: {receipt_status})")
         except:
-            print(f"     ├─ Total Bill: ${rx.get('billing_amount')} (Receipt: {receipt_status})")
+            print(f"     |-- Total Bill: ${rx.get('billing_amount')} (Receipt: {receipt_status})")
         
     # On-chain verification hash
     if rx.get("onchain_tx_hash"):
-        print(f"     └─ Blockchain Tx Hash: {rx.get('onchain_tx_hash')}")
+        print(f"     |-- Blockchain Tx Hash: {rx.get('onchain_tx_hash')}")
     print("     " + "-"*50)
 
 print("\n=============================================================")

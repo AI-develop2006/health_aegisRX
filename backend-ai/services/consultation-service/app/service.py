@@ -133,6 +133,33 @@ async def accept_consultation(req_id: str) -> dict:
         "doctor_id": updated.get("doctorId", updated.get("patientId", "")),
         "granted_at": datetime.utcnow().isoformat(),
     })
+
+    # Write consent event on-chain to Fabric private channel
+    try:
+        import os
+        import httpx
+        
+        ledger_url = os.getenv("LEDGER_SERVICE_URL", "http://localhost:4007")
+        patient_id = updated.get("patientId", "") or updated.get("patientName", "")
+        patient_id_anon = f"anon-patient-{hashlib.sha256(patient_id.encode('utf-8')).hexdigest()[:8]}"
+        
+        payload = {
+            "consent_id": req_id,
+            "patient_id": patient_id_anon,
+            "scope": "ACCESS_GRANT",
+            "action_type": "accept",
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+        
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            res = await client.post(f"{ledger_url}/api/ledger/consent-event", json=payload)
+            if res.status_code == 200:
+                logger.info(f"Consent ACCESS_GRANT event successfully logged on Fabric: {res.json()}")
+            else:
+                logger.warning(f"Ledger service returned status {res.status_code}: {res.text}")
+    except Exception as lex:
+        logger.error(f"Failed to log ACCESS_GRANT consent event to Fabric: {lex}")
+
     return _serialize_doc(updated)
 
 
@@ -158,4 +185,31 @@ async def reject_consultation(req_id: str) -> dict:
         "doctor_id": updated.get("doctorId", updated.get("patientId", "")),
         "revoked_at": datetime.utcnow().isoformat(),
     })
+
+    # Write consent event on-chain to Fabric private channel
+    try:
+        import os
+        import httpx
+        
+        ledger_url = os.getenv("LEDGER_SERVICE_URL", "http://localhost:4007")
+        patient_id = updated.get("patientId", "") or updated.get("patientName", "")
+        patient_id_anon = f"anon-patient-{hashlib.sha256(patient_id.encode('utf-8')).hexdigest()[:8]}"
+        
+        payload = {
+            "consent_id": req_id,
+            "patient_id": patient_id_anon,
+            "scope": "ACCESS_REVOKE",
+            "action_type": "reject",
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+        
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            res = await client.post(f"{ledger_url}/api/ledger/consent-event", json=payload)
+            if res.status_code == 200:
+                logger.info(f"Consent ACCESS_REVOKE event successfully logged on Fabric: {res.json()}")
+            else:
+                logger.warning(f"Ledger service returned status {res.status_code}: {res.text}")
+    except Exception as lex:
+        logger.error(f"Failed to log ACCESS_REVOKE consent event to Fabric: {lex}")
+
     return _serialize_doc(updated)

@@ -113,20 +113,12 @@ class _DoctorPrescriptionEditorScreenState
   void _runAiAudit() async {
     if (_medicationRows.isEmpty) return;
 
-    Map<String, dynamic>? firstValidRow;
-    int rowIndex = -1;
-    for (int i = 0; i < _medicationRows.length; i++) {
-      final name =
-          (_medicationRows[i]['nameController'] as TextEditingController).text
-              .trim();
-      if (name.isNotEmpty) {
-        firstValidRow = _medicationRows[i];
-        rowIndex = i;
-        break;
-      }
-    }
+    final validRows = _medicationRows.where((row) {
+      final name = (row['nameController'] as TextEditingController).text.trim();
+      return name.isNotEmpty;
+    }).toList();
 
-    if (firstValidRow == null) {
+    if (validRows.isEmpty) {
       setState(() {
         _riskBand = 'LOW';
         _riskScore = 0;
@@ -139,19 +131,25 @@ class _DoctorPrescriptionEditorScreenState
     setState(() => _isAuditing = true);
 
     final appState = Provider.of<AppState>(context, listen: false);
-    final medName = (firstValidRow['nameController'] as TextEditingController)
-        .text
-        .trim();
-    final medStrength =
-        (firstValidRow['strengthController'] as TextEditingController).text
-            .trim();
-    final dosage = '$medStrength ${firstValidRow['frequency']}'.trim();
+    final firstValidRow = validRows.first;
+    final medName = (firstValidRow['nameController'] as TextEditingController).text.trim();
+    final rowIndex = _medicationRows.indexOf(firstValidRow);
+
+    final medNames = validRows
+        .map((row) => (row['nameController'] as TextEditingController).text.trim())
+        .join(', ');
+    final dosages = validRows.map((row) {
+      final medStrength =
+          (row['strengthController'] as TextEditingController).text.trim();
+      final freq = row['frequency'] ?? '';
+      return '$medStrength $freq'.trim();
+    }).join(', ');
 
     final res = await appState.runAiSafetyAudit(
       patientId: widget.patientId,
       doctorId: appState.doctorLicense ?? '889218',
-      newMedicine: medName,
-      newDosage: dosage,
+      newMedicine: medNames,
+      newDosage: dosages,
       disease: _diagnosisController.text.trim().isNotEmpty
           ? _diagnosisController.text.trim()
           : 'Hypertension',

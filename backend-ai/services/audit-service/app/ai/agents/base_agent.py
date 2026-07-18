@@ -1,7 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel
 from app.schemas.patient import PatientContext
 from app.ai.knowledge.base import BaseDrugBank, BaseRxNorm, BaseDailyMed, BaseOpenFDA, BaseSNOMED
+
+class AgentResult(BaseModel):
+    name: str
+    severity: Optional[str]
+    issues: List[str]
+    affected_medicines: List[str]
+    meta: Dict = {}
+
 
 class BaseAgent(ABC):
     def __init__(

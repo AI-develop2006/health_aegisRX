@@ -48,7 +48,7 @@ class RxNormMock(BaseRxNorm):
             },
             "acetaminophen": {
                 "generic_name": "acetaminophen",
-                "brand_names": ["Tylenol", "Mapap", "Panadol"],
+                "brand_names": ["Tylenol", "Mapap", "Panadol", "Paracetamol", "Dolo", "Dolo 650"],
                 "drug_class": "Analgesic / Antipyretic",
                 "rxcui": "161"
             },
@@ -57,7 +57,14 @@ class RxNormMock(BaseRxNorm):
                 "brand_names": ["Pen-Vee K"],
                 "drug_class": "Penicillin-class Antibiotic",
                 "rxcui": "7980"
+            },
+            "prednisone": {
+                "generic_name": "prednisone",
+                "brand_names": ["Deltasone", "Rayos", "Sterapred"],
+                "drug_class": "Corticosteroid",
+                "rxcui": "8640"
             }
+
         }
 
     async def get_concept_details(self, drug_name: str) -> Dict[str, Any]:
@@ -68,7 +75,7 @@ class RxNormMock(BaseRxNorm):
         try:
             import httpx
             logger.info(f"USE_MOCK_AUDIT is false. Querying NIH RxNorm API for: {drug_name}...")
-            async with httpx.AsyncClient(timeout=3.0) as client:
+            async with httpx.AsyncClient(timeout=10.0) as client:
                 url = f"https://rxnav.nlm.nih.gov/REST/rxcui.json?name={drug_name}"
                 res = await client.get(url)
                 res.raise_for_status()
@@ -95,7 +102,7 @@ class RxNormMock(BaseRxNorm):
                     "rxcui": str(rxcui)
                 }
         except Exception as e:
-            logger.warning(f"NIH RxNorm query failed: {e}. Falling back to mock database.")
+            logger.warning(f"NIH RxNorm query failed for '{drug_name}': {e}. Falling back to local mock registry.")
             return self._get_mock_concept_details(drug_name)
 
     def _get_mock_concept_details(self, drug_name: str) -> Dict[str, Any]:
