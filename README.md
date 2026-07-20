@@ -1,12 +1,11 @@
-# 🛡️ AegisRx — Sovereign Patient Health Wallet
+# 🛡️ AegisRx (HealthLock) — Sovereign Patient Health Wallet
 
-AegisRx is a zero-trust, decentralized patient health wallet and clinician suite. It shifts the ownership of clinical data from centralized hospital systems directly to the **patient as the sovereign custodian** of their own medical records, prescriptions, and access permissions.
+AegisRx is a zero-trust, decentralized patient health wallet and clinical microservices suite. It shifts the ownership of clinical data from centralized hospital systems directly to the **patient as the sovereign custodian** of their own medical records, prescriptions, and access permissions.
 
 ---
 
-## 📋 Project Overview
+## 🎯 Architecture Pillars
 
-<<<<<<< Updated upstream
 AegisRx is built upon four architectural pillars designed to ensure zero-trust security, clinical accuracy, and cryptographic data integrity:
 
 ```
@@ -25,157 +24,79 @@ AegisRx is built upon four architectural pillars designed to ensure zero-trust s
   ┌─────────────────────────────────────────────────────────────┐
   │                 3. AI CLINICAL SAFETY NET                  │
   │  Real-time drug-drug and drug-allergy interaction checking  │
-  │  powered by Cerebras LLM + IsolationForest anomalies.       │
+  │  powered by Gemini Multi-Agent AI + IsolationForest anomaly  │
+  │  detection for prescription outliers.                       │
   └──────────────────────────────┬──────────────────────────────┘
                                  ▼
   ┌─────────────────────────────────────────────────────────────┐
   │             4. IMMUTABLE ACTIVITY LEDGER LOGS               │
   │  All access, creation, and dispensation logs are chained     │
-  │  chronologically with SHA-256, stored in MongoDB Atlas.     │
+  │  chronologically with SHA-256 hashes, stored in MongoDB.    │
   └─────────────────────────────────────────────────────────────┘
 ```
-=======
-AegisRx (HealthLock) is a comprehensive, production-ready, peer-to-peer digital healthcare ecosystem designed for high-security clinical environments. It integrates a native, high-fidelity Flutter mobile application (for patients) with modern web portals (for doctors and pharmacists) and a FastAPI-based microservices backend. By establishing a zero-trust handshake protocol and cryptographic tamper-proofing, AegisRx guarantees that patients remain the sole owners and managers of their healthcare data.
->>>>>>> Stashed changes
 
 ---
 
-## ⚠️ Problem Statement
+## 🏗️ System Architecture & Data Flow
 
-<<<<<<< Updated upstream
-AegisRx integrates Patient, Doctor, and Pharmacist workflows into a native, high-performance Flutter mobile/desktop app communicating with a central FastAPI backend:
-=======
-Traditional healthcare information systems are highly centralized, fragmented, and insecure, presenting several critical issues:
-1. **Lack of Patient Consent**: Patients have zero visibility or real-time control over who views, edits, or transfers their medical records.
-2. **Prescription Fraud & Tampering**: Digital and paper prescriptions are easily forged, altered, or double-dispensed, contributing to drug abuse and pharmacy audit failures.
-3. **Clinical Safety Gaps**: Real-time evaluations of drug-drug interactions and patient allergies are rarely done pre-flight at the point of care, leading to preventable adverse events.
-4. **Retroactive Log Alterations**: Standard healthcare databases lack cryptographic immutability, meaning access logs can be altered or erased retroactively by administrators or bad actors.
-
----
-
-## 💡 Solution Description
-
-AegisRx addresses these issues by rebuilding clinical workflows on top of zero-trust security and decentralization:
-* **Patient-Sovereign Storage**: Health records, prescriptions, and logs are tied cryptographically to the patient's unique Sovereign ID.
-* **Consent Handshake**: Doctors cannot search, read, or prescribe to a patient without scanning a session token and receiving real-time patient approval on their device.
-* **Hex-Shift Sovereign Signatures**: Prescriptions are canonicalized, hashed with SHA-256, and cryptographically signed using a deterministic shift offset derived from the doctor's NPI.
-* **Multi-Agent AI Safety Net**: A hybrid clinical auditor queries Gemini AI and clinical rules (RxNorm, DrugBank) to check for drug-drug interactions, duplicates, and allergies, combined with an Isolation Forest outlier detector for doctor prescription habits.
-* **Chained Activity Ledger**: Every access grant, prescription creation, and pharmacy dispensation is compiled into sequential SHA-256 hashed blocks, forming an immutable ledger.
-
----
-
-## ✨ Features
-
-### 📱 Patient Sovereign Wallet (Flutter Client)
-* **Secure Biometric/PIN Lock**: Restricts local wallet access with custom PIN hashes.
-* **Consultation Handshake Panel**: Displays real-time polling cards for pending connection requests from clinicians.
-* **Vault Ledger Logs**: Displays a real-time, chronological view of the patient's activity audit chain.
-* **Prescription Wallet**: Holds active prescriptions and displays dynamic checkout QR codes.
-
-### 🩺 Clinician Portal (Web / HTML5 & Flutter screens)
-* **Clinical Composer**: Structured input form for diagnoses, medications, and dosage intervals.
-* **Pre-flight AI Audit**: Interactive panel displaying warnings, risk gauges, and safe alternative suggestions before signing.
-* **Cryptographic Signer**: Shifts the prescription's SHA-256 hash using the clinician's NPI key.
-
-### 💊 Pharmacy Workstation (Web / HTML5 & Flutter screens)
-* **Checksum Integrity Desk**: Reconstructs prescription JSON payloads and compares decrypted signatures to verify tamper status.
-* **Token Burn Engine**: Dispenses medications and immediately updates the state to dispensed (`isDispensed: true`), preventing double-dispensing.
-
----
-
-## 🛠️ Technology Stack
-
-| Layer | Technology | Purpose |
-| :--- | :--- | :--- |
-| **Frontend Mobile App** | **Flutter 3.10+ (Dart)** | Unified Multi-Role Client (Patient Wallet, Doctor Console, Pharmacy scan fallback) |
-| **Backend Microservices** | **FastAPI (Python 3.11+)** | Core backend running 8 isolated services communicating via an API Gateway |
-| **AI Inference Engine** | **Gemini AI API / Cerebras** | Multi-Agent AI system running clinical safety checks and generating recommendations |
-| **Outlier Detection** | **scikit-learn (Isolation Forest)** | Identifies statistical anomalies in physician prescription frequency |
-| **Database Document Store** | **MongoDB Atlas** | Live patient details, allergies, prescriptions, and chained event logs |
-| **Tamper-Proofing** | **SHA-256 & Hex-Shift** | Lightweight, deterministic cryptographic asymmetric signing algorithm |
-| **On-Chain Validation** | **Polygon Blockchain (EVM)** | Anchors transactional state checks to public ledger if configured |
-
----
-
-## 🏗️ Architecture & Workflow Diagrams
-
-### 1. System Architecture & Data Flow
-
-AegisRx utilizes an API gateway-to-microservice architecture to isolate operational boundaries:
->>>>>>> Stashed changes
+AegisRx integrates Patient, Doctor, and Pharmacist workflows into a native, high-performance Flutter mobile/desktop app communicating with a central FastAPI API Gateway which coordinates 8 microservices:
 
 ```mermaid
 graph TB
-    subgraph "Flutter App Workspace (Native)"
-        A["Patient Portal<br/>(Dashboard, Vault, QR Share)"]
-        B["Practitioner Portal<br/>(Clinical Composer, Risk Override)"]
-        C["Pharmacy Desk<br/>(QR Scanner, Dispensation Desk)"]
+    %% Clients
+    subgraph Clients ["Unified Client Portals"]
+        Flutter["Flutter Wallet App (Multi-Role)"]
+        DocWeb["Clinician Web Portal<br/>(doctor-prescription.html)"]
+        PharmWeb["Pharmacy Checkout Portal<br/>(pharmacy-portal.html)"]
     end
 
-    subgraph "FastAPI Server Core (backend-ai/)"
-        D["REST API Router & Gateway<br/>(app/main.py:4000)"]
-        E["AI Clinical Safety Engine<br/>(app/services/ai_service.py)"]
-        F["Ledger Manager & SHA-256 Chain<br/>(app/services/ledger_service.py)"]
+    %% Gateway
+    Gateway["API Gateway (FastAPI)<br/>Port 4000"]
+
+    %% Downstream Services
+    subgraph Services ["Downstream Microservices"]
+        AuthSvc["Auth Service (Port 4001)<br/>Argon2 / JWT"]
+        PatientSvc["Patient Service (Port 4002)<br/>Demographics & History"]
+        ConsultSvc["Consultation Service (Port 4003)<br/>Consent & Handshake"]
+        PrescSvc["Prescription Service (Port 4004)<br/>EVM Key / CRUD"]
+        AuditSvc["Audit & AI Service (Port 4005)<br/>Gemini Client / scikit-learn"]
+        PharmSvc["Pharmacy Service (Port 4006)<br/>Burn Registry"]
+        LedgerSvc["Ledger Service (Port 4007)<br/>SHA-256 Chain Manager"]
     end
 
-    subgraph "Cloud & Database Layer"
-        G["MongoDB Atlas Database"]
-        H["Cerebras AI API (LLM)"]
+    %% Infrastructure & External APIs
+    subgraph DataInfra ["Data & External APIs"]
+        MongoDB[("MongoDB Atlas<br/>(Prescriptions & Logs)")]
+        GeminiAPI["Gemini AI Client / Cerebras<br/>(Multi-Agent safety audit)"]
+        PolygonChain["Polygon Blockchain / EVM RPC<br/>(On-chain validation)"]
     end
 
-    A -- "REST API / JSON" --> D
-    B -- "Submit Prescription" --> D
-    C -- "Verify & Dispense" --> D
-    D --> E
-    D --> F
-    E --> G
-    E --> H
-    F --> G
+    %% Routing Flow
+    Flutter --> Gateway
+    DocWeb --> Gateway
+    PharmWeb --> Gateway
+
+    Gateway --> AuthSvc
+    Gateway --> PatientSvc
+    Gateway --> ConsultSvc
+    Gateway --> PrescSvc
+    Gateway --> AuditSvc
+    Gateway --> PharmSvc
+    Gateway --> LedgerSvc
+
+    %% Service interactions
+    AuditSvc --> GeminiAPI
+    AuditSvc --> MongoDB
+    PrescSvc --> MongoDB
+    PrescSvc --> PolygonChain
+    LedgerSvc --> MongoDB
 ```
 
-<<<<<<< Updated upstream
-### 🔄 End-to-End Consultation Lifecycle
-
-1. **Session Handshake**: The patient generates a secure consultation session token (displayed as a QR code). The doctor scans the QR code to request permission.
-2. **Access Grant**: The patient receives a real-time polling notification and taps **Accept** to approve the connection.
-3. **Safety Audit & Writing**: The doctor drafts the prescription. Prior to submission, a pre-flight check executes checks for duplicates, allergy conflicts, drug-drug interactions, and anomaly patterns.
-4. **Signing & Commit**: Upon submission, the server computes a `SHA-256` hash of the prescription, signs it using the doctor's NPI root key, saves it to MongoDB, and writes the block to the chained activity ledger.
-5. **Validation & Dispense**: The pharmacist scans the patient's checkout QR, triggers `/api/pharmacy/verify-scan`, verifies signature integrity against the root ledger, and calls `/api/pharmacy/dispense` to burn the token.
-
 ---
 
-## 🛠️ Complete Technology Stack
+## 🔄 Core System Workflows
 
-| Layer | Technology | Purpose |
-| :--- | :--- | :--- |
-| **Frontend** | **Flutter 3.10+ (Dart)** | Unified Patient Wallet, Doctor Clinical Composer, and Pharmacy desk. |
-| **Backend** | **FastAPI (Python 3.11+)** | High-performance API Gateway and microservice routing. |
-| **AI Engine** | **Cerebras AI API (LLM)** | Rapid drug interaction evaluations and alternative recommendations. |
-| **Outlier Detection** | **scikit-learn (Isolation Forest)** | Analyzes physician prescription history frequencies to flag anomalies. |
-| **Database** | **MongoDB Atlas** | Document storage for prescriptions, patient allergies, and audit logs. |
-| **Cryptography** | **SHA-256** | Secure hash chains for activity ledgers and signature verification. |
-
----
-
-## 📁 Codebase Directory Structure
-
-* [**lib/**](file:///e:/health_aegisRX/lib): Flutter Unified Multi-Role Client
-  * [main.dart](file:///e:/health_aegisRX/lib/main.dart): App launch & state provider injection.
-  * [core/theme/app_theme.dart](file:///e:/health_aegisRX/lib/core/theme/app_theme.dart): App colors, styling, and gradients.
-  * [core/routing/app_router.dart](file:///e:/health_aegisRX/lib/core/routing/app_router.dart): Listen-based dynamic router delegates.
-  * [core/state/app_state.dart](file:///e:/health_aegisRX/lib/core/state/app_state.dart): Session, Auth, and live API client networking logic.
-  * [features/patient/](file:///e:/health_aegisRX/lib/features/patient): Patient flows (dashboard, history logs, QR share).
-  * [features/doctor/](file:///e:/health_aegisRX/lib/features/doctor): Doctor flows (Composer, Override, and Sign).
-  * [features/pharmacy/](file:///e:/health_aegisRX/lib/features/pharmacy): Pharmacist flows (QR scanning, crypt-verdict, dispense token burn).
-* [**backend-ai/**](file:///e:/health_aegisRX/backend-ai): FastAPI AI backend core
-  * [app/main.py](file:///e:/health_aegisRX/backend-ai/app/main.py): REST routers, CORS config, database seeding.
-  * [app/services/](file:///e:/health_aegisRX/backend-ai/app/services): Modular services for auth, prescriptions, ledger, and AI safety checks.
-
----
-
-## 🚀 Getting Started & Execution
-=======
-### 2. Zero-Trust Consent Handshake
+### 1. Zero-Trust Consent Handshake
 
 Before a doctor can view history or submit prescriptions, a peer-to-peer session must be authorized by the patient.
 
@@ -206,9 +127,9 @@ sequenceDiagram
     Note over DocPortal: Clinical Composer Unlocks
 ```
 
-### 3. Cryptographic Verification & Sovereign Signatures
+### 2. Cryptographic Verification & Sovereign Signatures
 
-The doctor's NPI is used as a deterministic key shift over the SHA-256 payload digest.
+To prevent tampered prescriptions, AegisRx does not store simple editable text. It uses an asymmetric signature scheme where the doctor's NPI is used as a deterministic key shift over the SHA-256 payload digest.
 
 ```mermaid
 graph TD
@@ -243,7 +164,23 @@ graph TD
     end
 ```
 
-### 4. Microservices Port & Registry
+---
+
+## 🛠️ Complete Technology Stack
+
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend Mobile App** | **Flutter 3.10+ (Dart)** | Unified Multi-Role Client (Patient Wallet, Doctor Console, Pharmacy scan fallback) |
+| **Backend Microservices** | **FastAPI (Python 3.11+)** | Core backend running 8 isolated services communicating via an API Gateway |
+| **AI Inference Engine** | **Gemini AI API / Cerebras** | Multi-Agent AI system running clinical safety checks and generating recommendations |
+| **Outlier Detection** | **scikit-learn (Isolation Forest)** | Identifies statistical anomalies in physician prescription frequency |
+| **Database Document Store** | **MongoDB Atlas** | Live patient details, allergies, prescriptions, and chained event logs |
+| **Tamper-Proofing** | **SHA-256 & Hex-Shift** | Lightweight, deterministic cryptographic asymmetric signing algorithm |
+| **On-Chain Validation** | **Polygon Blockchain (EVM)** | Anchors transactional state checks to public ledger if configured |
+
+---
+
+## 📡 Microservices Port & Registry
 
 The backend contains 8 microservices coordinate under an isolated model:
 
@@ -260,31 +197,82 @@ The backend contains 8 microservices coordinate under an isolated model:
 
 ---
 
-## ⚙️ Installation & Setup Instructions
->>>>>>> Stashed changes
+## 📁 Codebase Directory Structure
 
-### 1. Configure the Environment
-Create a `.env` file under `backend-ai/` matching your database credentials:
-```bash
-MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=<app>
-MONGODB_DATABASE=healthcare_db
-CEREBRAS_API_KEY=<your-key>
-```
+Explore the main modules of the codebase (links point to local workspace files):
 
-### 2. Start the Backend Server
-```bash
+* 📱 [**lib/**](file:///c:/Users/srima/hackathon%20votexa/health_lock/lib): Flutter Mobile & Desktop Client Application
+  * [main.dart](file:///c:/Users/srima/hackathon%20votexa/health_lock/lib/main.dart): App launch entry point, initializes SimulationState.
+  * [core/theme/app_theme.dart](file:///c:/Users/srima/hackathon%20votexa/health_lock/lib/core/theme/app_theme.dart): Neon-ambient theme styling, card gradients, and typography.
+  * [core/state/app_state.dart](file:///c:/Users/srima/hackathon%20votexa/health_lock/lib/core/state/app_state.dart): Master state manager coordinating polling loops, local security PINs, and REST API calls.
+  * [core/crypto/crypto_helper.dart](file:///c:/Users/srima/hackathon%20votexa/health_lock/lib/core/crypto/crypto_helper.dart): Hashing utilities on the Flutter client.
+  * **features/patient/screens/**:
+    * [patient_dashboard_screen.dart](file:///c:/Users/srima/hackathon%20votexa/health_lock/lib/features/patient/screens/main_screen_patient/patient_dashboard_screen.dart): Patient dashboard displaying health cards, wallet balances, and logs.
+    * [patient_settings_screen.dart](file:///c:/Users/srima/hackathon%20votexa/health_lock/lib/features/patient/screens/main_screen_patient/patient_settings_screen.dart): Sovereign Profile setup, custom server config endpoints.
+    * [patient_share_screen.dart](file:///c:/Users/srima/hackathon%20votexa/health_lock/lib/features/patient/screens/patient_share_screen.dart): Generates secure QR tokens for clinical sessions.
+  * **features/doctor/screens/**:
+    * [doctor_prescription_editor_screen.dart](file:///c:/Users/srima/hackathon%20votexa/health_lock/lib/features/doctor/screens/doctor_prescription_editor_screen.dart): Clinician Composer with interactive drug inputs and override triggers.
+    * [doctor_ai_audit_result_screen.dart](file:///c:/Users/srima/hackathon%20votexa/health_lock/lib/features/doctor/screens/doctor_ai_audit_result_screen.dart): Safety reports outlining risk bands, allergy matches, and alternative recommendation cards.
+    * [doctor_override_and_sign_screen.dart](file:///c:/Users/srima/hackathon%20votexa/health_lock/lib/features/doctor/screens/doctor_override_and_sign_screen.dart): Verification console displaying NPI signatures, EVM commits, and final signs.
+  * **features/pharmacy/screens/**:
+    * [pharmacy_verification_screen.dart](file:///c:/Users/srima/hackathon%20votexa/health_lock/lib/features/pharmacy/screens/pharmacy_verification_screen.dart): Decrypts doctor signature offsets and compares them to calculated SHA-256 hashes.
+    * [pharmacy_dispense_screen.dart](file:///c:/Users/srima/hackathon%20votexa/health_lock/lib/features/pharmacy/screens/pharmacy_dispense_screen.dart): Final verification desk, updates token state to dispensed (burned).
+
+* ⚙️ [**backend-ai/**](file:///c:/Users/srima/hackathon%20votexa/health_lock/backend-ai): FastAPI Microservices Backend
+  * [start_local.py](file:///c:/Users/srima/hackathon%20votexa/health_lock/backend-ai/start_local.py): Dev launcher starting all 8 microservices as standalone subprocesses.
+  * **services/**: Isolated service directories housing Pydantic models, routers, and business logic.
+    * [audit-service/app/ai/services/ai_service.py](file:///c:/Users/srima/hackathon%20votexa/health_lock/backend-ai/services/audit-service/app/ai/services/ai_service.py): Multi-agent safety checks (RxNorm/DrugBank/DailyMed) and LLM wrappers.
+    * [prescription-service/app/utils/signature.py](file:///c:/Users/srima/hackathon%20votexa/health_lock/backend-ai/services/prescription-service/app/utils/signature.py): Secure hash calculation and Hex-Shift cipher algorithms.
+  * [public/](file:///c:/Users/srima/hackathon%20votexa/health_lock/backend-ai/public): HTML5 practitioner and pharmacy web panels.
+    * [doctor-prescription.html](file:///c:/Users/srima/hackathon%20votexa/health_lock/backend-ai/public/doctor-prescription.html): Practitioner Web interface with pre-flight audits.
+    * [pharmacy-portal.html](file:///c:/Users/srima/hackathon%20votexa/health_lock/backend-ai/public/pharmacy-portal.html): Verification dashboard for pharmacists.
+
+---
+
+## 🧪 Mock Gaps vs. Production Verification
+
+To facilitate smooth sandbox evaluations, AegisRx contains isolated mock behaviors that map to production services:
+
+| Component / Flow | Mock Sandbox Fallback (Dev Mode) | Production System Target (Prod Mode) |
+| :--- | :--- | :--- |
+| **Patient Profile** | Starts with guest state `Elena Vance` and ID `992818` | Queries authenticated user details from MongoDB Patient Collection |
+| **JWT Tokens** | Offline guest mode issues hardcoded tokens | Auth service issues Argon2 cryptographically verified token strings |
+| **ID Documents** | Auto-mock upload logs `id_proof_document_aadhaar.pdf` | Uploads binary files to AWS S3/Cloud Storage buckets via `/api/media/upload` |
+| **Safety Auditing** | Rule-engine fallbacks (e.g. penicillin triggers 95 risk) | Multi-agent Gemini AI models parse patient context live via API |
+| **Practitioner Keys** | Generate offline signature hashes if EVM node is blank | Commits transaction hash onto Polygon network via RPC endpoint |
+
+---
+
+## 🚀 Getting Started & Execution
+
+Follow these steps to run the complete AegisRx system locally on Windows:
+
+### Step 1: Environment Setup
+1. Navigate to the `backend-ai/` directory.
+2. Duplicate `.env.example` as `.env`.
+3. Configure your MongoDB Atlas URL and Gemini AI API Key:
+   ```ini
+   MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=cluster0
+   MONGODB_DATABASE=healthcare_db
+   GEMINI_API_KEY=AIzaSy...
+   RUN_DB_SEED_ON_STARTUP=true
+   ```
+
+### Step 2: Start All Backend Services
+We provide a local dev launcher that starts all 8 services in isolated subprocesses on their designated ports:
+```powershell
 cd backend-ai
 python -m venv venv
-# Windows
 .\venv\Scripts\activate
-# Install deps and run
 pip install -r requirements.txt
-python -m uvicorn app.main:app --host 0.0.0.0 --port 4000 --reload
+python start_local.py
 ```
-* Interactive Swagger Docs: [http://127.0.0.1:4000/docs](http://127.0.0.1:4000/docs)
+> [!NOTE]
+> Setting `RUN_DB_SEED_ON_STARTUP=true` in `.env` automatically populates patient allergies, doctor records, and historical prescriptions into your MongoDB database on startup.
 
-### 3. Launch the Flutter App
-```bash
+### Step 3: Run the Flutter Client
+Return to the repository root directory and run the Flutter client:
+```powershell
 # Return to the root folder
 flutter pub get
 flutter run
@@ -292,18 +280,7 @@ flutter run
 
 ---
 
-<<<<<<< Updated upstream
-## 🧪 Testing Scenario Guide
-
-1. **Patient Access**: Open the Flutter app, choose **Patient Portal**, register/login, and view the dashboard. Tap **Share Session** to generate an attendance QR code.
-2. **Clinician Encounter**: On the home portal, choose **Doctor Portal**, register or log in as a clinician (using your NPI). Click **New Consultation Session** and scan/paste the patient's QR code.
-3. **Consent Polling**: The patient dashboard will display a pending consultation request. Tap **Accept** to authorize the connection.
-4. **Draft & Auditing**: The doctor's Clinical Composer will unlock. Type the diagnosis and add a medication (e.g. penicillin). The AI Risk Band will automatically trigger and run safety audits against patient allergies.
-5. **Ledger Commit**: Click **Proceed to Sign** and log clinical justifications. Submit the signature to commit the prescription securely to the blockchain ledger.
-6. **Pharmacy Checkout**: Tap the patient's prescription on their dashboard, view the checkout QR code, and copy the payload (representing `Data##Signature`).
-7. **Dispense Desk**: On the home portal, choose **Pharmacy Portal**, paste the QR payload, verify signature validity against root keys, and click **Burn Token & Dispense** to dispense medications.
-=======
-## 🕹️ Usage Guide & Demo Walkthrough
+## 🔬 End-to-End Demo Walkthrough Scenario
 
 Experience the full zero-trust, patient-sovereign workflow:
 
@@ -320,6 +297,5 @@ Experience the full zero-trust, patient-sovereign workflow:
 ## 👥 Team Details
 
 * **Srimaan** — Flutter Lead & Client State Engineer / Integrations (Email: `srimaansrimaan543@gmail.com`)
-* **GiriDharan** — Lead Backend & System Architecture(Email: `giridharan172006@gmail.com`)
-**Niveda r** —ai agent and rag works (Email: `nivedaaravi@gmail.com`)
->>>>>>> Stashed changes
+* **GiriDharan** — Lead Backend & System Architecture (Email: `giridharan172006@gmail.com`)
+* **Niveda r** — AI Agent & RAG works (Email: `nivedaaravi@gmail.com`)
