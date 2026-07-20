@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:health_lock/main.dart';
@@ -7,6 +8,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('AegisRx App Bootstrap Test', (WidgetTester tester) async {
+    const channel = MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+      if (methodCall.method == 'read') {
+        final dynamic key = methodCall.arguments['key'];
+        if (key == 'saved_pin') {
+          return '1234';
+        }
+        if (key == 'session_patient') {
+          return '{"token": "dummy_token", "name": "Elena Vance", "patient_id": "992818"}';
+        }
+      }
+      return null;
+    });
+
     // Pre-populate SharedPreferences so AppState's async _initSession() loads an authenticated session
     SharedPreferences.setMockInitialValues({
       'finished_splash': true,
