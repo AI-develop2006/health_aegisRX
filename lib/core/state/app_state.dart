@@ -1374,10 +1374,11 @@ class AppState extends ChangeNotifier {
         final data = jsonDecode(response.body);
         if (data != null && data['id'] != null) {
           final String reqId = data['id'];
-          if (!_promptedRequestIds.contains(reqId) &&
-              _activePendingRequestId != reqId) {
-            _activePendingRequestId = reqId;
-            notifyListeners();
+          if (!_promptedRequestIds.contains(reqId)) {
+            if (_activePendingRequestId != reqId) {
+              _activePendingRequestId = reqId;
+              notifyListeners();
+            }
           }
         } else {
           if (_activePendingRequestId != null) {
@@ -1578,6 +1579,8 @@ class AppState extends ChangeNotifier {
       if (patientIdVal.isEmpty) {
         return "Invalid Patient ID";
       }
+
+      _promptedRequestIds.clear();
 
       final response = await http
           .post(
