@@ -250,6 +250,46 @@ class MockMongoClient:
 
 _connectors = {}
 
+class SafeCollectionWrapper:
+    def __init__(self, connector, col_name: str):
+        self._connector = connector
+        self._col_name = col_name
+
+    def _get_col(self):
+        return self._connector.real_db[self._col_name]
+
+    def __getattr__(self, attr_name: str):
+        orig_attr = getattr(self._get_col(), attr_name)
+        if callable(orig_attr):
+            def wrapper(*args, **kwargs):
+                try:
+                    return orig_attr(*args, **kwargs)
+                except Exception as e:
+                    self._connector.fallback_to_mock(e)
+                    new_col = self._get_col()
+                    return getattr(new_col, attr_name)(*args, **kwargs)
+            return wrapper
+        return orig_attr
+
+    def __getitem__(self, item):
+        return self._get_col()[item]
+
+
+class SafeDatabaseWrapper:
+    def __init__(self, connector):
+        self._connector = connector
+
+    def __getitem__(self, col_name: str):
+        return SafeCollectionWrapper(self._connector, col_name)
+
+    def __getattr__(self, name: str):
+        try:
+            return getattr(self._connector.real_db, name)
+        except Exception as e:
+            self._connector.fallback_to_mock(e)
+            return getattr(self._connector.real_db, name)
+
+
 class DatabaseConnector:
     def __init__(self, service_name: str, uri: str, db_name: str, force_mock: bool = False):
         self.service_name = service_name
@@ -257,26 +297,60 @@ class DatabaseConnector:
         self.db_name = db_name
         self.force_mock = force_mock
         self.client = None
-        self.db = None
+        self.real_db = None
+        self.db = SafeDatabaseWrapper(self)
         self.logger = logging.getLogger(f"shared-core.db-connector.{service_name}")
         self._connect()
 
+    def fallback_to_mock(self, reason=None):
+        if not isinstance(self.client, MockMongoClient):
+            self.logger.warning(
+                f"[DB NETWORK DROP] Connection dropped midway during operational query ({reason}). "
+                f"Automatically switching service '{self.service_name}' to Local Mock DB."
+            )
+            self.client = MockMongoClient(self.uri)
+            self.real_db = self.client[self.db_name]
+            self.logger.info(
+                f"[DB MOCK ACTIVE] Local Mock DB engine active for database '{self.db_name}'. "
+                f"Operations will be persisted to backend-ai/.mock_db/"
+            )
+
     def _connect(self):
         if self.force_mock:
-            self.logger.info("FORCE_MOCK_DB is active. Spawning local Mock DB client.")
+            self.logger.info(
+                f"[DB MOCK FORCE] FORCE_MOCK_DB is active for '{self.service_name}'. "
+                f"Initializing Local Mock DB engine for '{self.db_name}'."
+            )
             self.client = MockMongoClient(self.uri)
-            self.db = self.client[self.db_name]
+            self.real_db = self.client[self.db_name]
             return
 
+        # Obscure password for security in terminal logs
+        safe_uri = re.sub(r":([^@]+)@", ":****@", self.uri)
+        self.logger.info(
+            f"[DB CONNECTING] Initiating connection attempt for '{self.service_name}' "
+            f"to MongoDB Atlas Cloud: {safe_uri} (Database: '{self.db_name}')..."
+        )
+
         try:
-            self.client = MongoClient(self.uri, serverSelectionTimeoutMS=2000, timeoutMS=10000)
-            self.client.server_info()  # triggers connection attempt
-            self.db = self.client[self.db_name]
-            self.logger.info(f"MongoDB connected successfully to database: '{self.db_name}'")
+            self.client = MongoClient(self.uri, serverSelectionTimeoutMS=2500, timeoutMS=10000)
+            self.client.server_info()  # triggers live connection check
+            self.real_db = self.client[self.db_name]
+            self.logger.info(
+                f"[DB CONNECTED SUCCESS] MongoDB Atlas Cloud Database connected successfully! "
+                f"Service '{self.service_name}' bound to database: '{self.db_name}'."
+            )
         except Exception as e:
-            self.logger.warning(f"MongoDB Atlas unreachable ({e}). Spawning local Mock DB client fallback.")
+            self.logger.warning(
+                f"[DB CONNECTION TIMEOUT/FAIL] MongoDB Atlas Cloud unreachable for '{self.service_name}'. "
+                f"Reason: {e}. Automatically activating Local Mock DB fallback engine."
+            )
             self.client = MockMongoClient(self.uri)
-            self.db = self.client[self.db_name]
+            self.real_db = self.client[self.db_name]
+            self.logger.info(
+                f"[DB MOCK ACTIVE] Service '{self.service_name}' now operating on Local Mock DB. "
+                f"Data saved locally to backend-ai/.mock_db/"
+            )
 
     def get_collection(self, col_name: str):
         return self.db[col_name]

@@ -106,8 +106,19 @@ def seed_mock_db(data):
     # Seed ACCESS_GRANT and VISIT_HISTORY blocks for each doctor-patient pair
     for doc in doctors:
         d_id = doc["doctor_id"]
-        for pat in ["Priya_123", "priya_123", "Priya Sharma", "Elena Vance", "elena_vance"]:
-            pat_name = "Priya Sharma" if "priya" in pat.lower() else "Elena Vance"
+        for pat in ["Priya_123", "priya_123", "Priya Sharma", "Elena Vance", "elena_vance", "rahul_v01", "Rahul Verma", "john_doe"]:
+            if "priya" in pat.lower():
+                pat_name = "Priya Sharma"
+                disease_name = "Chronic Hypertension Follow-up"
+            elif "rahul" in pat.lower():
+                pat_name = "Rahul Verma"
+                disease_name = "Sinusitis & Rhinitis Consultation"
+            elif "john" in pat.lower():
+                pat_name = "John Doe"
+                disease_name = "Cardiac Evaluation"
+            else:
+                pat_name = "Elena Vance"
+                disease_name = "Post-op Asthma Checkup"
             
             # Access grant block
             b_data = {
@@ -136,9 +147,9 @@ def seed_mock_db(data):
                 "doctor_id": d_id,
                 "doctor_name": doc["name"],
                 "hospital": doc.get("hospitalName") or "Metropolitan Hospital Centre",
-                "disease": "Chronic Hypertension Follow-up" if "priya" in pat.lower() else "Post-op Cardiac Checkup",
+                "disease": disease_name,
                 "rx_id": "rx_" + str(uuid.uuid4())[:8],
-                "date": "2026-06-25T10:00:00"
+                "date": datetime.now().strftime("%Y-%m-%dT10:00:00")
             }
             v_block = {
                 "index": index,

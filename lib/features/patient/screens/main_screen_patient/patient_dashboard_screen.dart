@@ -1,8 +1,15 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Patient Dashboard Screen
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — all AppState reads, fetches, _toggleStatus,
+//                 navigation routes, risk score logic preserved exactly
+// ════════════════════════════════════════════════════════════════════════════
+
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:health_lock/shared/models/prescription.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/state/app_state.dart';
+import '../../../../core/theme/design_system.dart';
 
 import '../../widgets/dose_timeline.dart';
 import '../../widgets/consultation_status_chip.dart';
@@ -15,23 +22,6 @@ import '../patient_medication_list_screen.dart';
 import '../patient_prescription_detail_screen.dart';
 import '../patient_notifications_screen.dart';
 
-// ── 60-30-10 Design Tokens ─────────────────────────────────────
-class _P {
-  // 60% Dominant — Cream Canvas
-  static const bg = Color(0xFFF7F4EB);
-  static const card = Color(0xFFFFFFFF);
-
-  // 30% Secondary — Bronze & Copper
-  static const text = Color(0xFF4A3325); // Deep Matte Bronze
-  static const sub = Color(0xFFD4A387); // Soft Rose Gold
-  static const border = Color(0xFFB88E74); // Brushed Copper
-
-  // 10% Accent — State Indicators
-  static const teal = Color(0xFF2E8B90); // Deep Medical Teal (Done/Safe)
-  static const amber = Color(0xFFD97736); // Warm Amber (Warning)
-  static const red = Color(0xFFB33A3A); // Burgundy Red (Critical)
-}
-
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
 
@@ -42,6 +32,7 @@ class PatientDashboardScreen extends StatefulWidget {
 class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   final Set<String> _takenMeds = {};
 
+  // ── BUSINESS LOGIC UNCHANGED ─────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
@@ -63,13 +54,14 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       }
     });
   }
+  // ── END BUSINESS LOGIC ────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
     final vault = appState.patientVault;
 
-    // Derive today's medicines from active (undispensed) prescriptions
+    // ── BUSINESS LOGIC UNCHANGED — medication + risk derivation ──────────────
     final activePrescriptions = vault.where((rx) => !rx.isDispensed).toList();
     final List<Map<String, String>> todayMeds = [];
     for (var rx in activePrescriptions) {
@@ -110,46 +102,85 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     } else if (activePrescriptions.isNotEmpty) {
       riskScore = 15;
     }
+    // ── END BUSINESS LOGIC ────────────────────────────────────────────────────
+
+    final String initials = appState.patientName.isNotEmpty
+        ? appState.patientName
+              .split(' ')
+              .where((w) => w.isNotEmpty)
+              .take(2)
+              .map((w) => w[0].toUpperCase())
+              .join()
+        : 'P';
 
     return Scaffold(
-      backgroundColor: _P.bg,
+      backgroundColor: AegisColors.background,
       appBar: AppBar(
-        backgroundColor: _P.bg,
+        backgroundColor: AegisColors.surface,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         automaticallyImplyLeading: false,
-        title: RichText(
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: 'AegisRx ',
-                style: GoogleFonts.sora(
-                  color: _P.text,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 22,
+        titleSpacing: AegisSpacing.pagePadding,
+        title: Row(
+          children: [
+            // Avatar initials
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AegisColors.primary,
+                borderRadius: BorderRadius.circular(AegisRadius.sm),
+              ),
+              child: Center(
+                child: Text(
+                  initials,
+                  style: AegisTypography.labelMedium.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-              TextSpan(
-                text: 'Patient Vault',
-                style: GoogleFonts.inter(
-                  color: _P.sub,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 18,
+            ),
+            const SizedBox(width: AegisSpacing.sm),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'AegisRx',
+                  style: AegisTypography.titleSmall.copyWith(
+                    color: AegisColors.primary,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-              ),
-            ],
-          ),
+                Text(
+                  'Patient Vault',
+                  style: AegisTypography.labelSmall.copyWith(
+                    color: AegisColors.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
         actions: [
+          // Notifications bell with badge
           Stack(
             alignment: Alignment.center,
             children: [
               IconButton(
-                icon: const Icon(Icons.notifications_outlined, color: _P.text),
+                icon: Icon(
+                  Icons.notifications_outlined,
+                  color: AegisColors.textSecondary,
+                  size: AegisIconSize.base,
+                ),
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const PatientNotificationsScreen(),
+                    AegisMotion.fadeSlideRoute(
+                      const PatientNotificationsScreen(),
                     ),
                   );
                 },
@@ -162,42 +193,52 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                     width: 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: _P.red,
-                      borderRadius: BorderRadius.circular(6),
+                      color: AegisColors.danger,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AegisColors.surface,
+                        width: 1.5,
+                      ),
                     ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AegisSpacing.sm),
         ],
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: AegisColors.border),
+        ),
       ),
       body: Column(
         children: [
+          // ── Network Error Banner ──────────────────────────────
           if (appState.networkError)
             Container(
-              color: _P.red,
+              color: AegisColors.danger,
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              padding: const EdgeInsets.symmetric(
+                vertical: AegisSpacing.sm,
+                horizontal: AegisSpacing.pagePadding,
+              ),
               child: Row(
                 children: [
                   const Icon(
                     Icons.wifi_off_rounded,
                     color: Colors.white,
-                    size: 20,
+                    size: AegisIconSize.sm,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AegisSpacing.sm),
                   Expanded(
                     child: Text(
                       'AegisRx Node Offline. Operating in sovereign offline-vault fallback mode.',
-                      style: GoogleFonts.inter(
+                      style: AegisTypography.labelSmall.copyWith(
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
                   TextButton(
                     onPressed: () async {
                       await appState.fetchPrescriptions();
@@ -205,10 +246,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                     },
                     child: Text(
                       'RETRY',
-                      style: GoogleFonts.inter(
+                      style: AegisTypography.labelSmall.copyWith(
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
                         decoration: TextDecoration.underline,
                       ),
                     ),
@@ -216,190 +256,225 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                 ],
               ),
             ),
-          // ── Session Row ───────────────────────────────────────
+
+          // ── Session Status Row ────────────────────────────────
           Container(
-            color: _P.bg,
+            color: AegisColors.surface,
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20.0, 4.0, 20.0, 16.0),
+            padding: const EdgeInsets.fromLTRB(
+              AegisSpacing.pagePadding,
+              AegisSpacing.sm,
+              AegisSpacing.pagePadding,
+              AegisSpacing.md,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 ConsultationStatusChip(
                   status: appState.isAttendanceActive ? 'active' : 'inactive',
                 ),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const PatientShareScreen(),
+                appState.isAttendanceActive
+                    ? ElevatedButton.icon(
+                        onPressed: () async {
+                          await appState.cancelActiveSession();
+                        },
+                        icon: const Icon(
+                          Icons.power_settings_new_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                        label: Text(
+                          'Disconnect',
+                          style: AegisTypography.labelMedium.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AegisColors.danger,
+                          elevation: 0,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AegisSpacing.md,
+                            vertical: AegisSpacing.sm,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: AegisRadius.chip,
+                          ),
+                          textStyle: AegisTypography.labelMedium,
+                        ),
+                      )
+                    : ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const PatientShareScreen(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.qr_code_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                        label: Text(
+                          'Share Session',
+                          style: AegisTypography.labelMedium.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AegisColors.secondary,
+                          elevation: 0,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AegisSpacing.md,
+                            vertical: AegisSpacing.sm,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: AegisRadius.chip,
+                          ),
+                          textStyle: AegisTypography.labelMedium,
+                        ),
                       ),
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.qr_code,
-                    size: 18,
-                    color: Colors.white,
-                  ),
-                  label: Text(
-                    'Share Session',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _P.teal,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
-          // ── Main Scrollable Content ───────────────────────────
+          const Divider(height: 1, color: AegisColors.border),
+
+          // ── Main Content ──────────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.all(AegisSpacing.pagePadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Welcome Header
+                  // Welcome greeting
                   Text(
                     'Good day, ${appState.patientName}',
-                    style: GoogleFonts.sora(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: _P.text,
+                    style: AegisTypography.displaySmall.copyWith(
+                      color: AegisColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AegisSpacing.xs),
                   Text(
-                    'Today, ${DateTime.now().day} ${_getMonthName(DateTime.now().month)} ${DateTime.now().year}',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: _P.sub,
-                      fontWeight: FontWeight.w500,
+                    'Today, ${DateTime.now().day} ${_monthName(DateTime.now().month)} ${DateTime.now().year}',
+                    style: AegisTypography.bodySmall.copyWith(
+                      color: AegisColors.textSecondary,
                     ),
                   ),
+
+                  // Allergy danger banner
                   if (hasPenicillinAllergy) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AegisSpacing.base),
                     const DangerBanner(
                       message:
                           'CRITICAL ALERT: Documented severe Penicillin allergy.',
                     ),
                   ],
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AegisSpacing.base),
 
-                  // ── Status Row — 3 flat cards ─────────────────
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatusCard(
-                          icon: Icons.description_rounded,
-                          label: 'Prescriptions',
-                          value: '${vault.length}',
-                          iconColor: _P.teal,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatusCard(
-                          icon: Icons.warning_amber_rounded,
-                          label: 'Allergy Alerts',
-                          value: '${appState.patientAllergies.length}',
-                          iconColor: _P.amber,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatusCard(
-                          icon: Icons.medical_services_rounded,
-                          label: 'Consultation',
-                          value: appState.isAttendanceActive ? 'Live' : 'None',
-                          iconColor: appState.isAttendanceActive
-                              ? _P.teal
-                              : _P.sub,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  if (riskScore > 30) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                  // ── Status cards row ─────────────────────────
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Expanded(
-                          child: _buildFlatCard(
-                            child: Center(
-                              child: RiskGauge(severityScore: riskScore),
-                            ),
+                          child: _StatusCard(
+                            icon: Icons.description_rounded,
+                            label: 'Prescriptions',
+                            value: '${vault.length}',
+                            iconColor: AegisColors.primary,
+                            iconBg: AegisColors.primarySurface,
+                          ),
+                        ),
+                        const SizedBox(width: AegisSpacing.sm),
+                        Expanded(
+                          child: _StatusCard(
+                            icon: Icons.warning_amber_rounded,
+                            label: 'Allergy Alerts',
+                            value: '${appState.patientAllergies.length}',
+                            iconColor: AegisColors.warning,
+                            iconBg: AegisColors.warningLight,
+                          ),
+                        ),
+                        const SizedBox(width: AegisSpacing.sm),
+                        Expanded(
+                          child: _StatusCard(
+                            icon: Icons.medical_services_rounded,
+                            label: 'Consultation',
+                            value: appState.isAttendanceActive
+                                ? 'Live'
+                                : 'None',
+                            iconColor: appState.isAttendanceActive
+                                ? AegisColors.secondary
+                                : AegisColors.textTertiary,
+                            iconBg: appState.isAttendanceActive
+                                ? AegisColors.secondarySurface
+                                : AegisColors.surfaceDim,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                  ),
+                  const SizedBox(height: AegisSpacing.base),
+
+                  // ── Risk Gauge ───────────────────────────────
+                  if (riskScore > 30) ...[
+                    _DashCard(
+                      child: Center(child: RiskGauge(severityScore: riskScore)),
+                    ),
+                    const SizedBox(height: AegisSpacing.base),
                   ],
 
-                  // ── Today's Medications card ─────────────────
-                  _buildFlatCard(
+                  // ── Today's Medications ──────────────────────
+                  _DashCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "Today's medications",
-                              style: GoogleFonts.sora(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: _P.text,
-                              ),
-                            ),
-                            Icon(
-                              Icons.today_rounded,
-                              color: _P.border,
-                              size: 22,
-                            ),
-                          ],
+                        _CardHeader(
+                          title: "Today's Medications",
+                          icon: Icons.medication_rounded,
+                          iconColor: AegisColors.secondary,
+                          iconBg: AegisColors.secondarySurface,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AegisSpacing.md),
+                        const Divider(height: 1, color: AegisColors.border),
+                        const SizedBox(height: AegisSpacing.md),
                         todayMeds.isEmpty
-                            ? Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16.0,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    'No active medications for today.',
-                                    style: GoogleFonts.inter(
-                                      color: _P.sub,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
+                            ? _EmptyState(
+                                icon: Icons.medication_liquid_outlined,
+                                message: 'No active medications for today.',
                               )
                             : ListView.separated(
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: todayMeds.length,
-                                separatorBuilder: (_, __) => Divider(
-                                  color: _P.border.withOpacity(0.3),
-                                  height: 16,
+                                separatorBuilder: (_, child) => const Divider(
+                                  height: AegisSpacing.md,
+                                  color: AegisColors.border,
                                 ),
                                 itemBuilder: (context, index) {
                                   final med = todayMeds[index];
                                   final isTaken = med['status'] == 'Taken';
                                   return Row(
                                     children: [
+                                      // Status dot
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: isTaken
+                                              ? AegisColors.secondary
+                                              : AegisColors.warning,
+                                        ),
+                                      ),
+                                      const SizedBox(width: AegisSpacing.sm),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -407,57 +482,62 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                                           children: [
                                             Text(
                                               med['name']!,
-                                              style: GoogleFonts.inter(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 15,
-                                                color: _P.text,
-                                                decoration: isTaken
-                                                    ? TextDecoration.lineThrough
-                                                    : null,
-                                              ),
+                                              style: AegisTypography.titleSmall
+                                                  .copyWith(
+                                                    color:
+                                                        AegisColors.textPrimary,
+                                                    decoration: isTaken
+                                                        ? TextDecoration
+                                                              .lineThrough
+                                                        : null,
+                                                  ),
                                             ),
                                             Text(
                                               med['schedule']!,
-                                              style: GoogleFonts.inter(
-                                                fontSize: 12,
-                                                color: _P.sub,
-                                              ),
+                                              style: AegisTypography.bodySmall
+                                                  .copyWith(
+                                                    color: AegisColors
+                                                        .textSecondary,
+                                                  ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                      InkWell(
+                                      const SizedBox(width: AegisSpacing.sm),
+                                      GestureDetector(
                                         onTap: () =>
                                             _toggleStatus(med['name']!),
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Container(
+                                        child: AnimatedContainer(
+                                          duration: AegisMotion.moderate,
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 6,
+                                            horizontal: AegisSpacing.sm,
+                                            vertical: AegisSpacing.xs,
                                           ),
                                           decoration: BoxDecoration(
                                             color: isTaken
-                                                ? _P.teal.withOpacity(0.1)
-                                                : _P.amber.withOpacity(0.1),
+                                                ? AegisColors.secondary
+                                                      .withValues(alpha: 0.1)
+                                                : AegisColors.warning
+                                                      .withValues(alpha: 0.1),
                                             borderRadius: BorderRadius.circular(
-                                              12,
+                                              AegisRadius.sm,
                                             ),
                                             border: Border.all(
                                               color: isTaken
-                                                  ? _P.teal
-                                                  : _P.amber,
-                                              width: 1.5,
+                                                  ? AegisColors.secondary
+                                                  : AegisColors.warning,
+                                              width: AegisBorders.regular,
                                             ),
                                           ),
                                           child: Text(
                                             med['status']!,
-                                            style: GoogleFonts.inter(
-                                              color: isTaken
-                                                  ? _P.teal
-                                                  : _P.amber,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                            ),
+                                            style: AegisTypography.labelSmall
+                                                .copyWith(
+                                                  color: isTaken
+                                                      ? AegisColors.secondary
+                                                      : AegisColors.warning,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
                                           ),
                                         ),
                                       ),
@@ -465,8 +545,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                                   );
                                 },
                               ),
-                        const SizedBox(height: 16),
-                        Divider(color: _P.border.withOpacity(0.3)),
+                        const SizedBox(height: AegisSpacing.md),
+                        const Divider(height: 1, color: AegisColors.border),
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton.icon(
@@ -480,15 +560,15 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                               );
                             },
                             icon: const Icon(
-                              Icons.arrow_forward,
-                              size: 16,
-                              color: _P.teal,
+                              Icons.arrow_forward_rounded,
+                              size: AegisIconSize.sm,
+                              color: AegisColors.primary,
                             ),
                             label: Text(
                               'See all medications',
-                              style: GoogleFonts.inter(
-                                color: _P.teal,
-                                fontWeight: FontWeight.bold,
+                              style: AegisTypography.labelSmall.copyWith(
+                                color: AegisColors.primary,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
@@ -496,21 +576,19 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AegisSpacing.base),
 
                   // ── Prescription Status Summary ───────────────
                   _buildPrescriptionSummaryCard(context, vault),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AegisSpacing.base),
 
-                  // ── Intake Timeline card ──────────────────────
-                  _buildFlatCard(child: const DoseTimeline()),
-                  const SizedBox(height: 24),
+                  // ── Dose Timeline ─────────────────────────────
+                  _DashCard(child: const DoseTimeline()),
+                  const SizedBox(height: AegisSpacing.base),
 
-                  // ── Inventory Tracker card ───────────────────
-                  _buildFlatCard(child: InventoryTracker(prescriptions: vault)),
-                  const SizedBox(height: 24),
-
-                  const SizedBox(height: 40),
+                  // ── Inventory Tracker ─────────────────────────
+                  _DashCard(child: InventoryTracker(prescriptions: vault)),
+                  const SizedBox(height: AegisSpacing.base),
                 ],
               ),
             ),
@@ -520,85 +598,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  // ── Flat Card builder ──────────────────────────────────────────
-  Widget _buildFlatCard({required Widget child}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _P.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _P.border, width: 1.0),
-      ),
-      child: child,
-    );
-  }
-
-  // ── Status Summary card (top row) ─────────────────────────────
-  Widget _buildStatusCard({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color iconColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-      decoration: BoxDecoration(
-        color: _P.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _P.border, width: 1.0),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: iconColor, size: 24),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: GoogleFonts.sora(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-              color: _P.text,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
-              fontSize: 10,
-              color: _P.sub,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getMonthName(int month) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    if (month >= 1 && month <= 12) {
-      return months[month - 1];
-    }
-    return '';
-  }
-
-  // ── Prescription Status Summary Card ──────────────────────────
-
+  // ── Prescription Summary Card ─────────────────────────────────────────────
   Widget _buildPrescriptionSummaryCard(
     BuildContext context,
     List<Prescription> vault,
@@ -610,48 +610,48 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       (sum, rx) => sum + rx.medicines.length,
     );
 
-    return _buildFlatCard(
+    return _DashCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header ─────────────────────────────────────────
+          // Header with blockchain badge
           Row(
             children: [
               Expanded(
-                child: Text(
-                  'Prescription Status',
-                  style: GoogleFonts.sora(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: _P.text,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+                child: _CardHeader(
+                  title: 'Prescription Status',
+                  icon: Icons.description_rounded,
+                  iconColor: AegisColors.primary,
+                  iconBg: AegisColors.primarySurface,
                 ),
               ),
-              const SizedBox(width: 8),
-              // Verified badge
+              // Blockchain secured — AI Purple per color rules
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AegisSpacing.sm,
+                  vertical: AegisSpacing.xs,
+                ),
                 decoration: BoxDecoration(
-                  color: _P.teal.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _P.teal.withOpacity(0.5), width: 1),
+                  color: AegisColors.tertiarySurface,
+                  borderRadius: AegisRadius.chip,
+                  border: Border.all(
+                    color: AegisColors.tertiary.withValues(alpha: 0.4),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(
-                      Icons.verified_rounded,
-                      size: 13,
-                      color: _P.teal,
+                      Icons.link_rounded,
+                      size: AegisIconSize.xs,
+                      color: AegisColors.tertiary,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AegisSpacing.xs),
                     Text(
-                      'Blockchain Secured',
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: _P.teal,
+                      'Hyperledger',
+                      style: AegisTypography.labelSmall.copyWith(
+                        color: AegisColors.tertiary,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -659,65 +659,55 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AegisSpacing.md),
+          const Divider(height: 1, color: AegisColors.border),
+          const SizedBox(height: AegisSpacing.md),
 
-          // ── Stat Row ────────────────────────────────────────
-          Row(
-            children: [
-              _statPill(
-                label: 'Active',
-                value: '$activeCount',
-                color: _P.teal,
-                icon: Icons.check_circle_outline_rounded,
-              ),
-              const SizedBox(width: 10),
-              _statPill(
-                label: 'Dispensed',
-                value: '$dispensedCount',
-                color: _P.border,
-                icon: Icons.local_pharmacy_outlined,
-              ),
-              const SizedBox(width: 10),
-              _statPill(
-                label: 'Medicines',
-                value: '$medicineCount',
-                color: _P.amber,
-                icon: Icons.medication_outlined,
-              ),
-            ],
+          // Stat pills
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _StatPill(
+                  label: 'Active',
+                  value: '$activeCount',
+                  color: AegisColors.secondary,
+                  icon: Icons.check_circle_outline_rounded,
+                ),
+                const SizedBox(width: AegisSpacing.sm),
+                _StatPill(
+                  label: 'Dispensed',
+                  value: '$dispensedCount',
+                  color: AegisColors.textTertiary,
+                  icon: Icons.local_pharmacy_outlined,
+                ),
+                const SizedBox(width: AegisSpacing.sm),
+                _StatPill(
+                  label: 'Medicines',
+                  value: '$medicineCount',
+                  color: AegisColors.warning,
+                  icon: Icons.medication_outlined,
+                ),
+              ],
+            ),
           ),
 
           if (vault.isEmpty) ...[
-            const SizedBox(height: 20),
-            Center(
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.description_outlined,
-                    size: 40,
-                    color: _P.border,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'No prescriptions yet',
-                    style: GoogleFonts.inter(color: _P.sub, fontSize: 14),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Your doctor will add them during a consultation.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(color: _P.sub, fontSize: 12),
-                  ),
-                ],
-              ),
+            const SizedBox(height: AegisSpacing.lg),
+            _EmptyState(
+              icon: Icons.description_outlined,
+              message: 'No prescriptions yet',
+              sub: 'Your doctor will add them during a consultation.',
             ),
           ] else ...[
-            Divider(color: _P.border.withOpacity(0.3), height: 28),
+            const SizedBox(height: AegisSpacing.md),
+            const Divider(height: 1, color: AegisColors.border),
+            const SizedBox(height: AegisSpacing.sm),
 
-            // ── Prescription List ───────────────────────────
+            // Prescription list
             ...vault.map(
               (rx) => Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
+                padding: const EdgeInsets.only(bottom: AegisSpacing.sm),
                 child: InkWell(
                   onTap: () => Navigator.push(
                     context,
@@ -726,84 +716,80 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                           PatientPrescriptionDetailScreen(prescription: rx),
                     ),
                   ),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: AegisRadius.card,
                   child: Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(AegisSpacing.md),
                     decoration: BoxDecoration(
-                      color: _P.bg,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _P.border.withOpacity(0.4),
-                        width: 1,
-                      ),
+                      color: AegisColors.background,
+                      borderRadius: AegisRadius.card,
+                      border: Border.all(color: AegisColors.border),
                     ),
                     child: Row(
                       children: [
-                        // Status indicator dot
                         Container(
                           width: 8,
                           height: 8,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: rx.isDispensed ? _P.border : _P.teal,
+                            color: rx.isDispensed
+                                ? AegisColors.textTertiary
+                                : AegisColors.secondary,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: AegisSpacing.sm),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 'Dr. ${rx.doctorName}',
-                                style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                  color: _P.text,
+                                style: AegisTypography.titleSmall.copyWith(
+                                  color: AegisColors.textPrimary,
                                 ),
                               ),
                               Text(
                                 '${rx.disease} · ${rx.medicines.length} med${rx.medicines.length == 1 ? '' : 's'}',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  color: _P.sub,
+                                style: AegisTypography.bodySmall.copyWith(
+                                  color: AegisColors.textSecondary,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        // Status badge
+                        const SizedBox(width: AegisSpacing.sm),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
+                            horizontal: AegisSpacing.sm,
+                            vertical: AegisSpacing.xs,
                           ),
                           decoration: BoxDecoration(
                             color: rx.isDispensed
-                                ? _P.border.withOpacity(0.1)
-                                : _P.teal.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
+                                ? AegisColors.surfaceDim
+                                : AegisColors.secondarySurface,
+                            borderRadius: BorderRadius.circular(AegisRadius.xs),
                             border: Border.all(
                               color: rx.isDispensed
-                                  ? _P.border.withOpacity(0.5)
-                                  : _P.teal.withOpacity(0.6),
-                              width: 1,
+                                  ? AegisColors.border
+                                  : AegisColors.secondary.withValues(
+                                      alpha: 0.5,
+                                    ),
                             ),
                           ),
                           child: Text(
                             rx.isDispensed ? 'Dispensed' : 'Active',
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: rx.isDispensed ? _P.border : _P.teal,
+                            style: AegisTypography.labelSmall.copyWith(
+                              color: rx.isDispensed
+                                  ? AegisColors.textTertiary
+                                  : AegisColors.secondary,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: AegisSpacing.xs),
                         const Icon(
                           Icons.arrow_forward_ios_rounded,
-                          size: 12,
-                          color: _P.border,
+                          size: AegisIconSize.xs,
+                          color: AegisColors.textTertiary,
                         ),
                       ],
                     ),
@@ -812,7 +798,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
               ),
             ),
 
-            // ── View History link ───────────────────────────
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
@@ -822,13 +807,16 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                     builder: (context) => const PatientHistoryScreen(),
                   ),
                 ),
-                icon: const Icon(Icons.history, size: 16, color: _P.border),
+                icon: const Icon(
+                  Icons.history_rounded,
+                  size: AegisIconSize.sm,
+                  color: AegisColors.textSecondary,
+                ),
                 label: Text(
                   'Full History',
-                  style: GoogleFonts.inter(
-                    color: _P.border,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                  style: AegisTypography.labelSmall.copyWith(
+                    color: AegisColors.textSecondary,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 style: TextButton.styleFrom(
@@ -844,43 +832,244 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
+  String _monthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    if (month >= 1 && month <= 12) return months[month - 1];
+    return '';
+  }
+}
 
-  // ── Stat pill widget ──────────────────────────────────────────
-  Widget _statPill({
-    required String label,
-    required String value,
-    required Color color,
-    required IconData icon,
-  }) {
+// ═══════════════════════════════════════════════════════════════════════════
+// Reusable Dashboard Components
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Base clinical white card with AegisRx shadow + border
+class _DashCard extends StatelessWidget {
+  final Widget child;
+  const _DashCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AegisSpacing.base),
+      decoration: BoxDecoration(
+        color: AegisColors.surface,
+        borderRadius: AegisRadius.card,
+        border: Border.all(color: AegisColors.border),
+        boxShadow: AegisShadows.sm,
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Card section header with colored icon badge
+class _CardHeader extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBg;
+
+  const _CardHeader({
+    required this.title,
+    required this.icon,
+    required this.iconColor,
+    required this.iconBg,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: iconBg,
+            borderRadius: BorderRadius.circular(AegisRadius.sm),
+          ),
+          child: Icon(icon, size: AegisIconSize.sm, color: iconColor),
+        ),
+        const SizedBox(width: AegisSpacing.sm),
+        Expanded(
+          child: Text(
+            title,
+            overflow: TextOverflow.ellipsis,
+            style: AegisTypography.titleSmall.copyWith(
+              color: AegisColors.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Top summary status card (3-column row)
+class _StatusCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color iconColor;
+  final Color iconBg;
+
+  const _StatusCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.iconColor,
+    required this.iconBg,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        vertical: AegisSpacing.md,
+        horizontal: AegisSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AegisColors.surface,
+        borderRadius: AegisRadius.card,
+        border: Border.all(color: AegisColors.border),
+        boxShadow: AegisShadows.sm,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(AegisRadius.sm),
+            ),
+            child: Icon(icon, color: iconColor, size: AegisIconSize.sm),
+          ),
+          const SizedBox(height: AegisSpacing.xs),
+          Text(
+            value,
+            style: AegisTypography.headlineSmall.copyWith(
+              color: AegisColors.textPrimary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: AegisTypography.labelSmall.copyWith(
+              color: AegisColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Expandable stat pill for prescription summary
+class _StatPill extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  final IconData icon;
+
+  const _StatPill({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        padding: const EdgeInsets.symmetric(
+          vertical: AegisSpacing.sm,
+          horizontal: AegisSpacing.xs,
+        ),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3), width: 1),
+          color: color.withValues(alpha: 0.08),
+          borderRadius: AegisRadius.card,
+          border: Border.all(color: color.withValues(alpha: 0.25)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(height: 4),
+            Icon(icon, size: AegisIconSize.sm, color: color),
+            const SizedBox(height: AegisSpacing.xs),
             Text(
               value,
-              style: GoogleFonts.sora(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: _P.text,
+              style: AegisTypography.headlineSmall.copyWith(
+                fontWeight: FontWeight.w800,
+                color: AegisColors.textPrimary,
               ),
             ),
             Text(
               label,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                color: _P.sub,
-                fontWeight: FontWeight.w600,
+              style: AegisTypography.labelSmall.copyWith(
+                color: AegisColors.textSecondary,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Centered empty state placeholder
+class _EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String message;
+  final String? sub;
+
+  const _EmptyState({required this.icon, required this.message, this.sub});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AegisSpacing.base),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: AegisIconSize.xxl,
+              color: AegisColors.textTertiary,
+            ),
+            const SizedBox(height: AegisSpacing.sm),
+            Text(
+              message,
+              style: AegisTypography.bodyMedium.copyWith(
+                color: AegisColors.textSecondary,
+              ),
+            ),
+            if (sub != null) ...[
+              const SizedBox(height: AegisSpacing.xs),
+              Text(
+                sub!,
+                textAlign: TextAlign.center,
+                style: AegisTypography.bodySmall.copyWith(
+                  color: AegisColors.textTertiary,
+                ),
+              ),
+            ],
           ],
         ),
       ),

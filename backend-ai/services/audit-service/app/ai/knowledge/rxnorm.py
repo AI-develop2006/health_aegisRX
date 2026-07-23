@@ -7,6 +7,8 @@ from app.core.config import settings
 logger = logging.getLogger("AegisRx.RxNorm")
 
 class RxNormMock(BaseRxNorm):
+    _cache = {}
+
     def __init__(self):
         # Local mock database for common medicines
         self.db = {
@@ -68,6 +70,11 @@ class RxNormMock(BaseRxNorm):
         }
 
     async def get_concept_details(self, drug_name: str) -> Dict[str, Any]:
+        drug_name_clean = drug_name.strip().lower()
+        if drug_name_clean in self._cache:
+            logger.info(f"RxNorm cache hit for: {drug_name_clean}")
+            return self._cache[drug_name_clean]
+
         if settings.USE_MOCK_AUDIT:
             logger.info("USE_MOCK_AUDIT is enabled. Using RxNorm mock database.")
             return self._get_mock_concept_details(drug_name)
@@ -95,12 +102,14 @@ class RxNormMock(BaseRxNorm):
                 if concepts:
                     drug_class = concepts[0].get("rxclassMinCard", {}).get("className", "Unknown")
 
-                return {
+                result = {
                     "generic_name": drug_name.strip().lower(),
                     "brand_names": [],
                     "drug_class": drug_class,
                     "rxcui": str(rxcui)
                 }
+                self._cache[drug_name_clean] = result
+                return result
         except Exception as e:
             logger.warning(f"NIH RxNorm query failed for '{drug_name}': {e}. Falling back to local mock registry.")
             return self._get_mock_concept_details(drug_name)

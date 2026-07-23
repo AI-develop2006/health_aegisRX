@@ -1,7 +1,14 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Doctor License Verification Screen
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — appState.isVerified, requestDoctorVerification(),
+//                 resetFlow() preserved
+// ════════════════════════════════════════════════════════════════════════════
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/state/app_state.dart';
+import '../../../core/theme/design_system.dart';
 import '../doctor_theme.dart';
 
 class DoctorVerificationStatusScreen extends StatelessWidget {
@@ -12,7 +19,8 @@ class DoctorVerificationStatusScreen extends StatelessWidget {
     final appState = Provider.of<AppState>(context);
     final isPending = !appState.isVerified;
 
-    final stateColor = isPending ? Dr.amber : Dr.green;
+    final stateColor = isPending ? AegisColors.warning : AegisColors.secondary;
+    final stateBg = isPending ? AegisColors.warningLight : AegisColors.secondarySurface;
     final stateIcon = isPending
         ? Icons.pending_actions_rounded
         : Icons.verified_rounded;
@@ -29,79 +37,79 @@ class DoctorVerificationStatusScreen extends StatelessWidget {
             onPressed: () => appState.resetFlow(),
             child: Text(
               'Sign Out',
-              style: GoogleFonts.inter(color: Dr.sub, fontSize: 13),
+              style: AegisTypography.labelSmall.copyWith(color: AegisColors.textSecondary),
             ),
           ),
         ],
       ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AegisSpacing.pagePadding),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // ── Status Icon ──────────────────────────────────
               Container(
-                padding: const EdgeInsets.all(28),
+                padding: const EdgeInsets.all(AegisSpacing.lg),
                 decoration: BoxDecoration(
-                  color: stateColor.withOpacity(0.08),
+                  color: stateBg,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: stateColor.withOpacity(0.3),
+                    color: stateColor.withValues(alpha: 0.4),
                     width: 1.5,
                   ),
                 ),
                 child: Icon(stateIcon, size: 60, color: stateColor),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AegisSpacing.lg),
 
               Text(
                 stateTitle,
-                style: Dr.heading(22),
+                style: AegisTypography.headlineMedium.copyWith(color: AegisColors.textPrimary),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AegisSpacing.sm),
 
               // ── Status card ──────────────────────────────────
               DoctorCard(
-                borderColor: stateColor.withOpacity(0.3),
+                borderColor: stateColor.withValues(alpha: 0.4),
                 child: Column(
                   children: [
                     // Progress row
                     Row(
                       children: [
-                        _step(label: 'Submitted', done: true, color: Dr.green),
+                        _step(label: 'Submitted', done: true, color: AegisColors.secondary),
                         _stepLine(active: !isPending),
                         _step(
                           label: 'NPI Check',
                           done: !isPending,
-                          color: isPending ? Dr.amber : Dr.green,
+                          color: isPending ? AegisColors.warning : AegisColors.secondary,
                         ),
                         _stepLine(active: !isPending),
                         _step(
                           label: 'Approved',
                           done: !isPending,
-                          color: !isPending ? Dr.green : Dr.border,
+                          color: !isPending ? AegisColors.secondary : AegisColors.border,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: AegisSpacing.base),
                     Text(
                       stateBody,
                       textAlign: TextAlign.center,
-                      style: Dr.meta(13),
+                      style: AegisTypography.bodyMedium.copyWith(color: AegisColors.textSecondary, height: 1.6),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AegisSpacing.lg),
 
               // ── CTA ──────────────────────────────────────────
               if (isPending) ...[
                 DoctorOutlinedButton(
                   label: 'Simulate Approval (Dev)',
                   icon: Icons.developer_mode_rounded,
-                  color: Dr.amber,
+                  color: AegisColors.warning,
                   onPressed: () => appState.requestDoctorVerification(
                     name: 'Dr. John Doe',
                     license: 'NPI-MOCK-9988',
@@ -114,18 +122,18 @@ class DoctorVerificationStatusScreen extends StatelessWidget {
                 DoctorPrimaryButton(
                   label: 'Access Clinician Console',
                   icon: Icons.dashboard_rounded,
+                  backgroundColor: AegisColors.primary,
                   onPressed: () {},
                 ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: AegisSpacing.sm),
               TextButton(
                 onPressed: () => appState.resetFlow(),
                 child: Text(
                   'Return to Role Selection',
-                  style: GoogleFonts.inter(
-                    color: Dr.sub,
+                  style: AegisTypography.labelSmall.copyWith(
+                    color: AegisColors.textSecondary,
                     fontWeight: FontWeight.w600,
-                    fontSize: 13,
                   ),
                 ),
               ),
@@ -157,7 +165,7 @@ class DoctorVerificationStatusScreen extends StatelessWidget {
               : null,
         ),
         const SizedBox(height: 4),
-        Text(label, style: GoogleFonts.inter(fontSize: 10, color: Dr.sub)),
+        Text(label, style: AegisTypography.labelSmall.copyWith(fontSize: 10, color: AegisColors.textSecondary)),
       ],
     );
   }
@@ -167,7 +175,7 @@ class DoctorVerificationStatusScreen extends StatelessWidget {
       child: Container(
         height: 1.5,
         margin: const EdgeInsets.only(bottom: 16),
-        color: active ? Dr.green : Dr.border,
+        color: active ? AegisColors.secondary : AegisColors.border,
       ),
     );
   }

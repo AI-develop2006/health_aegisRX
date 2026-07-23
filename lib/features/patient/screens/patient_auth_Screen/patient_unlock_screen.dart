@@ -1,7 +1,13 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Patient Unlock Screen (PIN entry)
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — unlockDevice(), resetFlow() preserved exactly
+// ════════════════════════════════════════════════════════════════════════════
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/state/app_state.dart';
-import '../../../../shared/widgets/neon_card.dart';
+import '../../../../core/theme/design_system.dart';
 
 class PatientUnlockScreen extends StatefulWidget {
   const PatientUnlockScreen({super.key});
@@ -10,9 +16,31 @@ class PatientUnlockScreen extends StatefulWidget {
   State<PatientUnlockScreen> createState() => _PatientUnlockScreenState();
 }
 
-class _PatientUnlockScreenState extends State<PatientUnlockScreen> {
+class _PatientUnlockScreenState extends State<PatientUnlockScreen>
+    with SingleTickerProviderStateMixin {
   final _pinController = TextEditingController();
+  bool _isError = false;
 
+  late AnimationController _shakeCtrl;
+  late Animation<double> _shakeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _shakeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _shakeAnim = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pinController.dispose();
+    _shakeCtrl.dispose();
+    super.dispose();
+  }
+
+  // ── BUSINESS LOGIC UNCHANGED ──────────────────────────────────────────────
   void _unlock() {
     final pin = _pinController.text;
     if (pin.isEmpty) return;
@@ -21,117 +49,220 @@ class _PatientUnlockScreenState extends State<PatientUnlockScreen> {
     final success = appState.unlockDevice(pin);
 
     if (!success) {
+      setState(() => _isError = true);
+      _shakeCtrl.forward(from: 0).then((_) {
+        setState(() => _isError = false);
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid passcode. Try "1234" or the custom PIN you set.')),
+        SnackBar(
+          content: const Text('Invalid passcode. Try "1234" or the custom PIN you set.'),
+          backgroundColor: AegisColors.danger,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       );
       _pinController.clear();
     }
   }
+  // ── END BUSINESS LOGIC ────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
-
-    // 60-30-10 Color Tokens
-    final bg60 = isLight ? const Color(0xFFF5F6FA) : const Color(0xFF0B0F19);
-    final accent10 = isLight ? const Color(0xFF4F46E5) : const Color(0xFF818CF8);
-
     return Scaffold(
-      backgroundColor: bg60,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: NeonCard(
-            neonColor: accent10,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.lock,
-                  size: 64,
-                  color: accent10,
+      backgroundColor: AegisColors.background,
+      body: Stack(
+        children: [
+          Positioned.fill(child: CustomPaint(painter: _UnlockGridPainter())),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AegisSpacing.pagePadding,
+                  vertical: AegisSpacing.xl,
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Unlock Device Vault',
-                  style: TextStyle(
-                    fontFamily: 'Sora',
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Secure session present. Enter your PIN to decrypt local medical keys.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    color: isLight ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: _pinController,
-                  keyboardType: TextInputType.number,
-                  obscureText: true,
-                  maxLength: 6,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: 'JetBrains Mono',
-                    fontSize: 24,
-                    letterSpacing: 12,
-                  ),
-                  decoration: const InputDecoration(
-                    counterText: '',
-                    labelText: 'Enter Passcode (default is 1234)',
-                    prefixIcon: Icon(Icons.password),
-                  ),
-                  onSubmitted: (_) => _unlock(),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _unlock,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accent10,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // ── Shield icon ──────────────────────────────
+                    AnimatedBuilder(
+                      animation: _shakeAnim,
+                      builder: (context, child) {
+                        final offset = _isError
+                            ? 8 * (_shakeAnim.value < 0.5
+                                ? _shakeAnim.value * 2
+                                : (1 - _shakeAnim.value) * 2)
+                            : 0.0;
+                        return Transform.translate(
+                          offset: Offset(offset * (_shakeAnim.value < 0.5 ? -1 : 1), 0),
+                          child: child,
+                        );
+                      },
+                      child: Container(
+                        width: 88,
+                        height: 88,
+                        decoration: BoxDecoration(
+                          color: AegisColors.primarySurface,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AegisColors.primary.withValues(alpha: 0.3),
+                            width: AegisBorders.regular,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AegisColors.primary.withValues(alpha: 0.15),
+                              blurRadius: 24,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.lock_rounded,
+                          color: AegisColors.primary,
+                          size: 40,
+                        ),
                       ),
                     ),
-                    child: const Text(
-                      'Unlock Vault',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+
+                    const SizedBox(height: AegisSpacing.lg),
+
+                    Text(
+                      'Unlock Device Vault',
+                      style: AegisTypography.displaySmall.copyWith(
+                        color: AegisColors.textPrimary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AegisSpacing.sm),
+                    Text(
+                      'Secure session present.\nEnter your PIN to decrypt local medical keys.',
+                      textAlign: TextAlign.center,
+                      style: AegisTypography.bodyMedium.copyWith(
+                        color: AegisColors.textSecondary,
+                        height: 1.6,
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () {
-                    // Logs out completely
-                    Provider.of<AppState>(context, listen: false).resetFlow();
-                  },
-                  child: Text(
-                    'Cancel & Switch Role',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      color: accent10,
-                      fontWeight: FontWeight.w600,
+
+                    const SizedBox(height: AegisSpacing.xxl),
+
+                    // ── PIN field ──────────────────────────────────
+                    AnimatedBuilder(
+                      animation: _shakeAnim,
+                      builder: (context, child) {
+                        final dx = _isError
+                            ? 6 * (_shakeAnim.value < 0.5
+                                ? _shakeAnim.value * 2
+                                : (1 - _shakeAnim.value) * 2)
+                            : 0.0;
+                        return Transform.translate(
+                          offset: Offset(dx * (_shakeAnim.value < 0.25 ? -1 : 1), 0),
+                          child: child,
+                        );
+                      },
+                      child: TextField(
+                        controller: _pinController,
+                        keyboardType: TextInputType.number,
+                        obscureText: true,
+                        maxLength: 6,
+                        textAlign: TextAlign.center,
+                        style: AegisTypography.monoXL.copyWith(
+                          color: _isError ? AegisColors.danger : AegisColors.textPrimary,
+                          letterSpacing: 14,
+                        ),
+                        onSubmitted: (_) => _unlock(),
+                        decoration: InputDecoration(
+                          counterText: '',
+                          hintText: '• • • • • •',
+                          hintStyle: AegisTypography.monoLarge.copyWith(
+                            color: AegisColors.textTertiary,
+                            letterSpacing: 8,
+                          ),
+                          filled: true,
+                          fillColor: AegisColors.surface,
+                          prefixIcon: const Icon(Icons.password_rounded,
+                              color: AegisColors.textTertiary, size: AegisIconSize.md),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: AegisRadius.input,
+                            borderSide: BorderSide(
+                              color: _isError ? AegisColors.danger : AegisColors.border,
+                              width: AegisBorders.regular,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: AegisRadius.input,
+                            borderSide: BorderSide(
+                              color: _isError ? AegisColors.danger : AegisColors.primary,
+                              width: AegisBorders.thick,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+
+                    const SizedBox(height: AegisSpacing.lg),
+
+                    // ── Unlock CTA ─────────────────────────────────
+                    SizedBox(
+                      width: double.infinity,
+                      height: AegisTokens.btnHeight,
+                      child: ElevatedButton(
+                        onPressed: _unlock,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AegisColors.primary,
+                          foregroundColor: AegisColors.onPrimary,
+                          elevation: 0,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
+                          textStyle: AegisTypography.labelLarge,
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.lock_open_rounded, size: AegisIconSize.sm),
+                            SizedBox(width: AegisSpacing.sm),
+                            Text('Unlock Vault'),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: AegisSpacing.md),
+
+                    TextButton(
+                      onPressed: () =>
+                          Provider.of<AppState>(context, listen: false).resetFlow(),
+                      child: Text(
+                        'Cancel & Switch Role',
+                        style: AegisTypography.bodySmall.copyWith(
+                            color: AegisColors.textSecondary),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
+}
+
+class _UnlockGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AegisColors.primary.withValues(alpha: 0.025)
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+    const step = 44.0;
+    for (double x = 0; x <= size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (double y = 0; y <= size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -53,7 +53,10 @@ class ChatRequest(BaseModel):
 
 
 class VoiceParserRequest(BaseModel):
-    speech_transcript: str = Field(..., example="Give Priya Sharma Amoxicillin 500mg three times daily for ten days")
+    transcript: Optional[str] = Field(None, example="Give Priya Sharma Amoxicillin 500mg three times daily for ten days")
+    speech_transcript: Optional[str] = Field(None, example="Give Priya Sharma Amoxicillin 500mg three times daily for ten days")
+    patient_id: Optional[str] = None
+    doctor_id: Optional[str] = None
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. ROUTES
@@ -117,4 +120,7 @@ async def ocr_structure(file: UploadFile = File(...)):
 @router.post("/api/ai/voice/parse")
 async def voice_parse(payload: VoiceParserRequest):
     logger.info("Routing voice prescription transcription query")
-    return await voice_parser_svc.parse_voice_prescription(payload.speech_transcript)
+    text = payload.transcript or payload.speech_transcript
+    if not text or not text.strip():
+        raise HTTPException(status_code=400, detail="Transcript text is required")
+    return await voice_parser_svc.parse_voice_prescription(text)

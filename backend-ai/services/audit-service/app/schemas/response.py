@@ -62,6 +62,11 @@ class AuditResponse(BaseModel):
     flagged_medicines: List[Dict[str, Any]]
     explanation: str
     alternatives: List[str]
+    action: Optional[str] = "ALLOW"
+    block_submission: Optional[bool] = False
+    warnings: List[str] = Field(default_factory=list)
+    alternative_medicines: List[str] = Field(default_factory=list)
+    recommended_action: Optional[str] = "ALLOW"
 
     # Backward compatibility fields for legacy clients / Flutter app
     risk_level: Optional[str] = "SAFE"

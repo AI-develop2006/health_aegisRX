@@ -1,0 +1,545 @@
+# AegisRx Complete UI/UX Architecture Audit
+
+Do NOT modify any code yet.
+
+Your first responsibility is to completely inspect the existing Flutter application and produce a detailed UI/UX audit report.
+
+This project contains three portals:
+
+1. Patient Portal
+2. Doctor Portal
+3. Pharmacy Portal
+
+I want you to inspect EVERY screen, EVERY reusable widget, EVERY component, EVERY theme file, and EVERY design token.
+
+This is an analysis task only.
+
+---
+
+## Scan the entire Flutter project
+
+Search through the complete Flutter workspace including:
+
+- lib/
+- features/
+- core/
+- widgets/
+- constants/
+- themes/
+- screens/
+- dialogs/
+- components/
+- cards/
+- bottom navigation
+- app bars
+- forms
+- profile pages
+- dashboards
+- prescription editor
+- pharmacy pages
+- patient pages
+- authentication
+- onboarding
+- AI screens
+- blockchain pages
+- settings
+- history pages
+- appointment pages
+
+Do not skip any UI component.
+
+Do not skip reusable widgets.
+
+---
+
+# Theme Analysis
+
+Locate every file related to UI styling including:
+
+ThemeData
+
+AppTheme
+
+DoctorTheme
+
+PatientTheme
+
+PharmacyTheme
+
+Color constants
+
+Typography
+
+Spacing
+
+Border Radius
+
+Animations
+
+Icons
+
+Shadows
+
+Gradients
+
+Glassmorphism
+
+Cards
+
+Buttons
+
+Snackbars
+
+Dialogs
+
+Bottom sheets
+
+Navigation
+
+Everything.
+
+Show exactly where each is defined.
+
+For every item include:
+
+File name
+
+Purpose
+
+Where it is used
+
+Whether it is duplicated
+
+Whether it follows the design system
+
+---
+
+# Color Palette Audit
+
+Produce the COMPLETE current color palette.
+
+For every color provide:
+
+Hex value
+
+Variable name
+
+File location
+
+Usage count
+
+Primary usage
+
+Example screens using it
+
+Example:
+
+Primary Blue
+
+Hex
+
+Used in
+
+Buttons
+
+Headers
+
+Cards
+
+Portal
+
+etc.
+
+Create a complete palette table.
+
+---
+
+# Typography Audit
+
+Find every font style.
+
+Include
+
+Font Family
+
+Weight
+
+Font Size
+
+Line Height
+
+Letter Spacing
+
+Usage
+
+Screen examples
+
+Duplicates
+
+Missing hierarchy
+
+---
+
+# Component Audit
+
+Inspect every reusable widget.
+
+Cards
+
+Buttons
+
+Search Bars
+
+Input Fields
+
+Dropdowns
+
+Dialogs
+
+Lists
+
+Bottom Navigation
+
+FAB
+
+Badges
+
+AI Cards
+
+Prescription Cards
+
+Medicine Cards
+
+Appointment Cards
+
+Doctor Cards
+
+Patient Cards
+
+Charts
+
+Progress Widgets
+
+Health Score Widgets
+
+Blockchain Widgets
+
+Voice Widgets
+
+Every component.
+
+For each one include
+
+Location
+
+Purpose
+
+Screens using it
+
+Consistency score
+
+Design quality
+
+Recommended improvements
+
+---
+
+# Screen Audit
+
+Audit EVERY screen.
+
+For each screen produce:
+
+Screen Name
+
+File
+
+Portal
+
+Purpose
+
+Current Layout
+
+Navigation Path
+
+Primary Actions
+
+Secondary Actions
+
+Current Problems
+
+UX Problems
+
+Visual Problems
+
+Accessibility Problems
+
+Performance Problems
+
+Consistency Score
+
+Modern Design Score
+
+Medical UI Score
+
+Improvement Suggestions
+
+Do NOT miss any screen.
+
+---
+
+# Portal Analysis
+
+Separate the report into
+
+Patient Portal
+
+Doctor Portal
+
+Pharmacy Portal
+
+For each portal describe
+
+Design language
+
+Current theme
+
+Navigation
+
+Consistency
+
+Missing pages
+
+Redundant pages
+
+Weak UX
+
+Strong UX
+
+Overall maturity
+
+---
+
+# Design Language Audit
+
+Determine which design language the application currently follows.
+
+Example
+
+Material 2
+
+Material 3
+
+Cupertino
+
+Custom
+
+Glass
+
+Minimal
+
+Corporate
+
+Medical
+
+Enterprise
+
+Hybrid
+
+Explain why.
+
+---
+
+# Design System Consistency
+
+Identify
+
+Duplicate colors
+
+Duplicate widgets
+
+Duplicate cards
+
+Duplicate spacing
+
+Duplicate typography
+
+Duplicate shadows
+
+Duplicate animations
+
+Duplicate icons
+
+Duplicate layouts
+
+Show where they exist.
+
+---
+
+# UI Quality Review
+
+Give every portal a score
+
+Visual Design
+
+Modern Appearance
+
+Medical Trust
+
+Accessibility
+
+Hierarchy
+
+Spacing
+
+Consistency
+
+Animation
+
+Navigation
+
+Overall Experience
+
+Score each out of 10.
+
+---
+
+# Accessibility Audit
+
+Inspect
+
+Contrast
+
+Touch targets
+
+Font scaling
+
+Screen reader support
+
+Button sizes
+
+Color blindness issues
+
+Spacing
+
+Focus states
+
+Error messages
+
+Loading indicators
+
+Empty states
+
+Skeleton loaders
+
+Everything.
+
+---
+
+# Clinical UX Audit
+
+Since this is a healthcare platform,
+
+evaluate whether the UI inspires
+
+Trust
+
+Safety
+
+Accuracy
+
+Professionalism
+
+Hospital-grade quality
+
+Doctor confidence
+
+Patient confidence
+
+Pharmacy confidence
+
+Explain where improvements are needed.
+
+---
+
+# Current Design Palette Summary
+
+At the end produce a complete design summary including
+
+Current Design Style
+
+Current Color Palette
+
+Current Typography
+
+Current Components
+
+Current Navigation Style
+
+Current Card Style
+
+Current Button Style
+
+Current Animation Style
+
+Current Icon Style
+
+Current Branding Style
+
+Current Weaknesses
+
+Current Strengths
+
+---
+
+# Deliverables
+
+Generate a complete document with the following sections:
+
+1. Executive Summary
+
+2. Theme Analysis
+
+3. Color Palette
+
+4. Typography
+
+5. Component Inventory
+
+6. Screen Inventory
+
+7. Doctor Portal Audit
+
+8. Patient Portal Audit
+
+9. Pharmacy Portal Audit
+
+10. Accessibility Report
+
+11. Clinical UX Report
+
+12. UI Consistency Report
+
+13. Duplicate Components Report
+
+14. Design Language Report
+
+15. Modernization Opportunities
+
+16. Final Design Scorecard
+
+Do NOT redesign anything yet.
+
+Do NOT change code.
+
+Do NOT generate implementation.
+
+Only audit the existing Flutter application in complete detail.
+
+Every screen.
+Every widget.
+Every color.
+Every component.
+Every design token.
+
+Nothing should be skipped.

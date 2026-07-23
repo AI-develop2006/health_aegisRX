@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger("patient_context")
 from app.schemas.patient import PatientContext
 
 class PatientContextService:
@@ -60,12 +62,19 @@ async def build_patient_context(request) -> PatientContext:
     current_meds = []
 
     try:
-        # Find patient record to build context
-        patient_doc = patients_col().find_one({"patient_id": patient_id})
+        logger.info(f"[DEBUG CDSS] build_patient_context called for patient_id: '{patient_id}', DB collections count: patients={patients_col().count_documents({})}, allergies={allergies_col().count_documents({})}")
+        import re
+        clean_id = patient_id.replace("_", " ").strip()
+        escaped_id = re.escape(clean_id).replace(r"\ ", r"[\ _]")
+        regex_pattern = f"^{escaped_id}$"
+        
+        patient_doc = patients_col().find_one({"patient_id": {"$regex": regex_pattern, "$options": "i"}})
         if not patient_doc:
-            patient_doc = patients_col().find_one({"name": patient_id})
+            patient_doc = patients_col().find_one({"name": {"$regex": regex_pattern, "$options": "i"}})
         if not patient_doc:
-            patient_doc = patients_col().find_one({"email": patient_id})
+            patient_doc = patients_col().find_one({"email": {"$regex": f"^{re.escape(patient_id)}$", "$options": "i"}})
+
+        logger.info(f"[DEBUG CDSS] patient_doc found: {patient_doc}")
 
         if patient_doc:
             p_id = patient_doc.get("patient_id")
@@ -75,11 +84,16 @@ async def build_patient_context(request) -> PatientContext:
             search_terms = []
             if p_id:
                 search_terms.append(p_id)
+                search_terms.append(p_id.replace("_", " "))
+                search_terms.append(p_id.replace(" ", "_"))
             if p_name:
                 search_terms.append(p_name)
+                search_terms.append(p_name.replace("_", " "))
+                search_terms.append(p_name.replace(" ", "_"))
             
+            logger.info(f"[DEBUG CDSS] allergy search_terms: {search_terms}")
             allergy_filters = []
-            for term in search_terms:
+            for term in list(set(search_terms)):
                 safe_term = re.escape(term)
                 allergy_filters.append({"patient_id": {"$regex": f"^({safe_term})$", "$options": "i"}})
                 allergy_filters.append({"patient_name": {"$regex": f"^({safe_term})$", "$options": "i"}})
@@ -87,6 +101,7 @@ async def build_patient_context(request) -> PatientContext:
             if allergy_filters:
                 cursor = allergies_col().find({"$or": allergy_filters})
                 allergies = [doc.get("allergy_name") for doc in cursor if doc.get("allergy_name")]
+                logger.info(f"[DEBUG CDSS] fetched allergies from DB: {allergies}")
                 
             # Also fallback to doc fields
             patient_allergies_field = patient_doc.get("allergies", [])
@@ -94,11 +109,40 @@ async def build_patient_context(request) -> PatientContext:
                 allergies.extend(patient_allergies_field)
                 
             allergies = list(set(allergies))
+            logger.info(f"[DEBUG CDSS] final allergies list: {allergies}")
 
         # Fetch active prescriptions to extract current meds (within dynamic duration window)
         from datetime import datetime
         now = datetime.now()
-        active_rxs = prescriptions_col().find({"patientName": patient_id, "isDispensed": False})
+        
+        rx_query_terms = [patient_id]
+        rx_query_terms.append(patient_id.replace("_", " "))
+        rx_query_terms.append(patient_id.replace(" ", "_"))
+        if patient_doc:
+            p_id = patient_doc.get("patient_id")
+            p_name = patient_doc.get("name")
+            if p_id:
+                rx_query_terms.append(p_id)
+                rx_query_terms.append(p_id.replace("_", " "))
+                rx_query_terms.append(p_id.replace(" ", "_"))
+            if p_name:
+                rx_query_terms.append(p_name)
+                rx_query_terms.append(p_name.replace("_", " "))
+                rx_query_terms.append(p_name.replace(" ", "_"))
+
+        rx_query_terms = list(set(rx_query_terms))
+        
+        rx_filters = []
+        for q_term in rx_query_terms:
+            safe_term = re.escape(q_term)
+            rx_filters.append({"patient_id": {"$regex": f"^({safe_term})$", "$options": "i"}})
+            rx_filters.append({"patientName": {"$regex": f"^({safe_term})$", "$options": "i"}})
+            rx_filters.append({"patient_name": {"$regex": f"^({safe_term})$", "$options": "i"}})
+            
+        active_rxs = prescriptions_col().find({"$and": [
+            {"$or": rx_filters},
+            {"isDispensed": False}
+        ]})
         for rx in active_rxs:
             rx_date = rx.get("date")
             if rx_date:

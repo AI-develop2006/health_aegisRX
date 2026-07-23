@@ -20,7 +20,7 @@ class ApiClient {
 
   Future<http.Response> get(String path) async {
     final url = Uri.parse('$baseUrl$path');
-    return await http.get(url, headers: _getHeaders());
+    return await http.get(url, headers: _getHeaders()).timeout(const Duration(seconds: 5));
   }
 
   Future<http.Response> post(String path, Map<String, dynamic> body) async {
@@ -29,6 +29,6 @@ class ApiClient {
       url,
       headers: _getHeaders(),
       body: jsonEncode(body),
-    );
+    ).timeout(const Duration(seconds: 5));
   }
 }

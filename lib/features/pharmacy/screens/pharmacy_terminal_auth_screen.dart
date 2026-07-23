@@ -1,7 +1,14 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Pharmacy Terminal Authentication Screen
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — _keyConnected, _verify(), verifyPharmacyTerminal(),
+//                 resetFlow() preserved
+// ════════════════════════════════════════════════════════════════════════════
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/state/app_state.dart';
-import '../../../shared/widgets/neon_card.dart';
+import '../../../core/theme/design_system.dart';
 
 class PharmacyTerminalAuthScreen extends StatefulWidget {
   const PharmacyTerminalAuthScreen({super.key});
@@ -13,10 +20,15 @@ class PharmacyTerminalAuthScreen extends StatefulWidget {
 class _PharmacyTerminalAuthScreenState extends State<PharmacyTerminalAuthScreen> {
   bool _keyConnected = false;
 
+  // ── BUSINESS LOGIC UNCHANGED ─────────────────────────────────────────────
   void _verify() {
     if (!_keyConnected) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please connect your hardware YubiKey device before verifying.')),
+        SnackBar(
+          content: Text('Please connect your hardware YubiKey device before verifying.',
+              style: AegisTypography.bodySmall.copyWith(color: Colors.white)),
+          backgroundColor: AegisColors.danger,
+        ),
       );
       return;
     }
@@ -24,146 +36,181 @@ class _PharmacyTerminalAuthScreenState extends State<PharmacyTerminalAuthScreen>
     final appState = Provider.of<AppState>(context, listen: false);
     appState.verifyPharmacyTerminal();
   }
+  // ── END BUSINESS LOGIC ────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
+    final isVerified = appState.isTerminalVerified;
+    final statusColor = isVerified ? AegisColors.secondary : AegisColors.danger;
+    final statusBg = isVerified ? AegisColors.secondarySurface : AegisColors.dangerLight;
 
     return Scaffold(
+      backgroundColor: AegisColors.background,
       appBar: AppBar(
-        title: const Text('Terminal Authentication', style: TextStyle(fontFamily: 'Sora')),
+        backgroundColor: AegisColors.surface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        title: Text('Terminal Authentication', style: AegisTypography.headlineMedium.copyWith(color: AegisColors.textPrimary)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: AegisIconSize.sm, color: AegisColors.textSecondary),
           onPressed: () {
             appState.resetFlow();
           },
         ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: AegisColors.border),
+        ),
       ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: NeonCard(
-            neonColor: appState.isTerminalVerified ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+          padding: const EdgeInsets.all(AegisSpacing.pagePadding),
+          child: Container(
+            padding: const EdgeInsets.all(AegisSpacing.lg),
+            decoration: BoxDecoration(
+              color: AegisColors.surface,
+              borderRadius: AegisRadius.card,
+              border: Border.all(color: statusColor.withValues(alpha: 0.4), width: 1.5),
+              boxShadow: AegisShadows.md,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  appState.isTerminalVerified ? Icons.computer : Icons.no_encryption_gmailerrorred,
-                  size: 80,
-                  color: appState.isTerminalVerified ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  appState.isTerminalVerified ? 'Terminal Authenticated' : 'Untrusted Terminal Access',
-                  style: const TextStyle(
-                    fontFamily: 'Sora',
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                Container(
+                  padding: const EdgeInsets.all(AegisSpacing.lg),
+                  decoration: BoxDecoration(
+                    color: statusBg,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1.5),
+                  ),
+                  child: Icon(
+                    isVerified ? Icons.computer_rounded : Icons.no_encryption_gmailerrorred_rounded,
+                    size: 60,
+                    color: statusColor,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AegisSpacing.lg),
                 Text(
-                  appState.isTerminalVerified
+                  isVerified ? 'Terminal Authenticated' : 'Untrusted Terminal Access',
+                  style: AegisTypography.headlineMedium.copyWith(
+                    color: AegisColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AegisSpacing.sm),
+                Text(
+                  isVerified
                       ? 'Secure workstation environment confirmed. Token-redemption API gateway endpoints are now enabled.'
                       : 'Hardware security validation failed. Workstation certificate is untrusted. Token APIs and scanning are disabled.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    color: isLight ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                    height: 1.4,
+                  style: AegisTypography.bodyMedium.copyWith(
+                    color: AegisColors.textSecondary,
+                    height: 1.5,
                   ),
                 ),
-                const SizedBox(height: 24),
-                const Divider(),
-                const SizedBox(height: 16),
+                const SizedBox(height: AegisSpacing.lg),
+                const Divider(color: AegisColors.border),
+                const SizedBox(height: AegisSpacing.md),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Workstation ID:',
-                      style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold),
+                      style: AegisTypography.labelSmall.copyWith(
+                        color: AegisColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     Text(
                       'STATION-PH-7729',
-                      style: TextStyle(
-                        fontFamily: 'JetBrains Mono',
-                        color: isLight ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                      style: AegisTypography.monoSmall.copyWith(
+                        color: AegisColors.textSecondary,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AegisSpacing.sm),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Hardware YubiKey:',
-                      style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold),
+                      style: AegisTypography.labelSmall.copyWith(
+                        color: AegisColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     Text(
                       _keyConnected ? 'Key Detected' : 'Not Connected',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.bold,
-                        color: _keyConnected ? Colors.green : Colors.red,
+                      style: AegisTypography.labelSmall.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: _keyConnected ? AegisColors.secondary : AegisColors.danger,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
-                if (!appState.isTerminalVerified) ...[
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _keyConnected,
-                        onChanged: (val) {
-                          setState(() {
-                            _keyConnected = val ?? false;
-                          });
-                        },
+                const SizedBox(height: AegisSpacing.lg),
+                if (!isVerified) ...[
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AegisColors.background,
+                      borderRadius: BorderRadius.circular(AegisRadius.sm),
+                      border: Border.all(color: AegisColors.border),
+                    ),
+                    child: CheckboxListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: AegisSpacing.sm),
+                      value: _keyConnected,
+                      activeColor: AegisColors.primary,
+                      title: Text(
+                        'Simulate hardware key connection',
+                        style: AegisTypography.bodySmall.copyWith(color: AegisColors.textPrimary, fontWeight: FontWeight.w600),
                       ),
-                      const Expanded(
-                        child: Text(
-                          'Simulate hardware key connection',
-                          style: TextStyle(fontFamily: 'Inter'),
-                        ),
-                      ),
-                    ],
+                      onChanged: (val) {
+                        setState(() {
+                          _keyConnected = val ?? false;
+                        });
+                      },
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AegisSpacing.base),
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
+                    height: AegisTokens.btnHeight,
                     child: ElevatedButton(
                       onPressed: _verify,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFEF4444),
+                        backgroundColor: AegisColors.primary, // Royal Blue Primary Action
+                        foregroundColor: Colors.white,
+                        elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: AegisRadius.button,
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Verify Terminal',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                        style: AegisTypography.labelLarge.copyWith(
                           color: Colors.white,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
                   ),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: AegisSpacing.md),
                 TextButton(
                   onPressed: () {
                     appState.resetFlow();
                   },
-                  child: const Text(
+                  child: Text(
                     'Return to Role Selection',
-                    style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600),
+                    style: AegisTypography.labelSmall.copyWith(
+                      color: AegisColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],

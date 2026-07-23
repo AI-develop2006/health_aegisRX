@@ -1,10 +1,16 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Patient Sign Up Screen
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — signUpWithEmail(), _pickDocument(), _selectDate()
+//                              _signup() validation chain all preserved exactly
+// ════════════════════════════════════════════════════════════════════════════
+
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/state/app_state.dart';
-import '../../../../shared/widgets/neon_card.dart';
-
+import '../../../../core/theme/design_system.dart';
 
 class PatientSignUpScreen extends StatefulWidget {
   const PatientSignUpScreen({super.key});
@@ -14,39 +20,38 @@ class PatientSignUpScreen extends StatefulWidget {
 }
 
 class _PatientSignUpScreenState extends State<PatientSignUpScreen> {
-  final _nameController = TextEditingController();
-  final _mobileController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _idNumberController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _nameController          = TextEditingController();
+  final _mobileController        = TextEditingController();
+  final _emailController         = TextEditingController();
+  final _idNumberController      = TextEditingController();
+  final _passwordController      = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   DateTime? _dob;
-  String? _gender = 'Female';
+  String? _gender  = 'Female';
   String? _country = 'India';
-  String? _idType = 'Aadhaar';
+  String? _idType  = 'Aadhaar';
   String? _uploadedFileName;
-  bool _agreeToPolicy = false;
-  bool _isUploadingDoc = false;
+  bool _agreeToPolicy   = false;
+  bool _isUploadingDoc  = false;
+  bool _isLoading       = false;
+  bool _obscurePass     = true;
+  bool _obscureConfirm  = true;
 
+  // ── BUSINESS LOGIC UNCHANGED ──────────────────────────────────────────────
   void _pickDocument() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
       );
+      if (result == null || result.files.single.path == null) return;
 
-      if (result == null || result.files.single.path == null) {
-        return;
-      }
-
-      setState(() {
-        _isUploadingDoc = true;
-      });
-
+      if (!mounted || !context.mounted) return;
+      setState(() => _isUploadingDoc = true);
       final File localFile = File(result.files.single.path!);
       final appState = Provider.of<AppState>(context, listen: false);
       final remoteName = await appState.uploadPatientIdDocument(localFile);
-
+      if (!mounted || !context.mounted) return;
       setState(() {
         _isUploadingDoc = false;
         if (remoteName != null) {
@@ -61,32 +66,29 @@ class _PatientSignUpScreenState extends State<PatientSignUpScreen> {
         }
       });
     } catch (e) {
-      setState(() {
-        _isUploadingDoc = false;
-      });
+      if (!mounted || !context.mounted) return;
+      setState(() => _isUploadingDoc = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error picking/uploading file: $e')),
       );
     }
   }
 
-  bool _isLoading = false;
-
   void _signup() async {
-    final name = _nameController.text.trim();
-    final mobile = _mobileController.text.trim();
-    final email = _emailController.text.trim();
+    final name    = _nameController.text.trim();
+    final mobile  = _mobileController.text.trim();
+    final email   = _emailController.text.trim();
     final password = _passwordController.text;
-    final confirm = _confirmPasswordController.text;
+    final confirm  = _confirmPasswordController.text;
 
-    if (name.isEmpty || mobile.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty || _dob == null || _uploadedFileName == null) {
+    if (name.isEmpty || mobile.isEmpty || email.isEmpty || password.isEmpty ||
+        confirm.isEmpty || _dob == null || _uploadedFileName == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all required fields (*) and upload your ID document.')),
       );
       return;
     }
 
-    // 1. Email ends with @gmail.com check
     final emailRegExp = RegExp(r"^[a-zA-Z0-9._%+-]+@gmail\.com$");
     if (!emailRegExp.hasMatch(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -95,20 +97,17 @@ class _PatientSignUpScreenState extends State<PatientSignUpScreen> {
       return;
     }
 
-    // 2. Strong Password check (at least 8 chars, mixed case, number, special char)
-    final passwordRegExp = RegExp(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$");
+    final passwordRegExp =
+        RegExp(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$");
     if (!passwordRegExp.hasMatch(password)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters.',
-          ),
+          content: Text('Password must be at least 8 chars with uppercase, lowercase, numbers, and special characters.'),
         ),
       );
       return;
     }
 
-    // 3. Aadhaar number format check (exactly 12 digits)
     if (_idType == 'Aadhaar') {
       final sanitizedAadhaar = _idNumberController.text.trim().replaceAll(RegExp(r'\s+'), '');
       if (!RegExp(r'^\d{12}$').hasMatch(sanitizedAadhaar)) {
@@ -133,14 +132,10 @@ class _PatientSignUpScreenState extends State<PatientSignUpScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     final appState = Provider.of<AppState>(context, listen: false);
     final error = await appState.signUpWithEmail(
-      email,
-      password,
+      email, password,
       name: name,
       mobile: mobile,
       dob: _dob != null ? _dob!.toIso8601String().split('T').first : '',
@@ -151,24 +146,16 @@ class _PatientSignUpScreenState extends State<PatientSignUpScreen> {
       uploadedFileName: _uploadedFileName ?? '',
     );
 
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-
+    if (mounted) setState(() => _isLoading = false);
     if (error == null) {
       appState.setTempVerificationContact(mobile);
       appState.setPatientAuthState(PatientAuthState.verification);
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error)),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
       }
     }
   }
-
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -177,332 +164,573 @@ class _PatientSignUpScreenState extends State<PatientSignUpScreen> {
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
-    if (picked != null && picked != _dob) {
-      setState(() {
-        _dob = picked;
-      });
-    }
+    if (picked != null && picked != _dob) setState(() => _dob = picked);
+  }
+  // ── END BUSINESS LOGIC ────────────────────────────────────────────────────
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _mobileController.dispose();
+    _emailController.dispose();
+    _idNumberController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
     final appState = Provider.of<AppState>(context, listen: false);
 
-    // 60-30-10 Color Tokens
-    final bg60 = isLight ? const Color(0xFFF5F6FA) : const Color(0xFF0B0F19);
-    final accent10 = isLight ? const Color(0xFF4F46E5) : const Color(0xFF818CF8);
-
     return Scaffold(
-      backgroundColor: bg60,
+      backgroundColor: AegisColors.background,
       appBar: AppBar(
-        title: const Text('Patient Sign Up', style: TextStyle(fontFamily: 'Sora')),
+        backgroundColor: AegisColors.surface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            appState.setPatientAuthState(PatientAuthState.authChoice);
-          },
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: AegisIconSize.sm, color: AegisColors.textSecondary),
+          onPressed: () => appState.setPatientAuthState(PatientAuthState.authChoice),
+        ),
+        title: Text('Create Account',
+            style: AegisTypography.headlineMedium.copyWith(color: AegisColors.textPrimary)),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: AegisColors.border),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: NeonCard(
-          neonColor: accent10,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Create your patient vault',
-                style: TextStyle(
-                  fontFamily: 'Sora',
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AegisSpacing.pagePadding,
+          vertical: AegisSpacing.base,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Section header ─────────────────────────────────
+            _SectionCard(
+              title: 'Personal Information',
+              icon: Icons.person_outline_rounded,
+              iconColor: AegisColors.primary,
+              iconBg: AegisColors.primarySurface,
+              children: [
+                _SignupField(
+                  controller: _nameController,
+                  label: 'Full Legal Name *',
+                  icon: Icons.person_outline_rounded,
                 ),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Full Legal Name *',
-                  prefixIcon: Icon(Icons.person),
-                ),
-              ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: () => _selectDate(context),
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Date of Birth *',
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
-                  child: Text(
-                    _dob == null
-                        ? 'Select Date'
-                        : '${_dob!.day}/${_dob!.month}/${_dob!.year}',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      color: _dob == null
-                          ? (isLight ? const Color(0xFF64748B) : const Color(0xFF94A3B8))
-                          : (isLight ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
+                const SizedBox(height: AegisSpacing.md),
+
+                // DOB picker
+                InkWell(
+                  onTap: () => _selectDate(context),
+                  borderRadius: AegisRadius.input,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AegisSpacing.inputPaddingH,
+                      vertical: AegisSpacing.inputPaddingV,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AegisColors.surface,
+                      borderRadius: AegisRadius.input,
+                      border: Border.all(color: AegisColors.border, width: AegisBorders.regular),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today_outlined,
+                            color: AegisColors.textTertiary, size: AegisIconSize.md),
+                        const SizedBox(width: AegisSpacing.md),
+                        Expanded(
+                          child: Text(
+                            _dob == null
+                                ? 'Date of Birth *'
+                                : '${_dob!.day}/${_dob!.month}/${_dob!.year}',
+                            style: AegisTypography.bodyMedium.copyWith(
+                              color: _dob == null
+                                  ? AegisColors.textTertiary
+                                  : AegisColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: AegisColors.textTertiary, size: AegisIconSize.md),
+                      ],
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _gender,
-                decoration: const InputDecoration(
-                  labelText: 'Gender *',
-                  prefixIcon: Icon(Icons.people),
+                const SizedBox(height: AegisSpacing.md),
+
+                _SignupDropdown<String>(
+                  value: _gender,
+                  label: 'Gender *',
+                  icon: Icons.people_outline_rounded,
+                  items: ['Male', 'Female', 'Other', 'Prefer not to say'],
+                  onChanged: (v) => setState(() => _gender = v),
                 ),
-                items: ['Male', 'Female', 'Other', 'Prefer not to say']
-                    .map((label) => DropdownMenuItem(
-                          value: label,
-                          child: Text(label),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _gender = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _country,
-                decoration: const InputDecoration(
-                  labelText: 'Region / Country *',
-                  prefixIcon: Icon(Icons.public),
+                const SizedBox(height: AegisSpacing.md),
+
+                _SignupDropdown<String>(
+                  value: _country,
+                  label: 'Region / Country *',
+                  icon: Icons.public_outlined,
+                  items: ['India', 'USA', 'UK', 'Canada', 'Germany'],
+                  onChanged: (v) => setState(() => _country = v),
                 ),
-                items: ['India', 'USA', 'UK', 'Canada', 'Germany']
-                    .map((label) => DropdownMenuItem(
-                          value: label,
-                          child: Text(label),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _country = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _mobileController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Primary Mobile Number (with country code) *',
-                  prefixIcon: Icon(Icons.phone),
+              ],
+            ),
+
+            const SizedBox(height: AegisSpacing.base),
+
+            // ── Contact section ───────────────────────────────
+            _SectionCard(
+              title: 'Contact Details',
+              icon: Icons.phone_outlined,
+              iconColor: AegisColors.secondary,
+              iconBg: AegisColors.secondarySurface,
+              children: [
+                _SignupField(
+                  controller: _mobileController,
+                  label: 'Mobile Number (with country code) *',
+                  icon: Icons.phone_outlined,
+                  keyboardType: TextInputType.phone,
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email address (Optional)',
-                  prefixIcon: Icon(Icons.email),
+                const SizedBox(height: AegisSpacing.md),
+                _SignupField(
+                  controller: _emailController,
+                  label: 'Gmail Address *',
+                  hint: 'you@gmail.com',
+                  icon: Icons.mail_outline_rounded,
+                  keyboardType: TextInputType.emailAddress,
                 ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _idType,
-                decoration: const InputDecoration(
-                  labelText: 'Nationality / ID Type *',
-                  prefixIcon: Icon(Icons.badge),
+              ],
+            ),
+
+            const SizedBox(height: AegisSpacing.base),
+
+            // ── Identity section ──────────────────────────────
+            _SectionCard(
+              title: 'Identity Verification',
+              icon: Icons.badge_outlined,
+              iconColor: AegisColors.tertiary,
+              iconBg: AegisColors.tertiarySurface,
+              children: [
+                _SignupDropdown<String>(
+                  value: _idType,
+                  label: 'ID Type *',
+                  icon: Icons.badge_outlined,
+                  items: ['Aadhaar', 'SSN', 'NHS', 'Passport', 'Other'],
+                  onChanged: (v) => setState(() => _idType = v),
                 ),
-                items: ['Aadhaar', 'SSN', 'NHS', 'Passport', 'Other']
-                    .map((label) => DropdownMenuItem(
-                          value: label,
-                          child: Text(label),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _idType = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _idNumberController,
-                decoration: const InputDecoration(
-                  labelText: 'ID Number *',
-                  prefixIcon: Icon(Icons.credit_card),
+                const SizedBox(height: AegisSpacing.md),
+                _SignupField(
+                  controller: _idNumberController,
+                  label: 'ID Number *',
+                  icon: Icons.credit_card_outlined,
+                  keyboardType: TextInputType.number,
                 ),
-              ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: _isUploadingDoc ? null : _pickDocument,
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Upload ID Proof Document *',
-                    prefixIcon: Icon(Icons.cloud_upload_rounded),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _isUploadingDoc
-                              ? 'Uploading to secure server...'
-                              : (_uploadedFileName ?? 'Tap to upload ID document (PDF, PNG, JPG)'),
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            color: _uploadedFileName == null
-                                ? (isLight ? const Color(0xFF64748B) : const Color(0xFF94A3B8))
-                                : const Color(0xFF10B981),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                const SizedBox(height: AegisSpacing.md),
+
+                // Document upload tile
+                InkWell(
+                  onTap: _isUploadingDoc ? null : _pickDocument,
+                  borderRadius: AegisRadius.input,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AegisSpacing.inputPaddingH,
+                      vertical: AegisSpacing.inputPaddingV,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AegisColors.surface,
+                      borderRadius: AegisRadius.input,
+                      border: Border.all(
+                        color: _uploadedFileName != null
+                            ? AegisColors.success.withValues(alpha: 0.5)
+                            : AegisColors.border,
+                        width: AegisBorders.regular,
                       ),
-                      if (_isUploadingDoc)
-                        const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF818CF8)),
-                          ),
-                        )
-                      else if (_uploadedFileName != null)
-                        const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 20)
-                      else
+                    ),
+                    child: Row(
+                      children: [
                         Icon(
-                          Icons.attach_file_rounded,
-                          color: isLight ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                          size: 20,
+                          _uploadedFileName != null
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.cloud_upload_outlined,
+                          color: _uploadedFileName != null
+                              ? AegisColors.success
+                              : AegisColors.textTertiary,
+                          size: AegisIconSize.md,
                         ),
-                    ],
+                        const SizedBox(width: AegisSpacing.md),
+                        Expanded(
+                          child: Text(
+                            _isUploadingDoc
+                                ? 'Uploading to secure server...'
+                                : (_uploadedFileName ??
+                                    'Upload ID Document * (PDF, PNG, JPG)'),
+                            style: AegisTypography.bodyMedium.copyWith(
+                              color: _uploadedFileName != null
+                                  ? AegisColors.success
+                                  : AegisColors.textTertiary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (_isUploadingDoc)
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AegisColors.primary,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Password *',
-                  prefixIcon: Icon(Icons.lock),
+              ],
+            ),
+
+            const SizedBox(height: AegisSpacing.base),
+
+            // ── Security section ──────────────────────────────
+            _SectionCard(
+              title: 'Account Security',
+              icon: Icons.lock_outline_rounded,
+              iconColor: AegisColors.danger,
+              iconBg: AegisColors.dangerLight,
+              children: [
+                TextField(
+                  controller: _passwordController,
+                  obscureText: _obscurePass,
+                  style: AegisTypography.bodyMedium.copyWith(color: AegisColors.textPrimary),
+                  decoration: _signupFieldDecoration(
+                    label: 'Password *',
+                    icon: Icons.lock_outline_rounded,
+                    suffix: IconButton(
+                      icon: Icon(
+                        _obscurePass
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: AegisColors.textTertiary,
+                        size: AegisIconSize.md,
+                      ),
+                      onPressed: () => setState(() => _obscurePass = !_obscurePass),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _confirmPasswordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Confirm Password *',
-                  prefixIcon: Icon(Icons.lock_outline),
+                const SizedBox(height: AegisSpacing.xs),
+                Text(
+                  'Min. 8 chars · Upper & lowercase · Number · Special char',
+                  style: AegisTypography.labelSmall.copyWith(color: AegisColors.textTertiary),
                 ),
+                const SizedBox(height: AegisSpacing.md),
+                TextField(
+                  controller: _confirmPasswordController,
+                  obscureText: _obscureConfirm,
+                  style: AegisTypography.bodyMedium.copyWith(color: AegisColors.textPrimary),
+                  decoration: _signupFieldDecoration(
+                    label: 'Confirm Password *',
+                    icon: Icons.lock_rounded,
+                    suffix: IconButton(
+                      icon: Icon(
+                        _obscureConfirm
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: AegisColors.textTertiary,
+                        size: AegisIconSize.md,
+                      ),
+                      onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: AegisSpacing.base),
+
+            // ── Policy consent ────────────────────────────────
+            Container(
+              padding: const EdgeInsets.all(AegisSpacing.md),
+              decoration: BoxDecoration(
+                color: AegisColors.surface,
+                borderRadius: AegisRadius.card,
+                border: Border.all(color: AegisColors.border),
               ),
-              const SizedBox(height: 24),
-              Row(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Checkbox(
                     value: _agreeToPolicy,
-                    onChanged: (val) {
-                      setState(() {
-                        _agreeToPolicy = val ?? false;
-                      });
-                    },
+                    activeColor: AegisColors.primary,
+                    onChanged: (val) => setState(() => _agreeToPolicy = val ?? false),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
                   ),
+                  const SizedBox(width: AegisSpacing.sm),
                   Expanded(
                     child: Wrap(
                       children: [
-                        const Text(
-                          'I agree to the ',
-                          style: TextStyle(fontFamily: 'Inter'),
-                        ),
+                        Text('I agree to the ',
+                            style: AegisTypography.bodySmall.copyWith(
+                                color: AegisColors.textSecondary)),
                         GestureDetector(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Terms of Use coming soon.')),
-                            );
-                          },
-                          child: Text(
-                            'Terms of Use',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              color: accent10,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Terms of Use coming soon.')),
                           ),
+                          child: Text('Terms of Use',
+                              style: AegisTypography.bodySmall.copyWith(
+                                  color: AegisColors.primary,
+                                  fontWeight: FontWeight.bold)),
                         ),
-                        const Text(' and ', style: TextStyle(fontFamily: 'Inter')),
+                        Text(' and ',
+                            style: AegisTypography.bodySmall.copyWith(
+                                color: AegisColors.textSecondary)),
                         GestureDetector(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Privacy Policy coming soon.')),
-                            );
-                          },
-                          child: Text(
-                            'Privacy Policy',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              color: accent10,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Privacy Policy coming soon.')),
                           ),
+                          child: Text('Privacy Policy',
+                              style: AegisTypography.bodySmall.copyWith(
+                                  color: AegisColors.primary,
+                                  fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _signup,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accent10,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Register',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
+            ),
+
+            const SizedBox(height: AegisSpacing.lg),
+
+            // ── CTA ───────────────────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              height: AegisTokens.btnHeight,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _signup,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AegisColors.primary,
+                  foregroundColor: AegisColors.onPrimary,
+                  disabledBackgroundColor: AegisColors.primarySurface,
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
+                  textStyle: AegisTypography.labelLarge,
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.5, color: Colors.white),
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.shield_rounded, size: AegisIconSize.sm),
+                          SizedBox(width: AegisSpacing.sm),
+                          Text('Create Secure Vault'),
+                        ],
+                      ),
+              ),
+            ),
+
+            const SizedBox(height: AegisSpacing.md),
+
+            Center(
+              child: TextButton(
+                onPressed: () => appState.setPatientAuthState(PatientAuthState.login),
+                child: Text(
+                  'Already have an account? Sign in →',
+                  style: AegisTypography.bodySmall.copyWith(color: AegisColors.primary),
                 ),
               ),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.center,
-                child: TextButton(
-                  onPressed: () {
-                    appState.setPatientAuthState(PatientAuthState.login);
-                  },
-                  child: Text(
-                    'Already have an account? Sign in',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      color: accent10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+
+            const SizedBox(height: AegisSpacing.safeBottom),
+          ],
         ),
       ),
+    );
+  }
+
+  InputDecoration _signupFieldDecoration({
+    required String label,
+    required IconData icon,
+    Widget? suffix,
+  }) =>
+      InputDecoration(
+        labelText: label,
+        labelStyle:
+            AegisTypography.bodyMedium.copyWith(color: AegisColors.textSecondary),
+        prefixIcon: Icon(icon, color: AegisColors.textTertiary, size: AegisIconSize.md),
+        suffixIcon: suffix,
+        filled: true,
+        fillColor: AegisColors.surface,
+        counterText: '',
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AegisSpacing.inputPaddingH,
+          vertical: AegisSpacing.inputPaddingV,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AegisRadius.input,
+          borderSide: const BorderSide(color: AegisColors.border, width: AegisBorders.regular),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AegisRadius.input,
+          borderSide: const BorderSide(color: AegisColors.primary, width: AegisBorders.regular),
+        ),
+      );
+}
+
+// ── Reusable signup form components ──────────────────────────────────────
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBg;
+  final List<Widget> children;
+
+  const _SectionCard({
+    required this.title,
+    required this.icon,
+    required this.iconColor,
+    required this.iconBg,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AegisSpacing.base),
+      decoration: BoxDecoration(
+        color: AegisColors.surface,
+        borderRadius: AegisRadius.card,
+        border: Border.all(color: AegisColors.border),
+        boxShadow: AegisShadows.sm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(AegisRadius.sm)),
+                child: Icon(icon, size: AegisIconSize.sm, color: iconColor),
+              ),
+              const SizedBox(width: AegisSpacing.sm),
+              Text(title,
+                  style: AegisTypography.titleSmall.copyWith(
+                      color: AegisColors.textPrimary)),
+            ],
+          ),
+          const SizedBox(height: AegisSpacing.base),
+          const Divider(height: 1, color: AegisColors.border),
+          const SizedBox(height: AegisSpacing.base),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _SignupField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String? hint;
+  final IconData icon;
+  final TextInputType? keyboardType;
+
+  const _SignupField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.hint,
+    this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: AegisTypography.bodyMedium.copyWith(color: AegisColors.textPrimary),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        hintStyle: AegisTypography.bodyMedium.copyWith(color: AegisColors.textTertiary),
+        labelStyle: AegisTypography.bodyMedium.copyWith(color: AegisColors.textSecondary),
+        prefixIcon: Icon(icon, color: AegisColors.textTertiary, size: AegisIconSize.md),
+        filled: true,
+        fillColor: AegisColors.surface,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AegisSpacing.inputPaddingH,
+          vertical: AegisSpacing.inputPaddingV,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AegisRadius.input,
+          borderSide: const BorderSide(color: AegisColors.border, width: AegisBorders.regular),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AegisRadius.input,
+          borderSide: const BorderSide(color: AegisColors.primary, width: AegisBorders.regular),
+        ),
+      ),
+    );
+  }
+}
+
+class _SignupDropdown<T> extends StatelessWidget {
+  final T? value;
+  final String label;
+  final IconData icon;
+  final List<String> items;
+  final ValueChanged<T?> onChanged;
+
+  const _SignupDropdown({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.items,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<T>(
+      value: value,
+      style: AegisTypography.bodyMedium.copyWith(color: AegisColors.textPrimary),
+      dropdownColor: AegisColors.surface,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: AegisTypography.bodyMedium.copyWith(color: AegisColors.textSecondary),
+        prefixIcon: Icon(icon, color: AegisColors.textTertiary, size: AegisIconSize.md),
+        filled: true,
+        fillColor: AegisColors.surface,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AegisSpacing.inputPaddingH,
+          vertical: AegisSpacing.inputPaddingV,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AegisRadius.input,
+          borderSide: const BorderSide(color: AegisColors.border, width: AegisBorders.regular),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AegisRadius.input,
+          borderSide: const BorderSide(color: AegisColors.primary, width: AegisBorders.regular),
+        ),
+      ),
+      items: items
+          .map((s) => DropdownMenuItem<T>(value: s as T, child: Text(s)))
+          .toList(),
+      onChanged: onChanged,
     );
   }
 }

@@ -4,6 +4,10 @@
 <dict>
 	<key>NSCameraUsageDescription</key>
 	<string>AegisRx needs camera access to scan patient consent QR codes.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>AegisRx needs microphone access for voice prescription dictation.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>AegisRx needs speech recognition access to transcribe voice dictation.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

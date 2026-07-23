@@ -1,9 +1,15 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Patient Settings Screen
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — all dialogs, exports, allergy management,
+//                 PIN change, biometric toggle, legal pages, clearSession() preserved
+// ════════════════════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/state/app_state.dart';
+import '../../../../core/theme/design_system.dart';
 
 class PatientSettingsScreen extends StatefulWidget {
   const PatientSettingsScreen({super.key});
@@ -13,22 +19,13 @@ class PatientSettingsScreen extends StatefulWidget {
 }
 
 class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
-  // 60-30-10 Design Tokens
-  static const _bg = Color(0xFFF7F4EB);
-  static const _card = Color(0xFFFFFFFF);
-  static const _text = Color(0xFF4A3325);
-  static const _sub = Color(0xFFD4A387);
-  static const _border = Color(0xFFB88E74);
-  static const _teal = Color(0xFF2E8B90);
-  static const _amber = Color(0xFFD97736);
-  static const _red = Color(0xFFB33A3A);
-
   bool _biometricUnlock = false;
   final List<String> _allergies = [];
 
   @override
   void initState() {
     super.initState();
+    // UNCHANGED — same initState logic
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final appState = Provider.of<AppState>(context, listen: false);
       appState.fetchPatientProfile().then((_) {
@@ -42,7 +39,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
     });
   }
 
-  // ── Personal Details Dialog ────────────────────────────────────
+  // ── BUSINESS LOGIC: Personal Details Dialog ─── UNCHANGED ─────────────────
   void _openPersonalDetails(AppState appState) {
     final nameCtrl = TextEditingController(text: appState.patientName);
     final idCtrl = TextEditingController(text: appState.patientMobileOrId);
@@ -50,37 +47,49 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: _card,
+        backgroundColor: AegisColors.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: _border, width: 1),
+          borderRadius: AegisRadius.card,
+          side: const BorderSide(color: AegisColors.border),
         ),
-        title: Text('Personal Details',
-            style: GoogleFonts.sora(
-                fontWeight: FontWeight.bold, color: _text, fontSize: 18)),
+        title: Text(
+          'Personal Details',
+          style: AegisTypography.headlineSmall.copyWith(
+            color: AegisColors.textPrimary,
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _styledField(controller: nameCtrl, label: 'Full Name',
-                icon: Icons.person_outline),
-            const SizedBox(height: 16),
-            _styledField(controller: idCtrl, label: 'Mobile / Patient ID',
-                icon: Icons.phone_outlined,
-                keyboardType: TextInputType.phone),
+            _styledField(
+              controller: nameCtrl,
+              label: 'Full Name',
+              icon: Icons.person_outline,
+            ),
+            const SizedBox(height: AegisSpacing.md),
+            _styledField(
+              controller: idCtrl,
+              label: 'Mobile / Patient ID',
+              icon: Icons.phone_outlined,
+              keyboardType: TextInputType.phone,
+            ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
-                style: GoogleFonts.inter(color: _sub)),
+            child: Text(
+              'Cancel',
+              style: AegisTypography.labelMedium.copyWith(
+                color: AegisColors.textSecondary,
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: _teal,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+              backgroundColor: AegisColors.primary,
               elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
             ),
             onPressed: () async {
               await appState.updatePatientMobileOrId(idCtrl.text.trim());
@@ -88,16 +97,20 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
               Navigator.pop(ctx);
               _toast('Profile updated successfully.');
             },
-            child: Text('Save',
-                style: GoogleFonts.inter(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Save',
+              style: AegisTypography.labelMedium.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ── Change PIN Dialog ─────────────────────────────────────────
+  // ── BUSINESS LOGIC: Change PIN Dialog ─── UNCHANGED ───────────────────────
   void _openChangePIN(AppState appState) {
     final currentCtrl = TextEditingController();
     final newCtrl = TextEditingController();
@@ -108,14 +121,17 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          backgroundColor: _card,
+          backgroundColor: AegisColors.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: _border, width: 1),
+            borderRadius: AegisRadius.card,
+            side: const BorderSide(color: AegisColors.border),
           ),
-          title: Text('Change PIN',
-              style: GoogleFonts.sora(
-                  fontWeight: FontWeight.bold, color: _text, fontSize: 18)),
+          title: Text(
+            'Change PIN',
+            style: AegisTypography.headlineSmall.copyWith(
+              color: AegisColors.textPrimary,
+            ),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -127,7 +143,8 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                   obscure: true,
                   keyboardType: TextInputType.number,
                 ),
-              if (appState.savedPin != null) const SizedBox(height: 12),
+              if (appState.savedPin != null)
+                const SizedBox(height: AegisSpacing.sm),
               _styledField(
                 controller: newCtrl,
                 label: 'New PIN (4–6 digits)',
@@ -136,7 +153,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                 keyboardType: TextInputType.number,
                 maxLength: 6,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AegisSpacing.sm),
               _styledField(
                 controller: confirmCtrl,
                 label: 'Confirm New PIN',
@@ -146,27 +163,51 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                 maxLength: 6,
               ),
               if (error != null) ...[
-                const SizedBox(height: 10),
-                Text(error!,
-                    style: GoogleFonts.inter(color: _red, fontSize: 12)),
+                const SizedBox(height: AegisSpacing.sm),
+                Container(
+                  padding: const EdgeInsets.all(AegisSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: AegisColors.dangerLight,
+                    borderRadius: BorderRadius.circular(AegisRadius.sm),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: AegisIconSize.sm,
+                        color: AegisColors.danger,
+                      ),
+                      const SizedBox(width: AegisSpacing.xs),
+                      Text(
+                        error!,
+                        style: AegisTypography.labelSmall.copyWith(
+                          color: AegisColors.danger,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text('Cancel',
-                  style: GoogleFonts.inter(color: _sub)),
+              child: Text(
+                'Cancel',
+                style: AegisTypography.labelMedium.copyWith(
+                  color: AegisColors.textSecondary,
+                ),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: _teal,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                backgroundColor: AegisColors.primary,
                 elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
               ),
               onPressed: () async {
-                // Validate current pin if one exists
+                // UNCHANGED — PIN validation logic
                 if (appState.savedPin != null &&
                     currentCtrl.text != appState.savedPin) {
                   setS(() => error = 'Current PIN is incorrect.');
@@ -185,9 +226,13 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                 Navigator.pop(ctx);
                 _toast('PIN updated successfully.');
               },
-              child: Text('Update PIN',
-                  style: GoogleFonts.inter(
-                      color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text(
+                'Update PIN',
+                style: AegisTypography.labelMedium.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),
@@ -195,22 +240,24 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
     );
   }
 
-  // ── Allergy Declarations Manager ──────────────────────────────
+  // ── BUSINESS LOGIC: Allergy Manager ─── UNCHANGED ─────────────────────────
   void _openAllergyManager() {
     final appState = Provider.of<AppState>(context, listen: false);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _card,
+      backgroundColor: AegisColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => _AllergySheet(
         allergies: List<String>.from(_allergies),
         onSave: (updated) async {
-          setState(() => _allergies
-            ..clear()
-            ..addAll(updated));
+          setState(
+            () => _allergies
+              ..clear()
+              ..addAll(updated),
+          );
           final success = await appState.savePatientAllergies(updated);
           if (success) {
             _toast('Allergy list saved successfully.');
@@ -222,7 +269,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
     );
   }
 
-  // ── Export Prescription Data ──────────────────────────────────
+  // ── BUSINESS LOGIC: Export ─── UNCHANGED ──────────────────────────────────
   void _exportData(AppState appState) {
     final vault = appState.patientVault;
     if (vault.isEmpty) {
@@ -234,15 +281,15 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
     buffer.writeln('Patient: ${appState.patientName}');
     buffer.writeln('ID: ${appState.patientMobileOrId}');
     buffer.writeln(
-        'Exported: ${DateTime.now().toLocal().toString().substring(0, 16)}');
+      'Exported: ${DateTime.now().toLocal().toString().substring(0, 16)}',
+    );
     buffer.writeln('');
     for (final rx in vault) {
       buffer.writeln('--- PRESCRIPTION: ${rx.id} ---');
       buffer.writeln('Doctor: ${rx.doctorName} | ${rx.hospitalName}');
       buffer.writeln('Diagnosis: ${rx.disease}');
       buffer.writeln('Date: ${rx.date} ${rx.time}');
-      buffer.writeln(
-          'Status: ${rx.isDispensed ? "DISPENSED" : "ACTIVE"}');
+      buffer.writeln('Status: ${rx.isDispensed ? "DISPENSED" : "ACTIVE"}');
       buffer.writeln('Medicines:');
       for (final m in rx.medicines) {
         final timings = <String>[];
@@ -251,34 +298,46 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
         if (m.evening) timings.add('Evening');
         if (m.night) timings.add('Night');
         buffer.writeln(
-            '  • ${m.name} — ${timings.join(", ")} — ${m.beforeFood ? "Before food" : "After food"}');
+          '  • ${m.name} — ${timings.join(", ")} — ${m.beforeFood ? "Before food" : "After food"}',
+        );
         if (m.customInstruction.isNotEmpty) {
           buffer.writeln('    Note: ${m.customInstruction}');
         }
       }
       buffer.writeln('');
     }
-
     final exportText = buffer.toString();
-
-    // Copy to clipboard and show preview dialog
     Clipboard.setData(ClipboardData(text: exportText));
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: _card,
+        backgroundColor: AegisColors.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: _border, width: 1),
+          borderRadius: AegisRadius.card,
+          side: const BorderSide(color: AegisColors.border),
         ),
         title: Row(
           children: [
-            const Icon(Icons.check_circle_rounded, color: _teal, size: 22),
-            const SizedBox(width: 8),
-            Text('Exported!',
-                style: GoogleFonts.sora(
-                    fontWeight: FontWeight.bold, color: _text)),
+            Container(
+              padding: const EdgeInsets.all(AegisSpacing.xs),
+              decoration: BoxDecoration(
+                color: AegisColors.successLight,
+                borderRadius: BorderRadius.circular(AegisRadius.xs),
+              ),
+              child: const Icon(
+                Icons.check_rounded,
+                color: AegisColors.success,
+                size: AegisIconSize.sm,
+              ),
+            ),
+            const SizedBox(width: AegisSpacing.sm),
+            Text(
+              'Exported!',
+              style: AegisTypography.headlineSmall.copyWith(
+                color: AegisColors.textPrimary,
+              ),
+            ),
           ],
         ),
         content: Column(
@@ -287,22 +346,26 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
           children: [
             Text(
               '${vault.length} prescription(s) copied to clipboard as plain text.',
-              style: GoogleFonts.inter(color: _sub, fontSize: 14),
+              style: AegisTypography.bodySmall.copyWith(
+                color: AegisColors.textSecondary,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AegisSpacing.sm),
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(AegisSpacing.sm),
               decoration: BoxDecoration(
-                color: _bg,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _border.withOpacity(0.5)),
+                color: AegisColors.surfaceDim,
+                borderRadius: AegisRadius.card,
+                border: Border.all(color: AegisColors.border),
               ),
               child: Text(
                 exportText.length > 300
                     ? '${exportText.substring(0, 300)}...'
                     : exportText,
-                style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10, color: _text, height: 1.6),
+                style: AegisTypography.monoSmall.copyWith(
+                  color: AegisColors.textPrimary,
+                  height: 1.6,
+                ),
               ),
             ),
           ],
@@ -310,27 +373,30 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: _teal,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+              backgroundColor: AegisColors.primary,
               elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
             ),
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Done',
-                style: GoogleFonts.inter(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Done',
+              style: AegisTypography.labelMedium.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ── Legal Pages ───────────────────────────────────────────────
+  // ── BUSINESS LOGIC: Legal Pages ─── UNCHANGED ─────────────────────────────
   void _openLegalPage(String title, String body) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _card,
+      backgroundColor: AegisColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -340,7 +406,12 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
         maxChildSize: 0.95,
         builder: (ctx, ctrl) => SingleChildScrollView(
           controller: ctrl,
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+          padding: const EdgeInsets.fromLTRB(
+            AegisSpacing.pagePadding,
+            AegisSpacing.sm,
+            AegisSpacing.pagePadding,
+            AegisSpacing.xxl,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -349,24 +420,35 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: _border.withOpacity(0.4),
+                    color: AegisColors.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              Text(title,
-                  style: GoogleFonts.sora(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: _text)),
-              const SizedBox(height: 6),
-              Text('AegisRx Health Lock · v1.0.0',
-                  style: GoogleFonts.inter(fontSize: 12, color: _sub)),
-              Divider(color: _border.withOpacity(0.3), height: 32),
-              Text(body,
-                  style: GoogleFonts.inter(
-                      fontSize: 14, color: _text, height: 1.8)),
+              const SizedBox(height: AegisSpacing.base),
+              Text(
+                title,
+                style: AegisTypography.headlineMedium.copyWith(
+                  color: AegisColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: AegisSpacing.xs),
+              Text(
+                'AegisRx Health Lock · v1.0.0',
+                style: AegisTypography.bodySmall.copyWith(
+                  color: AegisColors.textTertiary,
+                ),
+              ),
+              const SizedBox(height: AegisSpacing.md),
+              const Divider(color: AegisColors.border),
+              const SizedBox(height: AegisSpacing.md),
+              Text(
+                body,
+                style: AegisTypography.bodyMedium.copyWith(
+                  color: AegisColors.textPrimary,
+                  height: 1.8,
+                ),
+              ),
             ],
           ),
         ),
@@ -375,334 +457,382 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
   }
 
   void _toast(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          msg,
+          style: AegisTypography.bodySmall.copyWith(color: Colors.white),
+        ),
+        backgroundColor: AegisColors.textPrimary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
+    final String initials = appState.patientName.isNotEmpty
+        ? appState.patientName
+              .split(' ')
+              .where((w) => w.isNotEmpty)
+              .take(2)
+              .map((w) => w[0].toUpperCase())
+              .join()
+        : 'P';
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: AegisColors.background,
       appBar: AppBar(
-        backgroundColor: _bg,
+        backgroundColor: AegisColors.surface,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         automaticallyImplyLeading: false,
-        title: Text('Settings',
-            style: GoogleFonts.sora(
-                fontWeight: FontWeight.bold, color: _text, fontSize: 20)),
+        titleSpacing: AegisSpacing.pagePadding,
+        title: Text(
+          'Settings',
+          style: AegisTypography.headlineMedium.copyWith(
+            color: AegisColors.textPrimary,
+          ),
+        ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: AegisColors.border),
+        ),
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AegisSpacing.pagePadding,
+          vertical: AegisSpacing.base,
+        ),
         children: [
-          // ── Patient Profile Badge ─────────────────────────────
+          // ── Profile Badge Card ───────────────────────────────
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(AegisSpacing.base),
             decoration: BoxDecoration(
-              color: _card,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _border, width: 1),
+              color: AegisColors.surface,
+              borderRadius: AegisRadius.card,
+              border: Border.all(color: AegisColors.border),
+              boxShadow: AegisShadows.sm,
             ),
             child: Row(
               children: [
+                // Avatar initials circle
                 Container(
-                  width: 52,
-                  height: 52,
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
-                    color: _teal.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        color: _teal.withOpacity(0.4), width: 1.5),
+                    color: AegisColors.primary,
+                    borderRadius: BorderRadius.circular(AegisRadius.md),
                   ),
-                  child: const Icon(Icons.person_rounded,
-                      color: _teal, size: 28),
+                  child: Center(
+                    child: Text(
+                      initials,
+                      style: AegisTypography.headlineSmall.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: AegisSpacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(appState.patientName,
-                          style: GoogleFonts.sora(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: _text)),
-                      Text('ID: ${appState.patientMobileOrId}',
-                          style: GoogleFonts.jetBrainsMono(
-                              fontSize: 11, color: _sub)),
-                      Text(appState.patientEmailOrId,
-                          style:
-                              GoogleFonts.inter(fontSize: 12, color: _sub)),
+                      Text(
+                        appState.patientName,
+                        style: AegisTypography.titleMedium.copyWith(
+                          color: AegisColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'ID: ${appState.patientMobileOrId}',
+                        style: AegisTypography.monoSmall.copyWith(
+                          color: AegisColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        appState.patientEmailOrId,
+                        style: AegisTypography.bodySmall.copyWith(
+                          color: AegisColors.textSecondary,
+                        ),
+                      ),
                     ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AegisSpacing.sm,
+                    vertical: AegisSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AegisColors.secondarySurface,
+                    borderRadius: AegisRadius.chip,
+                    border: Border.all(
+                      color: AegisColors.secondary.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Text(
+                    'Patient',
+                    style: AegisTypography.labelSmall.copyWith(
+                      color: AegisColors.secondary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: AegisSpacing.lg),
 
-          // ── Profile Section ───────────────────────────────────
-          _sectionLabel('Profile'),
-          const SizedBox(height: 8),
-          _settingsCard(children: [
-            _settingsTile(
-              icon: Icons.person_outline,
-              label: 'Personal Details',
-              sub: 'Update your name and contact info',
-              onTap: () => _openPersonalDetails(appState),
-            ),
-          ]),
-          const SizedBox(height: 20),
-
-          // ── Security Section ──────────────────────────────────
-          _sectionLabel('Security'),
-          const SizedBox(height: 8),
-          _settingsCard(children: [
-            _settingsTile(
-              icon: Icons.lock_outline,
-              label: 'Change PIN',
-              sub: appState.savedPin != null
-                  ? 'PIN is currently set'
-                  : 'Set a new access PIN',
-              trailing: appState.savedPin != null
-                  ? Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _teal.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: _teal.withOpacity(0.4), width: 1),
-                      ),
-                      child: Text('Set',
-                          style: GoogleFonts.inter(
-                              fontSize: 10,
-                              color: _teal,
-                              fontWeight: FontWeight.bold)),
-                    )
-                  : null,
-              onTap: () => _openChangePIN(appState),
-            ),
-            _divider(),
-            _switchTile(
-              icon: Icons.fingerprint,
-              label: 'Biometric Unlock',
-              sub: 'Use fingerprint or Face ID to unlock',
-              value: _biometricUnlock,
-              onChanged: (val) {
-                setState(() => _biometricUnlock = val);
-                _toast(val
-                    ? 'Biometric unlock enabled.'
-                    : 'Biometric unlock disabled.');
-              },
-            ),
-          ]),
-          const SizedBox(height: 20),
-
-          // ── Health Data Section ───────────────────────────────
-          _sectionLabel('Health Data'),
-          const SizedBox(height: 8),
-          _settingsCard(children: [
-            _settingsTile(
-              icon: Icons.warning_amber_rounded,
-              label: 'Allergy Declarations',
-              sub: _allergies.isEmpty
-                  ? 'No allergies declared'
-                  : _allergies.join(', '),
-              subColor: _allergies.isNotEmpty ? _amber : _sub,
-              onTap: _openAllergyManager,
-              trailing: Text(
-                '${_allergies.length}',
-                style: GoogleFonts.sora(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: _allergies.isNotEmpty ? _amber : _sub),
+          // ── Profile Section ──────────────────────────────────
+          _SectionHeader(label: 'Profile'),
+          const SizedBox(height: AegisSpacing.sm),
+          _SettingsCard(
+            children: [
+              _SettingsTile(
+                icon: Icons.person_outline,
+                iconColor: AegisColors.primary,
+                label: 'Personal Details',
+                sub: 'Update your name and contact info',
+                onTap: () => _openPersonalDetails(appState),
               ),
-            ),
-            _divider(),
-            _settingsTile(
-              icon: Icons.download_rounded,
-              label: 'Export Prescription Data',
-              sub: '${appState.patientVault.length} prescription(s) available',
-              onTap: () => _exportData(appState),
-            ),
-          ]),
-          const SizedBox(height: 20),
+            ],
+          ),
+          const SizedBox(height: AegisSpacing.base),
 
-          // ── About Section ─────────────────────────────────────
-          _sectionLabel('About'),
-          const SizedBox(height: 8),
-          _settingsCard(children: [
-            _settingsTile(
-              icon: Icons.description_outlined,
-              label: 'Terms of Use',
-              sub: 'Read our terms of service',
-              onTap: () => _openLegalPage('Terms of Use', _kTermsText),
-            ),
-            _divider(),
-            _settingsTile(
-              icon: Icons.privacy_tip_outlined,
-              label: 'Privacy Policy',
-              sub: 'Read our data & privacy policy',
-              onTap: () => _openLegalPage('Privacy Policy', _kPrivacyText),
-            ),
-            _divider(),
-            _settingsTile(
-              icon: Icons.info_outline,
-              label: 'App Version',
-              sub: 'AegisRx Health Lock',
-              onTap: null,
-              trailing: Text('1.0.0',
-                  style: GoogleFonts.jetBrainsMono(
-                      fontSize: 12, color: _sub)),
-            ),
-          ]),
-          const SizedBox(height: 36),
+          // ── Security Section ─────────────────────────────────
+          _SectionHeader(label: 'Security'),
+          const SizedBox(height: AegisSpacing.sm),
+          _SettingsCard(
+            children: [
+              _SettingsTile(
+                icon: Icons.lock_outline,
+                iconColor: AegisColors.primary,
+                label: 'Change PIN',
+                sub: appState.savedPin != null
+                    ? 'PIN is currently set'
+                    : 'Set a new access PIN',
+                onTap: () => _openChangePIN(appState),
+                trailing: appState.savedPin != null
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AegisSpacing.sm,
+                          vertical: AegisSpacing.xs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AegisColors.secondarySurface,
+                          borderRadius: AegisRadius.chip,
+                          border: Border.all(
+                            color: AegisColors.secondary.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Text(
+                          'Set',
+                          style: AegisTypography.labelSmall.copyWith(
+                            color: AegisColors.secondary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
+              const Divider(height: 1, color: AegisColors.border, indent: 56),
+              _SwitchTile(
+                icon: Icons.fingerprint,
+                iconColor: AegisColors.primary,
+                label: 'Biometric Unlock',
+                sub: 'Use fingerprint or Face ID to unlock',
+                value: _biometricUnlock,
+                onChanged: (val) {
+                  setState(() => _biometricUnlock = val);
+                  _toast(
+                    val
+                        ? 'Biometric unlock enabled.'
+                        : 'Biometric unlock disabled.',
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: AegisSpacing.base),
 
-          // ── Sign Out ──────────────────────────────────────────
+          // ── Health Data Section ──────────────────────────────
+          _SectionHeader(label: 'Health Data'),
+          const SizedBox(height: AegisSpacing.sm),
+          _SettingsCard(
+            children: [
+              _SettingsTile(
+                icon: Icons.warning_amber_rounded,
+                iconColor: _allergies.isNotEmpty
+                    ? AegisColors.warning
+                    : AegisColors.textTertiary,
+                label: 'Allergy Declarations',
+                sub: _allergies.isEmpty
+                    ? 'No allergies declared'
+                    : _allergies.join(', '),
+                subColor: _allergies.isNotEmpty ? AegisColors.warning : null,
+                onTap: _openAllergyManager,
+                trailing: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: _allergies.isNotEmpty
+                        ? AegisColors.dangerLight
+                        : AegisColors.surfaceDim,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${_allergies.length}',
+                      style: AegisTypography.labelSmall.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: _allergies.isNotEmpty
+                            ? AegisColors.danger
+                            : AegisColors.textTertiary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const Divider(height: 1, color: AegisColors.border, indent: 56),
+              _SettingsTile(
+                icon: Icons.download_rounded,
+                iconColor: AegisColors.secondary,
+                label: 'Export Prescription Data',
+                sub:
+                    '${appState.patientVault.length} prescription(s) available',
+                onTap: () => _exportData(appState),
+              ),
+            ],
+          ),
+          const SizedBox(height: AegisSpacing.base),
+
+          // ── About Section ────────────────────────────────────
+          _SectionHeader(label: 'About'),
+          const SizedBox(height: AegisSpacing.sm),
+          _SettingsCard(
+            children: [
+              _SettingsTile(
+                icon: Icons.description_outlined,
+                iconColor: AegisColors.textSecondary,
+                label: 'Terms of Use',
+                sub: 'Read our terms of service',
+                onTap: () => _openLegalPage('Terms of Use', _kTermsText),
+              ),
+              const Divider(height: 1, color: AegisColors.border, indent: 56),
+              _SettingsTile(
+                icon: Icons.privacy_tip_outlined,
+                iconColor: AegisColors.textSecondary,
+                label: 'Privacy Policy',
+                sub: 'Read our data & privacy policy',
+                onTap: () => _openLegalPage('Privacy Policy', _kPrivacyText),
+              ),
+              const Divider(height: 1, color: AegisColors.border, indent: 56),
+              _SettingsTile(
+                icon: Icons.info_outline,
+                iconColor: AegisColors.textTertiary,
+                label: 'App Version',
+                sub: 'AegisRx Health Lock',
+                onTap: null,
+                trailing: Text(
+                  '1.0.0',
+                  style: AegisTypography.monoSmall.copyWith(
+                    color: AegisColors.textTertiary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AegisSpacing.xl),
+
+          // ── Sign Out ─────────────────────────────────────────
           SizedBox(
             width: double.infinity,
-            height: 52,
+            height: AegisTokens.btnHeight,
             child: ElevatedButton.icon(
               onPressed: () {
+                // UNCHANGED — sign out dialog + clearSession()
                 showDialog(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    backgroundColor: _card,
+                    backgroundColor: AegisColors.surface,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: const BorderSide(color: _border, width: 1),
+                      borderRadius: AegisRadius.card,
+                      side: const BorderSide(color: AegisColors.border),
                     ),
-                    title: Text('Sign Out?',
-                        style: GoogleFonts.sora(
-                            fontWeight: FontWeight.bold, color: _text)),
+                    title: Text(
+                      'Sign Out?',
+                      style: AegisTypography.headlineSmall.copyWith(
+                        color: AegisColors.textPrimary,
+                      ),
+                    ),
                     content: Text(
-                        'You will be logged out and returned to the role selection screen.',
-                        style: GoogleFonts.inter(color: _sub, fontSize: 14)),
+                      'You will be logged out and returned to the role selection screen.',
+                      style: AegisTypography.bodyMedium.copyWith(
+                        color: AegisColors.textSecondary,
+                      ),
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx),
-                        child: Text('Cancel',
-                            style: GoogleFonts.inter(color: _sub)),
+                        child: Text(
+                          'Cancel',
+                          style: AegisTypography.labelMedium.copyWith(
+                            color: AegisColors.textSecondary,
+                          ),
+                        ),
                       ),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _red,
+                          backgroundColor: AegisColors.danger,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
+                            borderRadius: AegisRadius.button,
+                          ),
                         ),
                         onPressed: () {
                           Navigator.pop(ctx);
                           appState.clearSession();
                         },
-                        child: Text('Sign Out',
-                            style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold)),
+                        child: Text(
+                          'Sign Out',
+                          style: AegisTypography.labelMedium.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 );
               },
-              icon: const Icon(Icons.logout_rounded, color: Colors.white),
-              label: Text('Sign out',
-                  style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white)),
+              icon: const Icon(
+                Icons.logout_rounded,
+                color: Colors.white,
+                size: AegisIconSize.sm,
+              ),
+              label: Text(
+                'Sign out',
+                style: AegisTypography.labelLarge.copyWith(color: Colors.white),
+              ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _red,
+                backgroundColor: AegisColors.danger,
                 elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
               ),
             ),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: AegisSpacing.xxl),
         ],
       ),
     );
   }
-
-  // ── Reusable Builders ─────────────────────────────────────────
-  Widget _sectionLabel(String title) => Padding(
-        padding: const EdgeInsets.only(left: 4.0),
-        child: Text(
-          title.toUpperCase(),
-          style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: _border,
-              letterSpacing: 1.0),
-        ),
-      );
-
-  Widget _settingsCard({required List<Widget> children}) => Container(
-        decoration: BoxDecoration(
-          color: _card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _border, width: 1.0),
-        ),
-        child: Column(children: children),
-      );
-
-  Widget _settingsTile({
-    required IconData icon,
-    required String label,
-    String? sub,
-    Color? subColor,
-    required VoidCallback? onTap,
-    Widget? trailing,
-  }) =>
-      ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        leading: Icon(icon, color: _border, size: 22),
-        title: Text(label,
-            style: GoogleFonts.inter(
-                fontWeight: FontWeight.w600, color: _text, fontSize: 15)),
-        subtitle: sub != null
-            ? Text(sub,
-                style: GoogleFonts.inter(
-                    fontSize: 12, color: subColor ?? _sub))
-            : null,
-        trailing: trailing ??
-            (onTap != null
-                ? const Icon(Icons.chevron_right, color: _border)
-                : null),
-        onTap: onTap,
-      );
-
-  Widget _switchTile({
-    required IconData icon,
-    required String label,
-    String? sub,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) =>
-      SwitchListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        secondary: Icon(icon, color: _border, size: 22),
-        title: Text(label,
-            style: GoogleFonts.inter(
-                fontWeight: FontWeight.w600, color: _text, fontSize: 15)),
-        subtitle: sub != null
-            ? Text(sub, style: GoogleFonts.inter(fontSize: 12, color: _sub))
-            : null,
-        value: value,
-        onChanged: onChanged,
-        activeColor: _teal,
-      );
-
-  Widget _divider() => Divider(
-        color: _border.withOpacity(0.3),
-        height: 1,
-        indent: 16,
-        endIndent: 16,
-      );
 
   Widget _styledField({
     required TextEditingController controller,
@@ -711,37 +841,204 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
     bool obscure = false,
     TextInputType keyboardType = TextInputType.text,
     int? maxLength,
-  }) =>
-      TextField(
-        controller: controller,
-        obscureText: obscure,
-        keyboardType: keyboardType,
-        maxLength: maxLength,
-        style: GoogleFonts.inter(color: _text, fontSize: 15),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: GoogleFonts.inter(color: _sub, fontSize: 13),
-          prefixIcon: Icon(icon, color: _border, size: 20),
-          filled: true,
-          fillColor: _bg,
-          counterText: '',
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: _border, width: 1.0)),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: _border, width: 1.0)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: _teal, width: 1.5)),
-        ),
-      );
+  }) => TextField(
+    controller: controller,
+    obscureText: obscure,
+    keyboardType: keyboardType,
+    maxLength: maxLength,
+    style: AegisTypography.bodyMedium.copyWith(color: AegisColors.textPrimary),
+    decoration: InputDecoration(
+      labelText: label,
+      labelStyle: AegisTypography.bodySmall.copyWith(
+        color: AegisColors.textSecondary,
+      ),
+      prefixIcon: Icon(
+        icon,
+        color: AegisColors.textTertiary,
+        size: AegisIconSize.sm,
+      ),
+      filled: true,
+      fillColor: AegisColors.background,
+      counterText: '',
+      border: OutlineInputBorder(
+        borderRadius: AegisRadius.input,
+        borderSide: const BorderSide(color: AegisColors.border, width: 1.0),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: AegisRadius.input,
+        borderSide: const BorderSide(color: AegisColors.border, width: 1.0),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: AegisRadius.input,
+        borderSide: const BorderSide(color: AegisColors.primary, width: 1.5),
+      ),
+    ),
+  );
 }
 
-// ── Allergy Sheet Widget ───────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// Reusable Settings Components
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _SectionHeader extends StatelessWidget {
+  final String label;
+  const _SectionHeader({required this.label});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(left: 4, bottom: 2),
+    child: Text(
+      label.toUpperCase(),
+      style: AegisTypography.labelSmall.copyWith(
+        color: AegisColors.textTertiary,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.2,
+      ),
+    ),
+  );
+}
+
+class _SettingsCard extends StatelessWidget {
+  final List<Widget> children;
+  const _SettingsCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: AegisColors.surface,
+      borderRadius: AegisRadius.card,
+      border: Border.all(color: AegisColors.border),
+      boxShadow: AegisShadows.sm,
+    ),
+    child: Column(children: children),
+  );
+}
+
+class _SettingsTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String? sub;
+  final Color? subColor;
+  final VoidCallback? onTap;
+  final Widget? trailing;
+
+  const _SettingsTile({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    this.sub,
+    this.subColor,
+    required this.onTap,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: AegisSpacing.base,
+      vertical: AegisSpacing.xs,
+    ),
+    leading: Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: iconColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AegisRadius.sm),
+      ),
+      child: Icon(icon, color: iconColor, size: AegisIconSize.sm),
+    ),
+    title: Text(
+      label,
+      style: AegisTypography.bodyMedium.copyWith(
+        color: AegisColors.textPrimary,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    subtitle: sub != null
+        ? Text(
+            sub!,
+            style: AegisTypography.bodySmall.copyWith(
+              color: subColor ?? AegisColors.textSecondary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          )
+        : null,
+    trailing:
+        trailing ??
+        (onTap != null
+            ? const Icon(
+                Icons.chevron_right,
+                color: AegisColors.textTertiary,
+                size: AegisIconSize.md,
+              )
+            : null),
+    onTap: onTap,
+    shape: RoundedRectangleBorder(borderRadius: AegisRadius.card),
+  );
+}
+
+class _SwitchTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String? sub;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SwitchTile({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    this.sub,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) => SwitchListTile(
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: AegisSpacing.base,
+      vertical: AegisSpacing.xs,
+    ),
+    secondary: Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: iconColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AegisRadius.sm),
+      ),
+      child: Icon(icon, color: iconColor, size: AegisIconSize.sm),
+    ),
+    title: Text(
+      label,
+      style: AegisTypography.bodyMedium.copyWith(
+        color: AegisColors.textPrimary,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    subtitle: sub != null
+        ? Text(
+            sub!,
+            style: AegisTypography.bodySmall.copyWith(
+              color: AegisColors.textSecondary,
+            ),
+          )
+        : null,
+    value: value,
+    onChanged: onChanged,
+    activeColor: AegisColors.primary,
+    trackColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
+        return AegisColors.primarySurface;
+      }
+      return AegisColors.border;
+    }),
+  );
+}
+
+// ── Allergy Sheet Widget ───────────────────────────────────────────────────
 class _AllergySheet extends StatefulWidget {
   final List<String> allergies;
   final ValueChanged<List<String>> onSave;
@@ -753,17 +1050,10 @@ class _AllergySheet extends StatefulWidget {
 }
 
 class _AllergySheetState extends State<_AllergySheet> {
-  static const _text = Color(0xFF4A3325);
-  static const _sub = Color(0xFFD4A387);
-  static const _border = Color(0xFFB88E74);
-  static const _teal = Color(0xFF2E8B90);
-  static const _amber = Color(0xFFD97736);
-  static const _red = Color(0xFFB33A3A);
-  static const _bg = Color(0xFFF7F4EB);
-
   late List<String> _list;
   final _ctrl = TextEditingController();
 
+  // UNCHANGED — same allergen list
   final List<String> _commonAllergens = [
     'Penicillin',
     'Aspirin',
@@ -799,156 +1089,238 @@ class _AllergySheetState extends State<_AllergySheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+        padding: const EdgeInsets.fromLTRB(
+          AegisSpacing.pagePadding,
+          AegisSpacing.sm,
+          AegisSpacing.pagePadding,
+          AegisSpacing.xxl,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Handle bar
             Center(
               child: Container(
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: _border.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(2)),
+                  color: AegisColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-            const SizedBox(height: 20),
-            Text('Allergy Declarations',
-                style: GoogleFonts.sora(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: _text)),
-            const SizedBox(height: 6),
-            Text('These are shown to your doctor during prescriptions.',
-                style: GoogleFonts.inter(fontSize: 13, color: _sub)),
-            const SizedBox(height: 20),
+            const SizedBox(height: AegisSpacing.base),
 
-            // Current declared allergies
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AegisColors.dangerLight,
+                    borderRadius: BorderRadius.circular(AegisRadius.sm),
+                  ),
+                  child: const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AegisColors.danger,
+                    size: AegisIconSize.md,
+                  ),
+                ),
+                const SizedBox(width: AegisSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Allergy Declarations',
+                        style: AegisTypography.headlineSmall.copyWith(
+                          color: AegisColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Shown to your doctor during prescriptions.',
+                        style: AegisTypography.bodySmall.copyWith(
+                          color: AegisColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AegisSpacing.base),
+            const Divider(color: AegisColors.border),
+            const SizedBox(height: AegisSpacing.base),
+
+            // Declared allergies chips
             if (_list.isNotEmpty)
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: AegisSpacing.xs,
+                runSpacing: AegisSpacing.xs,
                 children: _list.map((a) {
                   return Chip(
-                    label: Text(a,
-                        style: GoogleFonts.inter(
-                            fontWeight: FontWeight.bold,
-                            color: _amber,
-                            fontSize: 13)),
-                    backgroundColor: _amber.withOpacity(0.1),
-                    side: BorderSide(color: _amber.withOpacity(0.4)),
-                    deleteIcon:
-                        const Icon(Icons.close, size: 16, color: _red),
+                    label: Text(
+                      a,
+                      style: AegisTypography.labelSmall.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AegisColors.danger,
+                      ),
+                    ),
+                    backgroundColor: AegisColors.dangerLight,
+                    side: BorderSide(
+                      color: AegisColors.danger.withValues(alpha: 0.3),
+                    ),
+                    deleteIcon: const Icon(
+                      Icons.close,
+                      size: AegisIconSize.xs,
+                      color: AegisColors.danger,
+                    ),
                     onDeleted: () => setState(() => _list.remove(a)),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
+                      borderRadius: BorderRadius.circular(AegisRadius.sm),
+                    ),
                   );
                 }).toList(),
               ),
             if (_list.isEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text('No allergies declared.',
-                    style: GoogleFonts.inter(color: _sub, fontSize: 14)),
+                padding: const EdgeInsets.symmetric(vertical: AegisSpacing.sm),
+                child: Text(
+                  'No allergies declared.',
+                  style: AegisTypography.bodyMedium.copyWith(
+                    color: AegisColors.textSecondary,
+                  ),
+                ),
               ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AegisSpacing.base),
 
-            // Add custom allergen
+            // Custom allergen input row
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _ctrl,
-                    style: GoogleFonts.inter(color: _text),
+                    style: AegisTypography.bodyMedium.copyWith(
+                      color: AegisColors.textPrimary,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Add allergen manually',
-                      labelStyle:
-                          GoogleFonts.inter(color: _sub, fontSize: 13),
+                      labelStyle: AegisTypography.bodySmall.copyWith(
+                        color: AegisColors.textSecondary,
+                      ),
                       filled: true,
-                      fillColor: _bg,
+                      fillColor: AegisColors.background,
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: _border, width: 1)),
+                        borderRadius: AegisRadius.input,
+                        borderSide: const BorderSide(
+                          color: AegisColors.border,
+                          width: 1,
+                        ),
+                      ),
                       enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: _border, width: 1)),
+                        borderRadius: AegisRadius.input,
+                        borderSide: const BorderSide(
+                          color: AegisColors.border,
+                          width: 1,
+                        ),
+                      ),
                       focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: _teal, width: 1.5)),
+                        borderRadius: AegisRadius.input,
+                        borderSide: const BorderSide(
+                          color: AegisColors.primary,
+                          width: 1.5,
+                        ),
+                      ),
                     ),
                     onSubmitted: _addAllergen,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: AegisSpacing.sm),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _teal,
+                    backgroundColor: AegisColors.primary,
                     elevation: 0,
                     minimumSize: const Size(48, 50),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: AegisRadius.input,
+                    ),
                   ),
                   onPressed: () => _addAllergen(_ctrl.text),
-                  child: const Icon(Icons.add, color: Colors.white),
+                  child: const Icon(
+                    Icons.add,
+                    color: Colors.white,
+                    size: AegisIconSize.md,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AegisSpacing.base),
 
-            // Common allergen quick-add chips
-            Text('Common allergens',
-                style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: _border,
-                    letterSpacing: 0.5)),
-            const SizedBox(height: 10),
+            // Common allergens quick-add
+            Text(
+              'Common allergens',
+              style: AegisTypography.labelSmall.copyWith(
+                color: AegisColors.textTertiary,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: AegisSpacing.sm),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: AegisSpacing.xs,
+              runSpacing: AegisSpacing.xs,
               children: _commonAllergens
                   .where((a) => !_list.contains(a))
-                  .map((a) => ActionChip(
-                        label: Text(a,
-                            style: GoogleFonts.inter(
-                                fontSize: 12, color: _text)),
-                        backgroundColor: Colors.white,
-                        side:
-                            const BorderSide(color: _border, width: 1),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                        onPressed: () => _addAllergen(a),
-                      ))
+                  .map(
+                    (a) => ActionChip(
+                      label: Text(
+                        a,
+                        style: AegisTypography.labelSmall.copyWith(
+                          color: AegisColors.textPrimary,
+                        ),
+                      ),
+                      backgroundColor: AegisColors.surface,
+                      side: const BorderSide(
+                        color: AegisColors.border,
+                        width: 1,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AegisRadius.sm),
+                      ),
+                      onPressed: () => _addAllergen(a),
+                    ),
+                  )
                   .toList(),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: AegisSpacing.lg),
 
             // Save button
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: AegisTokens.btnHeight,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _teal,
+                  backgroundColor: AegisColors.primary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                    borderRadius: AegisRadius.button,
+                  ),
                 ),
                 onPressed: () {
                   widget.onSave(_list);
                   Navigator.pop(context);
                 },
-                child: Text('Save Allergies',
-                    style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16)),
+                child: Text(
+                  'Save Allergies',
+                  style: AegisTypography.labelLarge.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           ],
@@ -958,7 +1330,7 @@ class _AllergySheetState extends State<_AllergySheet> {
   }
 }
 
-// ── Legal Text Constants ───────────────────────────────────────
+// ── Legal Text Constants ── UNCHANGED ──────────────────────────────────────
 const _kTermsText = '''
 1. Acceptance of Terms
 By using the AegisRx Health Lock application, you agree to comply with and be bound by these Terms of Use. If you do not agree, please discontinue use of the application immediately.

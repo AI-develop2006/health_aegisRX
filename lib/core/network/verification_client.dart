@@ -26,12 +26,12 @@ class VerificationException implements Exception {
 }
 
 class ValidationException extends VerificationException {
-  ValidationException(String message, {dynamic details})
-      : super(message, statusCode: 422, details: details);
+  ValidationException(super.message, {super.details})
+      : super(statusCode: 422);
 }
 
 class NetworkTimeoutException extends VerificationException {
-  NetworkTimeoutException(String message) : super(message, statusCode: 504);
+  NetworkTimeoutException(super.message) : super(statusCode: 504);
 }
 
 class ClientVerificationException extends ChangeNotifier {

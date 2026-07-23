@@ -21,6 +21,13 @@ class AcceptRejectInput(BaseModel):
     id: str = Field(..., description="Consultation request ID", example="req_a1b2c3d4")
 
 
+class CancelInput(BaseModel):
+    id: Optional[str] = Field(None, description="Consultation request ID", example="req_a1b2c3d4")
+    patient_id: Optional[str] = Field(None, description="Patient ID", example="992818")
+    patient_name: Optional[str] = Field(None, description="Patient display name", example="Elena Vance")
+    doctor_id: Optional[str] = Field(None, description="Doctor license number", example="889218")
+
+
 class ConsultationResponse(BaseModel):
     id: str
     patientName: str

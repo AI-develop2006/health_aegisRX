@@ -22,12 +22,19 @@ enum PatientAuthState {
 }
 
 class AppState extends ChangeNotifier {
-  static const _secureStorage = FlutterSecureStorage();
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: false,
+      resetOnError: true,
+    ),
+  );
   UserRole? _role;
   String? _token; // session token (e.g. from backend)
   String _backendUrl = 'http://10.91.100.79:4000';
   bool _isLoading = false;
   Timer? _pollTimer;
+  Future<void>? _pendingPersist;
+  static AppState? activeInstance;
 
   // Onboarding & Role Selection States
   bool _hasFinishedSplash = false;
@@ -68,6 +75,7 @@ class AppState extends ChangeNotifier {
   bool _isOfflineGuest = false;
   String _guestName = 'Guest';
   String _patientMobileOrId = '000000';
+  bool _isInitialized = false;
 
   bool _isAttendanceActive = false;
   bool _isDoctorConnected = false;
@@ -107,6 +115,7 @@ class AppState extends ChangeNotifier {
   List<dynamic> get visitHistory => _visitHistory;
   String? get activePendingRequestId => _activePendingRequestId;
   bool get isOfflineGuest => _isOfflineGuest;
+  bool get isInitialized => _isInitialized;
   bool get isAuthenticated => _token != null || _isOfflineGuest;
 
   bool _useMockFrontend = false; // Set to true only in local dev mode
@@ -147,45 +156,120 @@ class AppState extends ChangeNotifier {
   Prescription? get selectedPrescriptionQR => _selectedPrescription;
 
   int _pollTicks = 0;
+  bool _isSyncing = false;
 
   AppState() {
+    if (activeInstance != null) {
+      debugPrint(
+        '[DEBUG_SESSION] Disposing previous AppState instance to prevent duplicate polling loops.',
+      );
+      activeInstance!.dispose();
+    }
+    activeInstance = this;
     _initSession();
-    _pollTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (isAuthenticated) {
-        _pollTicks++;
+  }
 
-        // 1. Check doctor connection requests (consultation requests)
-        checkPendingConsultations();
+  @override
+  void dispose() {
+    _stopPolling();
+    super.dispose();
+  }
 
-        // 2. Fetch prescriptions, profile/allergies and activity logs
-        if (_pollTicks % 2 == 0) {
-          fetchPatientProfile();
-          fetchPrescriptions(silent: true);
-          fetchActivityLogs();
-        }
+  bool _isPollingPaused = false;
+  bool get isPollingPaused => _isPollingPaused;
 
-        // 3. Fetch visit history
-        if (_pollTicks % 4 == 0) {
-          fetchVisitHistory();
+  void pausePolling({required String screen, required String reason}) {
+    if (_isPollingPaused) return;
+    _isPollingPaused = true;
+    debugPrint(
+      '[POLL]\nStopped\nScreen:\n$screen\nReason:\n$reason\nTimestamp:\n${DateTime.now()}',
+    );
+    notifyListeners();
+  }
+
+  void resumePolling({required String screen, required String reason}) {
+    if (!_isPollingPaused) return;
+    _isPollingPaused = false;
+    debugPrint(
+      '[POLL]\nResumed\nScreen:\n$screen\nReason:\n$reason\nTimestamp:\n${DateTime.now()}',
+    );
+    notifyListeners();
+  }
+
+  void _startPolling() {
+    if (_pollTimer != null) {
+      debugPrint(
+        '[POLL]\nAlready running\nScreen:\nN/A\nReason:\nStart polling requested but timer active\nTimestamp:\n${DateTime.now()}',
+      );
+      return;
+    }
+    debugPrint(
+      '[POLL]\nStarted\nScreen:\nN/A\nReason:\nSession active, starting polling loop\nTimestamp:\n${DateTime.now()}',
+    );
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (_isPollingPaused) {
+        debugPrint('[DEBUG_POLL] Sync loop tick ignored: polling is paused.');
+        return;
+      }
+      debugPrint(
+        '[DEBUG_POLL] Sync loop tick: initialized=$_isInitialized, authenticated=$isAuthenticated, role=$_role, syncing=$_isSyncing',
+      );
+      if (_isInitialized &&
+          isAuthenticated &&
+          _role == UserRole.patient &&
+          !_isOfflineGuest &&
+          !_isSyncing) {
+        _isSyncing = true;
+        try {
+          _pollTicks++;
+
+          // 1. Check doctor connection requests (consultation requests)
+          await checkPendingConsultations();
+
+          // 2. Fetch prescriptions, profile/allergies and activity logs
+          if (_pollTicks % 2 == 0) {
+            await fetchPatientProfile();
+            await fetchPrescriptions(silent: true);
+            await fetchActivityLogs();
+          }
+
+          // 3. Fetch visit history
+          if (_pollTicks % 4 == 0) {
+            await fetchVisitHistory();
+          }
+        } catch (e) {
+          debugPrint('Sync cycle failed: $e');
+        } finally {
+          _isSyncing = false;
         }
       }
     });
   }
 
-  @override
-  void dispose() {
-    _pollTimer?.cancel();
-    super.dispose();
+  void _stopPolling() {
+    if (_pollTimer == null) {
+      debugPrint(
+        '[POLL]\nAlready stopped\nScreen:\nN/A\nReason:\nStop polling requested but timer already inactive\nTimestamp:\n${DateTime.now()}',
+      );
+      return;
+    }
+    _pollTimer!.cancel();
+    _pollTimer = null;
+    debugPrint(
+      '[POLL]\nCancelled\nScreen:\nN/A\nReason:\nSession ended, stopping timer\nTimestamp:\n${DateTime.now()}',
+    );
   }
 
   // --- Session Management ---
 
   Future<void> _discoverBackendUrl() async {
     final candidates = [
-      'http://13.63.53.53:4000',
-      'http://127.0.0.1:4000',
       'http://10.0.2.2:4000',
+      'http://127.0.0.1:4000',
+      'http://10.91.100.79:4000',
+      'http://192.168.1.42:4000',
       'http://192.168.0.15:4000',
+      'http://13.63.53.53:4000',
     ];
     debugPrint('[AUTO-DISCOVERY] Starting backend gateway discovery...');
     for (final url in candidates) {
@@ -193,12 +277,14 @@ class AppState extends ChangeNotifier {
         debugPrint('[AUTO-DISCOVERY] Probing endpoint: $url/health');
         final res = await http
             .get(Uri.parse('$url/health'))
-            .timeout(const Duration(seconds: 2));
+            .timeout(const Duration(seconds: 1));
         debugPrint(
           '[AUTO-DISCOVERY] Endpoint $url responded with status: ${res.statusCode}',
         );
         if (res.statusCode == 200) {
           _backendUrl = url;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('backend_url', url);
           debugPrint('[AUTO-DISCOVERY] SUCCESS: Bound client Gateway to $url');
           return;
         }
@@ -206,113 +292,227 @@ class AppState extends ChangeNotifier {
         debugPrint('[AUTO-DISCOVERY] Endpoint $url unreachable: $e');
       }
     }
-    debugPrint('[AUTO-DISCOVERY] No working endpoint detected, falling back.');
+    debugPrint('[AUTO-DISCOVERY] No working endpoint detected. Defaulting to emulator gateway (10.0.2.2:4000).');
+    _backendUrl = 'http://10.0.2.2:4000';
   }
 
   Future<void> _initSession() async {
     try {
+      debugPrint('[DEBUG_SESSION] Initializing session restoration...');
       final prefs = await SharedPreferences.getInstance();
       _hasFinishedSplash = prefs.getBool('finished_splash') ?? false;
       _hasSeenOnboarding = prefs.getBool('completed_onboarding') ?? false;
 
       // Auto-discover the working backend gateway interface
       await _discoverBackendUrl();
-      if (_backendUrl == 'http://127.0.0.1:4000') {
-        _backendUrl = prefs.getString('backend_url') ?? 'http://127.0.0.1:4000';
-      }
-      _savedPin = await _secureStorage.read(key: 'saved_pin');
 
-      final patientJson = await _secureStorage.read(key: 'session_patient');
+      try {
+        _savedPin = await _secureStorage.read(key: 'saved_pin');
+      } catch (e) {
+        debugPrint(
+          '[DEBUG_SESSION] SecureStorage failure reading saved_pin: $e',
+        );
+        _savedPin = null;
+      }
+
+      String? patientJson;
+      try {
+        patientJson = await _secureStorage.read(key: 'session_patient');
+      } catch (e) {
+        debugPrint(
+          '[DEBUG_SESSION] SecureStorage failure reading session_patient: $e',
+        );
+      }
+
       if (patientJson != null) {
-        _currentPatient = jsonDecode(patientJson) as Map<String, dynamic>;
-        _isOfflineGuest = false;
-        _token = _currentPatient!['token'] as String?;
-        _role = UserRole.patient;
-        _selectedRole = UserRole.patient;
-        _patientAuthState = PatientAuthState.home;
-        _isUnlocked = _savedPin != null;
-      } else {
+        try {
+          final decoded = jsonDecode(patientJson) as Map<String, dynamic>;
+          if (decoded['token'] != null) {
+            _currentPatient = decoded;
+            _isOfflineGuest = false;
+            _token = _currentPatient!['token'] as String?;
+            _role = UserRole.patient;
+            _selectedRole = UserRole.patient;
+            _patientAuthState = PatientAuthState.home;
+            _isUnlocked = true;
+            if (_currentPatient!['name'] != null) {
+              _guestName = _currentPatient!['name'].toString();
+            }
+            if (_currentPatient!['patient_id'] != null) {
+              _patientMobileOrId = _currentPatient!['patient_id'].toString();
+            } else if (_currentPatient!['_id'] != null) {
+              _patientMobileOrId = _currentPatient!['_id'].toString();
+            }
+            debugPrint(
+              '[DEBUG_SESSION] Patient session successfully restored from SecureStorage. Name: $patientName',
+            );
+          } else {
+            debugPrint(
+              '[DEBUG_SESSION] Restored patientJson has no token. Rejecting partial session.',
+            );
+            _currentPatient = null;
+          }
+        } catch (e) {
+          debugPrint('[DEBUG_SESSION] Error decoding session_patient JSON: $e');
+          _currentPatient = null;
+        }
+      }
+
+      // If no valid patient was loaded from secure storage, check guest prefs
+      if (_currentPatient == null) {
         _isOfflineGuest = prefs.getBool('session_offline_guest') ?? false;
         if (_isOfflineGuest) {
           _role = UserRole.patient;
           _selectedRole = UserRole.patient;
           _patientAuthState = PatientAuthState.home;
           _isUnlocked = true;
+          debugPrint('[DEBUG_SESSION] Guest session active.');
         }
+        _patientMobileOrId =
+            prefs.getString('patient_mobile_or_id') ?? '992818';
+        _guestName = prefs.getString('guest_name') ?? 'Elena Vance';
       }
-
-      _patientMobileOrId = prefs.getString('patient_mobile_or_id') ?? '992818';
-      _guestName = prefs.getString('guest_name') ?? 'Elena Vance';
 
       final savedRoleStr = prefs.getString('saved_role');
       if (savedRoleStr != null && savedRoleStr != 'patient') {
-        _token = await _secureStorage.read(key: 'saved_token');
+        try {
+          _token = await _secureStorage.read(key: 'saved_token');
+        } catch (e) {
+          debugPrint(
+            '[DEBUG_SESSION] SecureStorage failure reading saved_token: $e',
+          );
+          _token = null;
+        }
         if (_token != null) {
           if (savedRoleStr == 'doctor') {
             _role = UserRole.doctor;
             _selectedRole = UserRole.doctor;
             _doctorLicense = prefs.getString('doctor_license');
+            _doctorName = prefs.getString('doctor_name');
             _doctorHospital = prefs.getString('doctor_hospital');
             _doctorSpecialty = prefs.getString('doctor_specialty');
             _isVerified = _doctorLicense != null;
+            debugPrint(
+              '[DEBUG_SESSION] Doctor session restored. Name: $_doctorName, License: $_doctorLicense',
+            );
           } else if (savedRoleStr == 'pharmacy') {
             _role = UserRole.pharmacy;
             _selectedRole = UserRole.pharmacy;
             _isTerminalVerified = prefs.getBool('terminal_verified') ?? false;
+            debugPrint(
+              '[DEBUG_SESSION] Pharmacy session restored. Terminal verified: $_isTerminalVerified',
+            );
           }
         }
       }
 
       if (isAuthenticated) {
-        await fetchPrescriptions(silent: true);
-        await fetchActivityLogs();
-        await fetchVisitHistory();
+        if (_role == UserRole.patient && !_isOfflineGuest) {
+          await fetchPrescriptions(silent: true);
+          await fetchActivityLogs();
+          await fetchVisitHistory();
+          await fetchPatientProfile();
+        }
       }
-      notifyListeners();
     } catch (e) {
-      debugPrint('Failed to load persisted session: $e');
+      debugPrint(
+        '[DEBUG_SESSION] Exception during session restore initialization: $e',
+      );
+    } finally {
+      _isInitialized = true;
+      debugPrint(
+        '[DEBUG_SESSION] Initialization completed. Role: $_role, Authenticated: $isAuthenticated, Name: $patientName',
+      );
+      _startPolling();
+      notifyListeners();
     }
   }
 
   Future<void> _persistSession() async {
+    final previous = _pendingPersist;
+    final completer = Completer<void>();
+    _pendingPersist = completer.future;
+
+    if (previous != null) {
+      try {
+        await previous;
+      } catch (_) {}
+    }
+
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('finished_splash', _hasFinishedSplash);
       await prefs.setBool('completed_onboarding', _hasSeenOnboarding);
       await prefs.setString('backend_url', _backendUrl);
-      if (_savedPin != null) {
-        await _secureStorage.write(key: 'saved_pin', value: _savedPin!);
-      } else {
-        await _secureStorage.delete(key: 'saved_pin');
+
+      try {
+        if (_savedPin != null) {
+          await _secureStorage.write(key: 'saved_pin', value: _savedPin!);
+        } else {
+          await _secureStorage.delete(key: 'saved_pin');
+        }
+      } catch (e) {
+        debugPrint(
+          '[DEBUG_SESSION] SecureStorage failed to write saved_pin: $e',
+        );
       }
 
-      if (_currentPatient != null) {
-        await _secureStorage.write(key: 'session_patient', value: jsonEncode(_currentPatient));
-      } else {
-        await _secureStorage.delete(key: 'session_patient');
+      try {
+        if (_currentPatient != null) {
+          await _secureStorage.write(
+            key: 'session_patient',
+            value: jsonEncode(_currentPatient),
+          );
+          if (_currentPatient!['name'] != null) {
+            _guestName = _currentPatient!['name'].toString();
+          }
+        } else {
+          await _secureStorage.delete(key: 'session_patient');
+        }
+      } catch (e) {
+        debugPrint(
+          '[DEBUG_SESSION] SecureStorage failed to write session_patient: $e',
+        );
       }
+
       await prefs.setBool('session_offline_guest', _isOfflineGuest);
       await prefs.setString('patient_mobile_or_id', _patientMobileOrId);
       await prefs.setString('guest_name', _guestName);
 
       if (_role != null) {
         await prefs.setString('saved_role', _role.toString().split('.').last);
-        if (_token != null) {
-          await _secureStorage.write(key: 'saved_token', value: _token!);
+        try {
+          if (_token != null) {
+            await _secureStorage.write(key: 'saved_token', value: _token!);
+          }
+        } catch (e) {
+          debugPrint(
+            '[DEBUG_SESSION] SecureStorage failed to write saved_token: $e',
+          );
         }
       } else {
         await prefs.remove('saved_role');
-        await _secureStorage.delete(key: 'saved_token');
+        try {
+          await _secureStorage.delete(key: 'saved_token');
+        } catch (e) {
+          debugPrint(
+            '[DEBUG_SESSION] SecureStorage failed to delete saved_token: $e',
+          );
+        }
       }
 
       if (_doctorLicense != null) {
         await prefs.setString('doctor_license', _doctorLicense!);
+        await prefs.setString('doctor_name', _doctorName ?? '');
         await prefs.setString('doctor_hospital', _doctorHospital ?? '');
         await prefs.setString('doctor_specialty', _doctorSpecialty ?? '');
       }
       await prefs.setBool('terminal_verified', _isTerminalVerified);
+      debugPrint('[DEBUG_SESSION] Session successfully persisted to disk.');
     } catch (e) {
-      debugPrint('Failed to persist session: $e');
+      debugPrint('[DEBUG_SESSION] Failed to persist session prefs: $e');
+    } finally {
+      completer.complete();
     }
   }
 
@@ -348,6 +548,9 @@ class AppState extends ChangeNotifier {
   }
 
   void setSession({required UserRole role, required String token}) {
+    debugPrint(
+      '[DEBUG_SESSION] setSession called: role=$role, token=${token.isNotEmpty ? "PRESENT" : "EMPTY"}',
+    );
     _role = role;
     _token = token;
     _selectedRole = role;
@@ -355,6 +558,7 @@ class AppState extends ChangeNotifier {
     if (role == UserRole.patient) {
       _isUnlocked = false;
       _patientAuthState = PatientAuthState.home;
+      _isOfflineGuest = false;
     } else if (role == UserRole.doctor) {
       _isVerified = _doctorLicense != null;
     } else if (role == UserRole.pharmacy) {
@@ -362,6 +566,35 @@ class AppState extends ChangeNotifier {
     }
 
     _persistSession();
+    _startPolling();
+    notifyListeners();
+  }
+
+  void setSessionAndPin({
+    required UserRole role,
+    required String token,
+    required String pin,
+  }) {
+    debugPrint(
+      '[DEBUG_SESSION] setSessionAndPin called: role=$role, token=${token.isNotEmpty ? "PRESENT" : "EMPTY"}, pin=***',
+    );
+    _role = role;
+    _token = token;
+    _selectedRole = role;
+    _savedPin = pin;
+
+    if (role == UserRole.patient) {
+      _isUnlocked = true;
+      _patientAuthState = PatientAuthState.home;
+      _isOfflineGuest = false;
+    } else if (role == UserRole.doctor) {
+      _isVerified = _doctorLicense != null;
+    } else if (role == UserRole.pharmacy) {
+      _isTerminalVerified = false;
+    }
+
+    _persistSession();
+    _startPolling();
     notifyListeners();
   }
 
@@ -379,6 +612,7 @@ class AppState extends ChangeNotifier {
     _doctorConsultations = [];
     _doctorName = null;
     _networkError = false;
+    _stopPolling();
     _persistSession();
     notifyListeners();
   }
@@ -395,6 +629,7 @@ class AppState extends ChangeNotifier {
     _patientVault = [];
     _activityLogs = [];
     _visitHistory = [];
+    _stopPolling();
     _persistSession();
     notifyListeners();
   }
@@ -473,22 +708,24 @@ class AppState extends ChangeNotifier {
       _isLoading = true;
       _networkError = false;
       notifyListeners();
-      final response = await http.post(
-        Uri.parse('$_backendUrl/api/patient/register'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email.trim(),
-          'password': password,
-          'name': name.isNotEmpty ? name : email.split('@').first,
-          'mobile': mobile,
-          'dob': dob,
-          'gender': gender,
-          'country': country,
-          'id_type': idType,
-          'id_number': idNumber,
-          'uploaded_file_name': uploadedFileName,
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/patient/register'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'email': email.trim(),
+              'password': password,
+              'name': name.isNotEmpty ? name : email.split('@').first,
+              'mobile': mobile,
+              'dob': dob,
+              'gender': gender,
+              'country': country,
+              'id_type': idType,
+              'id_number': idNumber,
+              'uploaded_file_name': uploadedFileName,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         _currentPatient = jsonDecode(response.body) as Map<String, dynamic>;
         _isOfflineGuest = false;
@@ -540,8 +777,12 @@ class AppState extends ChangeNotifier {
 
       request.files.add(await http.MultipartFile.fromPath('file', file.path));
 
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 15),
+      );
+      final response = await http.Response.fromStream(
+        streamedResponse,
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body) as Map<String, dynamic>;
@@ -566,11 +807,13 @@ class AppState extends ChangeNotifier {
       _isLoading = true;
       _networkError = false;
       notifyListeners();
-      final response = await http.post(
-        Uri.parse('$_backendUrl/api/patient/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email.trim(), 'password': password}),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/patient/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email.trim(), 'password': password}),
+          )
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         _currentPatient = jsonDecode(response.body) as Map<String, dynamic>;
         _isOfflineGuest = false;
@@ -585,6 +828,7 @@ class AppState extends ChangeNotifier {
         await _persistSession();
         await fetchPrescriptions();
         await fetchVisitHistory();
+        await fetchPatientProfile();
         return null;
       }
       debugPrint(
@@ -619,14 +863,16 @@ class AppState extends ChangeNotifier {
     _guestName = newName;
     if (_currentPatient != null && _token != null) {
       try {
-        await http.post(
-          Uri.parse('$_backendUrl/api/patient/update-name'),
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Session-Token': _token!,
-          },
-          body: jsonEncode({'name': newName}),
-        );
+        await http
+            .post(
+              Uri.parse('$_backendUrl/api/patient/update-name'),
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Token': _token!,
+              },
+              body: jsonEncode({'name': newName}),
+            )
+            .timeout(const Duration(seconds: 5));
         _currentPatient = {..._currentPatient!, 'name': newName};
       } catch (e) {
         debugPrint('Failed to update patient name: $e');
@@ -646,9 +892,11 @@ class AppState extends ChangeNotifier {
   Future<void> fetchDoctorConsultations() async {
     try {
       final docId = doctorLicense ?? '889218';
-      final response = await http.get(
-        Uri.parse('$_backendUrl/api/doctor/consultations?doctor_id=$docId'),
-      );
+      final response = await http
+          .get(
+            Uri.parse('$_backendUrl/api/doctor/consultations?doctor_id=$docId'),
+          )
+          .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         _doctorConsultations = jsonDecode(response.body) as List<dynamic>;
         notifyListeners();
@@ -665,11 +913,13 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     }
     try {
-      final response = await http.get(
-        Uri.parse(
-          '$_backendUrl/api/prescriptions?patient=${Uri.encodeComponent(patientName)}',
-        ),
-      );
+      final response = await http
+          .get(
+            Uri.parse(
+              '$_backendUrl/api/prescriptions?patient=${Uri.encodeComponent(patientName)}',
+            ),
+          )
+          .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final List<dynamic> list = jsonDecode(response.body);
         _patientVault = list
@@ -694,9 +944,9 @@ class AppState extends ChangeNotifier {
   // Activity logs audit trail
   Future<void> fetchActivityLogs() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_backendUrl/api/activity-logs'),
-      );
+      final response = await http
+          .get(Uri.parse('$_backendUrl/api/activity-logs'))
+          .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         _activityLogs = jsonDecode(response.body);
         notifyListeners();
@@ -711,10 +961,12 @@ class AppState extends ChangeNotifier {
     if (_role != UserRole.patient) return;
     try {
       final name = Uri.encodeComponent(patientName);
-      final response = await http.get(
-        Uri.parse('$_backendUrl/api/visit-history/$name'),
-        headers: _token != null ? {'X-Session-Token': _token!} : {},
-      );
+      final response = await http
+          .get(
+            Uri.parse('$_backendUrl/api/visit-history/$name'),
+            headers: _token != null ? {'X-Session-Token': _token!} : {},
+          )
+          .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         _visitHistory = data['visits'] as List<dynamic>? ?? [];
@@ -727,31 +979,78 @@ class AppState extends ChangeNotifier {
 
   // Fetch patient profile and allergies from backend database
   Future<void> fetchPatientProfile() async {
-    if (!isAuthenticated) return;
-    try {
-      final name = Uri.encodeComponent(patientName);
-      final response = await http.get(
-        Uri.parse('$_backendUrl/api/doctor/patient-history/$name'),
+    debugPrint('[DEBUG_API] Entering fetchPatientProfile()');
+    if (!isAuthenticated) {
+      debugPrint(
+        '[DEBUG_API] fetchPatientProfile: Not authenticated. Exiting.',
       );
+      return;
+    }
+
+    // Safety validation checks to prevent stale/Guest leakage
+    if (_currentPatient == null) {
+      debugPrint(
+        '[DEBUG_API] fetchPatientProfile: Aborting because _currentPatient is null.',
+      );
+      return;
+    }
+    if (_token == null) {
+      debugPrint(
+        '[DEBUG_API] fetchPatientProfile: Aborting because _token is null.',
+      );
+      return;
+    }
+    final name = patientName.trim();
+    if (name.isEmpty || name == 'Guest' || name == 'Authenticated Patient') {
+      debugPrint(
+        '[DEBUG_API] fetchPatientProfile: Aborting because resolved name ("$name") is empty or default placeholder.',
+      );
+      return;
+    }
+
+    try {
+      final encodedName = Uri.encodeComponent(name);
+      final url = '$_backendUrl/api/doctor/patient-history/$encodedName';
+      debugPrint('[DEBUG_API] Sending GET request to: $url');
+      debugPrint('[DEBUG_API] Headers: None');
+      debugPrint('[DEBUG_API] Body: None');
+      debugPrint(
+        '[DEBUG_API] Waiting for response (timeout configured for 5 seconds)...',
+      );
+
+      final response = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 5));
+
+      debugPrint('[DEBUG_API] Response received');
+      debugPrint('[DEBUG_API] Status code: ${response.statusCode}');
+      debugPrint('[DEBUG_API] Response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final List<dynamic> algsRaw = data['allergies'] ?? [];
         _patientAllergies = algsRaw.map((a) => a.toString()).toList();
         notifyListeners();
       }
-    } catch (e) {
-      debugPrint('Error fetching patient profile/allergies: $e');
+    } catch (e, stack) {
+      debugPrint('[DEBUG_API] Exception in fetchPatientProfile: $e');
+      debugPrint('[DEBUG_API] StackTrace: $stack');
     }
   }
 
   // Save patient allergies to backend database
   Future<bool> savePatientAllergies(List<String> list) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_backendUrl/api/doctor/patient-allergies'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'patient_id': patientName, 'allergies': list}),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/doctor/patient-allergies'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'patient_id': patientEmailOrId,
+              'allergies': list,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         _patientAllergies = List<String>.from(list);
         notifyListeners();
@@ -776,20 +1075,22 @@ class AppState extends ChangeNotifier {
       _isLoading = true;
       _networkError = false;
       notifyListeners();
-      final response = await http.post(
-        Uri.parse('$_backendUrl/api/doctor/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'doctorMobile': doctorMobile}),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/doctor/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'doctorMobile': doctorMobile}),
+          )
+          .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         _role = UserRole.doctor;
         _selectedRole = UserRole.doctor;
-        _token = 'token-${data['doctor_id']}';
-        _doctorLicense = data['doctor_id'];
-        _doctorHospital = data['hospitalName'];
-        _doctorSpecialty = 'General Practitioner'; // default specialty
-        _doctorName = data['name'];
+        _token = 'token-${data['doctor_id'] ?? doctorMobile}';
+        _doctorLicense = data['doctor_id'] ?? data['doctor_mobile'] ?? doctorMobile;
+        _doctorHospital = data['hospitalName'] ?? data['hospital_name'] ?? 'Metropolitan Hospital Centre';
+        _doctorSpecialty = data['specialty'] ?? 'General Practitioner';
+        _doctorName = data['name'] ?? data['doctor_name'] ?? 'Dr. $doctorMobile';
         _isVerified = true;
 
         await _persistSession();
@@ -825,11 +1126,13 @@ class AppState extends ChangeNotifier {
       _isLoading = true;
       _networkError = false;
       notifyListeners();
-      final response = await http.post(
-        Uri.parse('$_backendUrl/api/pharmacy/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'pharmacy_id': pharmacyId}),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/pharmacy/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'pharmacy_id': pharmacyId}),
+          )
+          .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         _role = UserRole.pharmacy;
@@ -877,27 +1180,29 @@ class AppState extends ChangeNotifier {
       _isLoading = true;
       _networkError = false;
       notifyListeners();
-      final response = await http.post(
-        Uri.parse('$_backendUrl/api/doctor/register'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'name': name,
-          'hospitalName': hospital,
-          'doctorMobile': license,
-          'specialty': specialty,
-          'email': email,
-          'phone': phone,
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/doctor/register'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'name': name,
+              'hospitalName': hospital,
+              'doctorMobile': license,
+              'specialty': specialty,
+              'email': email,
+              'phone': phone,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         _role = UserRole.doctor;
         _selectedRole = UserRole.doctor;
-        _token = 'token-${data['doctor_id']}';
-        _doctorLicense = data['doctor_id'];
-        _doctorHospital = data['hospitalName'];
-        _doctorSpecialty = specialty;
-        _doctorName = data['name'];
+        _token = 'token-${data['doctor_id'] ?? license}';
+        _doctorLicense = data['doctor_id'] ?? license;
+        _doctorHospital = data['hospitalName'] ?? hospital;
+        _doctorSpecialty = data['specialty'] ?? specialty;
+        _doctorName = data['name'] ?? name;
         _isVerified = true;
 
         await _persistSession();
@@ -927,6 +1232,7 @@ class AppState extends ChangeNotifier {
     required String specialty,
     bool approved = true,
   }) {
+    _doctorName = name;
     _doctorLicense = license;
     _doctorHospital = hospital;
     _doctorSpecialty = specialty;
@@ -937,9 +1243,11 @@ class AppState extends ChangeNotifier {
 
   String? _activePatientId;
   String? _activePatientName;
+  String? _activeConsultationRequestId;
 
   String? get activePatientId => _activePatientId;
   String? get activePatientName => _activePatientName;
+  String? get activeConsultationRequestId => _activeConsultationRequestId;
 
   void startDoctorPatientSession(String patientId, String patientName) {
     _activePatientId = patientId;
@@ -950,6 +1258,48 @@ class AppState extends ChangeNotifier {
   void endDoctorPatientSession() {
     _activePatientId = null;
     _activePatientName = null;
+    _activeConsultationRequestId = null;
+    notifyListeners();
+  }
+
+  Future<void> cancelActiveSession() async {
+    final reqId = _activeConsultationRequestId;
+    final patientIdVal = _role == UserRole.patient
+        ? patientMobileOrId
+        : _activePatientId;
+    final patientNameVal = _role == UserRole.patient
+        ? patientName
+        : _activePatientName;
+    final docIdVal = _role == UserRole.doctor ? doctorLicense : null;
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/consultation/cancel'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'id': reqId,
+              'patient_id': patientIdVal,
+              'patient_name': patientNameVal,
+              'doctor_id': docIdVal,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        debugPrint('Consultation session cancelled successfully on backend.');
+      } else {
+        debugPrint('Failed to cancel consultation session: ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('Error calling cancel consultation API: $e');
+    }
+
+    _activeConsultationRequestId = null;
+    _isAttendanceActive = false;
+    _isDoctorConnected = false;
+    _activePatientId = null;
+    _activePatientName = null;
+    _persistSession();
     notifyListeners();
   }
 
@@ -972,11 +1322,13 @@ class AppState extends ChangeNotifier {
     if (_isAttendanceActive && _isDoctorConnected) {
       // Periodic check if clinical session was completed by prescription submission
       try {
-        final response = await http.get(
-          Uri.parse(
-            '$_backendUrl/api/consultation/has-active-session?patient=${Uri.encodeComponent(patientName)}',
-          ),
-        );
+        final response = await http
+            .get(
+              Uri.parse(
+                '$_backendUrl/api/consultation/has-active-session?patient=${Uri.encodeComponent(patientName)}',
+              ),
+            )
+            .timeout(const Duration(seconds: 5));
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
           bool isActive = data['active'] == true;
@@ -998,11 +1350,13 @@ class AppState extends ChangeNotifier {
 
     if (_role != UserRole.patient) return;
     try {
-      final response = await http.get(
-        Uri.parse(
-          '$_backendUrl/api/consultation/pending?patient=${Uri.encodeComponent(patientName)}&patientId=${Uri.encodeComponent(patientMobileOrId)}',
-        ),
-      );
+      final response = await http
+          .get(
+            Uri.parse(
+              '$_backendUrl/api/consultation/pending?patient=${Uri.encodeComponent(patientName)}&patientId=${Uri.encodeComponent(patientMobileOrId)}',
+            ),
+          )
+          .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         if (response.body.isEmpty || response.body == 'null') {
           if (_activePendingRequestId != null) {
@@ -1032,18 +1386,24 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> acceptConsultation(String requestId) async {
+    _promptedRequestIds.add(requestId);
+    _activePendingRequestId = null;
+    _activeConsultationRequestId = requestId;
+    _isAttendanceActive = true;
+    _isDoctorConnected = true;
+    _persistSession();
+    notifyListeners();
+
     try {
-      final response = await http.post(
-        Uri.parse('$_backendUrl/api/consultation/accept'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'id': requestId}),
-      );
-      if (response.statusCode == 200) {
-        _promptedRequestIds.add(requestId);
-        _activePendingRequestId = null;
-        _isAttendanceActive = true;
-        _isDoctorConnected = true;
-        notifyListeners();
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/consultation/accept'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'id': requestId}),
+          )
+          .timeout(const Duration(seconds: 4));
+      if (response.statusCode != 200) {
+        debugPrint('Accept consultation status ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Error accepting consultation: $e');
@@ -1051,16 +1411,22 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> rejectConsultation(String requestId) async {
+    _promptedRequestIds.add(requestId);
+    _activePendingRequestId = null;
+    _activeConsultationRequestId = null;
+    _persistSession();
+    notifyListeners();
+
     try {
-      final response = await http.post(
-        Uri.parse('$_backendUrl/api/consultation/reject'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'id': requestId}),
-      );
-      if (response.statusCode == 200) {
-        _promptedRequestIds.add(requestId);
-        _activePendingRequestId = null;
-        notifyListeners();
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/consultation/reject'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'id': requestId}),
+          )
+          .timeout(const Duration(seconds: 4));
+      if (response.statusCode != 200) {
+        debugPrint('Reject consultation status ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Error rejecting consultation: $e');
@@ -1080,15 +1446,17 @@ class AppState extends ChangeNotifier {
     String signature,
   ) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_backendUrl/api/prescriptions/verify-scan'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'raw_payload': rawPayload,
-          'signature': signature,
-          'timestamp': DateTime.now().toUtc().toIso8601String(),
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/prescriptions/verify-scan'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'raw_payload': rawPayload,
+              'signature': signature,
+              'timestamp': DateTime.now().toUtc().toIso8601String(),
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
@@ -1113,19 +1481,21 @@ class AppState extends ChangeNotifier {
     bool? receiptAttached,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_backendUrl/api/prescriptions/dispense'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'id': rxId,
-          'batch_number': batchNumber,
-          'expiry_date': expiryDate,
-          'touch_signature': touchSignature,
-          'delivery_tracking_id': deliveryTrackingId,
-          'billing_amount': billingAmount,
-          'receipt_attached': receiptAttached,
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/prescriptions/dispense'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'id': rxId,
+              'batch_number': batchNumber,
+              'expiry_date': expiryDate,
+              'touch_signature': touchSignature,
+              'delivery_tracking_id': deliveryTrackingId,
+              'billing_amount': billingAmount,
+              'receipt_attached': receiptAttached,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
@@ -1141,11 +1511,18 @@ class AppState extends ChangeNotifier {
   Future<Map<String, dynamic>> createPrescription(
     Map<String, dynamic> rxData,
   ) async {
+    final Stopwatch sw = Stopwatch()..start();
     try {
-      final response = await http.post(
-        Uri.parse('$_backendUrl/api/prescriptions'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(rxData),
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/prescriptions'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(rxData),
+          )
+          .timeout(const Duration(seconds: 5));
+      sw.stop();
+      debugPrint(
+        '[DEBUG_API] POST /api/prescriptions took ${sw.elapsedMilliseconds}ms. (Threshold check: ${sw.elapsedMilliseconds > 3000 ? "WARNING: Slow request. Potential ANR risk on slower devices." : "Normal"})',
       );
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body) as Map<String, dynamic>;
@@ -1195,21 +1572,24 @@ class AppState extends ChangeNotifier {
         return "Invalid Patient ID";
       }
 
-      final response = await http.post(
-        Uri.parse('$_backendUrl/api/consultation/request'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'patientName': patientNameVal,
-          'patientId': patientIdVal,
-          'doctorId': _doctorLicense ?? 'NPI-ROOT-KEY',
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/consultation/request'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'patientName': patientNameVal,
+              'patientId': patientIdVal,
+              'doctorId': _doctorLicense ?? 'NPI-ROOT-KEY',
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final String reqId = data['id'];
         _activePatientId = data['patientId'] ?? patientIdVal;
         _activePatientName = data['patientName'] ?? patientNameVal;
+        _activeConsultationRequestId = reqId;
         _isDoctorConnected = false;
         notifyListeners();
         return 'PENDING:$reqId';
@@ -1237,9 +1617,9 @@ class AppState extends ChangeNotifier {
 
   Future<String> checkConnectionStatus(String reqId) async {
     try {
-      final response = await http.get(
-        Uri.parse('$_backendUrl/api/consultation/status/$reqId'),
-      );
+      final response = await http
+          .get(Uri.parse('$_backendUrl/api/consultation/status/$reqId'))
+          .timeout(const Duration(seconds: 4));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final String status = data['status'];
@@ -1273,20 +1653,27 @@ class AppState extends ChangeNotifier {
     required String newDosage,
     required String disease,
   }) async {
+    final Stopwatch sw = Stopwatch()..start();
     try {
       _isLoading = true;
       _networkError = false;
       notifyListeners();
-      final response = await http.post(
-        Uri.parse('$_backendUrl/api/audit'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'patient_id': patientId,
-          'doctor_id': doctorId,
-          'new_medicine': newMedicine,
-          'new_dosage': newDosage,
-          'disease': disease,
-        }),
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/audit'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'patient_id': patientId,
+              'doctor_id': doctorId,
+              'new_medicine': newMedicine,
+              'new_dosage': newDosage,
+              'disease': disease,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
+      sw.stop();
+      debugPrint(
+        '[DEBUG_API] POST /api/audit took ${sw.elapsedMilliseconds}ms. (Threshold check: ${sw.elapsedMilliseconds > 3000 ? "WARNING: Slow request. Potential ANR risk on slower devices." : "Normal"})',
       );
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
@@ -1297,6 +1684,40 @@ class AppState extends ChangeNotifier {
       debugPrint('AI audit server offline: $e');
       _networkError = true;
       notifyListeners();
+      return null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>?> parseVoicePrescription({
+    required String patientId,
+    required String doctorId,
+    required String transcript,
+  }) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+      final response = await http
+          .post(
+            Uri.parse('$_backendUrl/api/ai/voice/parse'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'patient_id': patientId,
+              'doctor_id': doctorId,
+              'transcript': transcript,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        debugPrint('Voice parser API error: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Voice parser failed: $e');
       return null;
     } finally {
       _isLoading = false;

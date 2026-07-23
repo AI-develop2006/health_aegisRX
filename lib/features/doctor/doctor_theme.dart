@@ -1,57 +1,67 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx Doctor Portal — Component Library
+// Design System: AegisRx Clinical Precision
+// Color Rules:
+//   Blue (#2563EB)   = Primary actions & main buttons
+//   Red (#BA1A1A)    = Critical alerts & high risk
+//   Orange (#D97706) = Warnings & medium risk
+//   Teal (#14B8A6)   = Safe recommendations & verified badges
+//   Purple (#7C3AED) = AI features (Voice dictation, AI audit, OCR import)
+// ════════════════════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:health_lock/core/theme/design_system.dart';
 
-// ═══════════════════════════════════════════════════════════════
-// AegisRx Doctor Portal — Clinical Cockpit Design System
-// 60-30-10 Sterile Clinical Palette
-// ═══════════════════════════════════════════════════════════════
-
-/// All design tokens for the doctor portal. Import this file in every screen.
+// ── Legacy Token Shim ──────────────────────────────────────────────────────
 class Dr {
-  // 60% DOMINANT — Canvas Surface
-  static const bg = Color(0xFFF4F7F6);   // Soft clinical canvas
-  static const card = Color(0xFFFFFFFF); // Crisp card base
+  // Canvas & Surfaces
+  static const bg   = AegisColors.background;
+  static const card = AegisColors.surface;
 
-  // 30% SECONDARY — Structure & Typography
-  static const text = Color(0xFF111E1C);   // Deepest charcoal-teal
-  static const border = Color(0xFFD1DDD9); // Muted clinical steel
-  static const sub = Color(0xFF5A6E6A);    // Gray-teal metadata
+  // Structure & Typography
+  static const text   = AegisColors.textPrimary;
+  static const border = AegisColors.border;
+  static const sub    = AegisColors.textSecondary;
 
-  // 10% ACCENT — Diagnostic Action Lights
-  static const green = Color(0xFF00A86B);  // Medical Green — safe/verified/CTA
-  static const amber = Color(0xFFD97736);  // Warning state
-  static const red = Color(0xFFB33A3A);    // Critical alert
+  // Color Role Tokens
+  static const primary = AegisColors.primary;   // Royal Blue (Primary actions)
+  static const green   = AegisColors.secondary; // Medical Teal (Safe / Verified)
+  static const amber   = AegisColors.warning;   // Amber/Orange (Warnings)
+  static const red     = AegisColors.danger;    // Crimson Red (Critical alerts)
+  static const purple  = AegisColors.tertiary;  // AI Purple (AI features)
 
   // Shadows
   static const cardShadow = BoxShadow(
-    color: Color(0x0F00A86B), // Medical Green at 6% opacity
+    color: Color(0x0A0B1C30),
     blurRadius: 12,
     offset: Offset(0, 4),
-    spreadRadius: 1,
+    spreadRadius: 0,
   );
 
-  // Text styles
-  static TextStyle heading(double size) => GoogleFonts.sora(
-        fontSize: size,
-        fontWeight: FontWeight.bold,
-        color: Dr.text,
-      );
-  static TextStyle body(double size) => GoogleFonts.inter(
-        fontSize: size,
-        color: Dr.text,
-      );
-  static TextStyle meta(double size) => GoogleFonts.inter(
-        fontSize: size,
-        color: Dr.sub,
-      );
-  static TextStyle mono(double size) => GoogleFonts.jetBrainsMono(
-        fontSize: size,
-        color: Dr.text,
-      );
+  // Text Style Helpers
+  static TextStyle heading(double size) => AegisTypography.headlineMedium.copyWith(
+    fontSize: size,
+    color: Dr.text,
+  );
+
+  static TextStyle body(double size) => AegisTypography.bodyMedium.copyWith(
+    fontSize: size,
+    color: Dr.text,
+  );
+
+  static TextStyle meta(double size) => AegisTypography.bodySmall.copyWith(
+    fontSize: size,
+    color: Dr.sub,
+  );
+
+  static TextStyle mono(double size) => AegisTypography.monoMedium.copyWith(
+    fontSize: size,
+    color: Dr.text,
+  );
 }
 
-// ── Flat clinical card ─────────────────────────────────────────
+
+// ── Flat Clinical Card ─────────────────────────────────────────────────────
 class DoctorCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -63,31 +73,39 @@ class DoctorCard extends StatelessWidget {
     required this.child,
     this.padding,
     this.borderColor,
-    this.borderRadius = 14,
+    this.borderRadius = AegisRadius.lg,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: padding ?? const EdgeInsets.all(18),
+      padding: padding ?? const EdgeInsets.symmetric(
+        horizontal: AegisTokens.cardPaddingH,
+        vertical: AegisTokens.cardPaddingV,
+      ),
       decoration: BoxDecoration(
-        color: Dr.card,
+        color: AegisTokens.cardBg,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: borderColor ?? Dr.border, width: 1.0),
-        boxShadow: const [Dr.cardShadow],
+        border: Border.all(
+          color: borderColor ?? AegisTokens.cardBorder,
+          width: AegisBorders.thin,
+        ),
+        boxShadow: AegisShadows.sm,
       ),
       child: child,
     );
   }
 }
 
-// ── Primary CTA button — Medical Green ────────────────────────
+
+// ── Primary Action Button — Royal Blue ─────────────────────────────────────
 class DoctorPrimaryButton extends StatelessWidget {
   final String label;
   final IconData? icon;
   final VoidCallback? onPressed;
   final bool isLoading;
+  final Color? backgroundColor;
 
   const DoctorPrimaryButton({
     super.key,
@@ -95,22 +113,24 @@ class DoctorPrimaryButton extends StatelessWidget {
     this.icon,
     this.onPressed,
     this.isLoading = false,
+    this.backgroundColor,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bg = backgroundColor ?? AegisColors.primary; // Blue for primary actions
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: AegisTokens.btnHeight,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Dr.green,
+          backgroundColor: bg,
           foregroundColor: Colors.white,
+          disabledBackgroundColor: bg.withValues(alpha: 0.4),
           elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
         ),
         child: isLoading
             ? const SizedBox(
@@ -126,16 +146,15 @@ class DoctorPrimaryButton extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (icon != null) ...[
-                    Icon(icon, size: 18),
-                    const SizedBox(width: 8),
+                    Icon(icon, size: AegisIconSize.sm, color: Colors.white),
+                    const SizedBox(width: AegisSpacing.sm),
                   ],
                   Flexible(
                     child: Text(
                       label,
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                      style: AegisTypography.labelLarge.copyWith(
                         color: Colors.white,
+                        fontWeight: FontWeight.w700,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -147,7 +166,71 @@ class DoctorPrimaryButton extends StatelessWidget {
   }
 }
 
-// ── Outlined secondary button ──────────────────────────────────
+
+// ── AI Action Button — AI Purple (#7C3AED) ────────────────────────────────
+class DoctorAiButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final bool isLoading;
+
+  const DoctorAiButton({
+    super.key,
+    required this.label,
+    this.icon = Icons.auto_awesome_rounded,
+    this.onPressed,
+    this.isLoading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: AegisTokens.btnHeight,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AegisColors.tertiary, // AI Purple
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: AegisColors.tertiarySurface,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
+        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white,
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: AegisIconSize.sm, color: Colors.white),
+                  const SizedBox(width: AegisSpacing.sm),
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: AegisTypography.labelLarge.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+
+// ── Outlined Secondary Button ──────────────────────────────────────────────
 class DoctorOutlinedButton extends StatelessWidget {
   final String label;
   final IconData? icon;
@@ -164,35 +247,29 @@ class DoctorOutlinedButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? Dr.green;
+    final c = color ?? AegisColors.primary;
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: AegisTokens.btnHeight,
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           foregroundColor: c,
-          side: BorderSide(color: c, width: 1.5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          side: BorderSide(color: c, width: AegisBorders.regular),
+          shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 18, color: c),
-              const SizedBox(width: 8),
+              Icon(icon, size: AegisIconSize.sm, color: c),
+              const SizedBox(width: AegisSpacing.sm),
             ],
             Flexible(
               child: Text(
                 label,
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: c,
-                ),
+                style: AegisTypography.labelLarge.copyWith(color: c, fontWeight: FontWeight.w700),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -203,7 +280,8 @@ class DoctorOutlinedButton extends StatelessWidget {
   }
 }
 
-// ── Status badge chip ──────────────────────────────────────────
+
+// ── Status Badge Chip ──────────────────────────────────────────────────────
 class DoctorStatusBadge extends StatelessWidget {
   final String label;
   final Color color;
@@ -219,25 +297,32 @@ class DoctorStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AegisTokens.chipPaddingH,
+        vertical: AegisTokens.chipPaddingV,
+      ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.5), width: 1),
+        color: color.withValues(alpha: 0.10),
+        borderRadius: AegisRadius.chip,
+        border: Border.all(color: color.withValues(alpha: 0.45), width: AegisBorders.thin),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 12, color: color),
-            const SizedBox(width: 4),
+            Icon(icon, size: AegisIconSize.xs, color: color),
+            const SizedBox(width: AegisSpacing.xs),
           ],
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: color,
+          Flexible(
+            child: Text(
+              label,
+              style: AegisTypography.labelSmall.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
         ],
@@ -246,18 +331,19 @@ class DoctorStatusBadge extends StatelessWidget {
   }
 }
 
-// ── Clinical Grid Background Painter ──────────────────────────
+
+// ── Clinical Grid Dot Background ───────────────────────────────────────────
 class ClinicalGridPainter extends CustomPainter {
   const ClinicalGridPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF00A86B).withOpacity(0.05)
+      ..color = AegisColors.primary.withValues(alpha: 0.04)
       ..strokeWidth = 1.0
       ..style = PaintingStyle.fill;
 
-    const spacing = 20.0;
+    const spacing = 22.0;
     const dotRadius = 1.0;
 
     for (double x = 0; x <= size.width; x += spacing) {
@@ -271,7 +357,8 @@ class ClinicalGridPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ── Scaffold with clinical grid background ─────────────────────
+
+// ── Scaffold with Clinical Grid Background ─────────────────────────────────
 class ClinicalScaffold extends StatelessWidget {
   final PreferredSizeWidget? appBar;
   final Widget body;
@@ -285,17 +372,27 @@ class ClinicalScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Dr.bg,
+      backgroundColor: AegisColors.background,
       appBar: appBar,
-      body: CustomPaint(
-        painter: const ClinicalGridPainter(),
-        child: body,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: const ClinicalGridPainter(),
+            ),
+          ),
+          SafeArea(
+            bottom: false,
+            child: body,
+          ),
+        ],
       ),
     );
   }
 }
 
-// ── Clinical AppBar ────────────────────────────────────────────
+
+// ── Clinical AppBar ────────────────────────────────────────────────────────
 PreferredSizeWidget clinicalAppBar({
   required String title,
   List<Widget>? actions,
@@ -303,47 +400,56 @@ PreferredSizeWidget clinicalAppBar({
   BuildContext? context,
 }) {
   return AppBar(
-    backgroundColor: Dr.card,
+    backgroundColor: AegisColors.surface,
     elevation: 0,
     scrolledUnderElevation: 0,
     surfaceTintColor: Colors.transparent,
     automaticallyImplyLeading: showBack,
-    iconTheme: const IconThemeData(color: Dr.text),
-    title: Text(
-      title,
-      style: GoogleFonts.sora(
-        fontWeight: FontWeight.bold,
-        fontSize: 17,
-        color: Dr.text,
-      ),
+    iconTheme: const IconThemeData(
+      color: AegisColors.textPrimary,
+      size: AegisIconSize.base,
     ),
-    bottom: PreferredSize(
-      preferredSize: const Size.fromHeight(1),
-      child: Container(height: 1, color: Dr.border),
+    title: Text(title, style: AegisTypography.headlineMedium.copyWith(color: AegisColors.textPrimary)),
+    bottom: const PreferredSize(
+      preferredSize: Size.fromHeight(1),
+      child: Divider(
+        height: 1,
+        thickness: 1,
+        color: AegisColors.border,
+      ),
     ),
     actions: actions,
   );
 }
 
-// ── Section header ─────────────────────────────────────────────
+
+// ── Section Header ─────────────────────────────────────────────────────────
 Widget sectionHeader(String title) {
   return Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Text(title, style: Dr.heading(15)),
+    padding: const EdgeInsets.only(bottom: AegisSpacing.sm),
+    child: Text(
+      title,
+      style: AegisTypography.titleSmall.copyWith(
+        color: AegisColors.textPrimary,
+        letterSpacing: 0.3,
+      ),
+    ),
   );
 }
 
-// ── Risk color helper ──────────────────────────────────────────
+
+// ── Risk Color Helper ──────────────────────────────────────────────────────
 Color riskColor(String level) {
   switch (level.toUpperCase()) {
     case 'HIGH_RISK':
     case 'CRITICAL':
-      return Dr.red;
+    case 'HIGH':
+      return AegisColors.danger; // Crimson Red for critical/high risk
     case 'WARNING':
     case 'MEDIUM':
-      return Dr.amber;
+      return AegisColors.warning; // Amber/Orange for warnings
     default:
-      return Dr.green;
+      return AegisColors.secondary; // Medical Teal for safe
   }
 }
 
@@ -351,6 +457,7 @@ String riskLabel(String level) {
   switch (level.toUpperCase()) {
     case 'HIGH_RISK':
     case 'CRITICAL':
+    case 'HIGH':
       return 'HIGH RISK';
     case 'WARNING':
     case 'MEDIUM':

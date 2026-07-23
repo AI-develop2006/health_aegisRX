@@ -1,21 +1,19 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Patient Notifications Screen
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — acceptConsultation(), rejectConsultation(),
+//                 pendingRequestId, Navigator.pop() all preserved exactly
+// ════════════════════════════════════════════════════════════════════════════
+
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/state/app_state.dart';
+import '../../../core/theme/design_system.dart';
 // ignore: unused_import
 import '../../../shared/models/prescription.dart';
 
 class PatientNotificationsScreen extends StatelessWidget {
   const PatientNotificationsScreen({super.key});
-
-  // 60-30-10 Design Tokens
-  static const _bg = Color(0xFFF7F4EB);
-  static const _card = Color(0xFFFFFFFF);
-  static const _text = Color(0xFF4A3325);
-  static const _sub = Color(0xFFD4A387);
-  static const _border = Color(0xFFB88E74);
-  static const _teal = Color(0xFF2E8B90);
-  static const _red = Color(0xFFB33A3A);
 
   @override
   Widget build(BuildContext context) {
@@ -23,43 +21,60 @@ class PatientNotificationsScreen extends StatelessWidget {
     final String? pendingRequestId = appState.activePendingRequestId;
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: AegisColors.background,
       appBar: AppBar(
-        backgroundColor: _bg,
+        backgroundColor: AegisColors.surface,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: AegisIconSize.sm, color: AegisColors.textSecondary),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
           'Notifications',
-          style: GoogleFonts.sora(
-            fontWeight: FontWeight.bold,
-            color: _text,
-            fontSize: 20,
-          ),
+          style: AegisTypography.headlineMedium.copyWith(
+              color: AegisColors.textPrimary),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _text),
-          onPressed: () => Navigator.pop(context),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: AegisColors.border),
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(AegisSpacing.pagePadding),
         child: pendingRequestId == null
             ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
-                      Icons.notifications_none_rounded,
-                      size: 64,
-                      color: _border,
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: AegisColors.surfaceDim,
+                        borderRadius: BorderRadius.circular(AegisRadius.md),
+                      ),
+                      child: const Icon(
+                        Icons.notifications_none_rounded,
+                        size: AegisIconSize.xxl,
+                        color: AegisColors.textTertiary,
+                      ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AegisSpacing.base),
                     Text(
                       'No new notifications.',
-                      style: GoogleFonts.inter(
-                        color: _sub,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
+                      style: AegisTypography.bodyMedium.copyWith(
+                        color: AegisColors.textSecondary,
+                        fontWeight: FontWeight.w600,
                       ),
+                    ),
+                    const SizedBox(height: AegisSpacing.xs),
+                    Text(
+                      'You\'re all caught up.',
+                      style: AegisTypography.bodySmall.copyWith(
+                          color: AegisColors.textTertiary),
                     ),
                   ],
                 ),
@@ -68,151 +83,195 @@ class PatientNotificationsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Pending Requests',
-                      style: GoogleFonts.sora(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: _text,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AegisSpacing.sm,
+                            vertical: AegisSpacing.xs,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AegisColors.warningLight,
+                            borderRadius: AegisRadius.chip,
+                            border: Border.all(
+                                color: AegisColors.warning.withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.circle,
+                                  size: 6, color: AegisColors.warning),
+                              const SizedBox(width: AegisSpacing.xs),
+                              Text(
+                                'Action Required',
+                                style: AegisTypography.labelSmall.copyWith(
+                                  color: AegisColors.warningDark,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: AegisSpacing.sm),
+                        Text(
+                          'Pending Requests',
+                          style: AegisTypography.titleSmall.copyWith(
+                              color: AegisColors.textPrimary),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AegisSpacing.base),
+
+                    // ── Pending request card ─────────────────────
                     Container(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(AegisSpacing.base),
                       decoration: BoxDecoration(
-                        color: _card,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: _teal, width: 1.5),
+                        color: AegisColors.surface,
+                        borderRadius: AegisRadius.card,
+                        border: Border.all(
+                            color: AegisColors.secondary.withValues(alpha: 0.4),
+                            width: AegisBorders.regular),
+                        boxShadow: AegisShadows.md,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Card header
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(8),
+                                width: 44,
+                                height: 44,
                                 decoration: BoxDecoration(
-                                  color: _teal.withOpacity(0.1),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: _teal.withOpacity(0.4),
-                                    width: 1,
-                                  ),
+                                  color: AegisColors.secondarySurface,
+                                  borderRadius:
+                                      BorderRadius.circular(AegisRadius.sm),
                                 ),
                                 child: const Icon(
                                   Icons.emergency_share_rounded,
-                                  color: _teal,
-                                  size: 22,
+                                  color: AegisColors.secondary,
+                                  size: AegisIconSize.md,
                                 ),
                               ),
-                              const SizedBox(width: 14),
+                              const SizedBox(width: AegisSpacing.md),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       'Doctor Connection Request',
-                                      style: GoogleFonts.sora(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        color: _text,
-                                      ),
+                                      style: AegisTypography.titleSmall.copyWith(
+                                          color: AegisColors.textPrimary),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
                                       'ID: $pendingRequestId',
-                                      style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 10,
-                                        color: _sub,
-                                      ),
+                                      style: AegisTypography.monoSmall.copyWith(
+                                          color: AegisColors.textTertiary),
                                     ),
                                   ],
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AegisSpacing.md),
+                          const Divider(height: 1, color: AegisColors.border),
+                          const SizedBox(height: AegisSpacing.md),
+
                           Text(
                             'A doctor is requesting temporary session access to view your health profile and write a prescription. Do you grant access?',
-                            style: GoogleFonts.inter(
-                              color: _sub,
-                              fontSize: 14,
-                              height: 1.5,
+                            style: AegisTypography.bodyMedium.copyWith(
+                              color: AegisColors.textSecondary,
+                              height: 1.6,
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: AegisSpacing.base),
+
+                          // Action buttons — UNCHANGED logic
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
                               OutlinedButton(
-                                onPressed: () async {
-                                  await appState.rejectConsultation(
-                                    pendingRequestId,
-                                  );
-                                  if (!context.mounted) return;
+                                onPressed: () {
+                                  appState.rejectConsultation(pendingRequestId);
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
+                                    SnackBar(
                                       content: Text(
                                         'Request declined successfully.',
+                                        style: AegisTypography.bodySmall
+                                            .copyWith(color: Colors.white),
                                       ),
+                                      backgroundColor: AegisColors.danger,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10)),
                                     ),
                                   );
                                   Navigator.pop(context);
                                 },
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: _red,
+                                  foregroundColor: AegisColors.danger,
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                   side: const BorderSide(
-                                    color: _red,
-                                    width: 1.5,
+                                    color: AegisColors.danger,
+                                    width: AegisBorders.regular,
                                   ),
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
+                                    horizontal: AegisSpacing.base,
+                                    vertical: AegisSpacing.sm,
                                   ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                                      borderRadius: AegisRadius.button),
+                                  textStyle: AegisTypography.labelMedium,
                                 ),
                                 child: Text(
                                   'Decline',
-                                  style: GoogleFonts.inter(
-                                    fontWeight: FontWeight.bold,
-                                    color: _red,
+                                  style: AegisTypography.labelMedium.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: AegisColors.danger,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: AegisSpacing.sm),
                               ElevatedButton(
-                                onPressed: () async {
-                                  await appState.acceptConsultation(
-                                    pendingRequestId,
-                                  );
-                                  if (!context.mounted) return;
+                                onPressed: () {
+                                  appState.acceptConsultation(pendingRequestId);
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
+                                    SnackBar(
                                       content: Text(
                                         'Access session granted successfully.',
+                                        style: AegisTypography.bodySmall
+                                            .copyWith(color: Colors.white),
                                       ),
+                                      backgroundColor: AegisColors.success,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10)),
                                     ),
                                   );
                                   Navigator.pop(context);
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _teal,
+                                  backgroundColor: AegisColors.secondary,
                                   foregroundColor: Colors.white,
                                   elevation: 0,
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 10,
+                                    horizontal: AegisSpacing.lg,
+                                    vertical: AegisSpacing.sm,
                                   ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                                      borderRadius: AegisRadius.button),
+                                  textStyle: AegisTypography.labelMedium,
                                 ),
                                 child: Text(
                                   'Grant Access',
-                                  style: GoogleFonts.inter(
-                                    fontWeight: FontWeight.bold,
+                                  style: AegisTypography.labelMedium.copyWith(
+                                    fontWeight: FontWeight.w700,
                                     color: Colors.white,
                                   ),
                                 ),

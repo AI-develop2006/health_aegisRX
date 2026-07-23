@@ -1,136 +1,143 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Patient Share Screen (QR Vault Access)
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — QR payload, appState reads, SnackBar logic preserved
+// ════════════════════════════════════════════════════════════════════════════
+
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/state/app_state.dart';
+import '../../../core/theme/design_system.dart';
 
 class PatientShareScreen extends StatelessWidget {
   const PatientShareScreen({super.key});
 
-  // 60-30-10 Design Tokens
-  static const _bg = Color(0xFFF7F4EB);
-  static const _card = Color(0xFFFFFFFF);
-  static const _text = Color(0xFF4A3325);
-  static const _sub = Color(0xFFD4A387);
-  static const _border = Color(0xFFB88E74);
-  static const _teal = Color(0xFF2E8B90);
-  static const _amber = Color(0xFFD97736);
-
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    final patientId = appState.patientMobileOrId;
+    // UNCHANGED — same payload construction
+    final patientId   = appState.patientMobileOrId;
     final patientName = appState.patientName;
-    final qrPayload = 'aegisrx://patient/$patientId/$patientName';
+    final qrPayload   = 'aegisrx://patient/$patientId/$patientName';
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: AegisColors.background,
       appBar: AppBar(
-        backgroundColor: _bg,
+        backgroundColor: AegisColors.surface,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: AegisIconSize.sm, color: AegisColors.textSecondary),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
           'Share Vault Access',
-          style: GoogleFonts.sora(
-            fontWeight: FontWeight.bold,
-            color: _text,
-            fontSize: 20,
-          ),
+          style: AegisTypography.headlineMedium.copyWith(
+              color: AegisColors.textPrimary),
+        ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: AegisColors.border),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(AegisSpacing.pagePadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Section heading
+            // ── Section heading ────────────────────────────────
             Text(
               'Share your information',
-              style: GoogleFonts.sora(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: _text,
-              ),
+              style: AegisTypography.displaySmall.copyWith(
+                  color: AegisColors.textPrimary),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AegisSpacing.sm),
             Text(
               'Present the QR code below to your clinical doctor or pharmacist to authorize temporary session read access to your vault.',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: _sub,
+              style: AegisTypography.bodyMedium.copyWith(
+                color: AegisColors.textSecondary,
                 height: 1.6,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AegisSpacing.lg),
 
-            // Share with Doctor button
+            // ── Share with Doctor button (primary blue CTA) ────
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: AegisTokens.btnHeight,
               child: ElevatedButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Doctor sharing integration is coming soon.')),
+                    SnackBar(
+                      content: Text(
+                        'Doctor sharing integration is coming soon.',
+                        style: AegisTypography.bodySmall
+                            .copyWith(color: Colors.white),
+                      ),
+                      backgroundColor: AegisColors.primary,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
                   );
                 },
                 icon: const Icon(Icons.send_rounded,
-                    size: 18, color: Colors.white),
+                    size: AegisIconSize.sm, color: Colors.white),
                 label: Text(
                   'Share with my doctor',
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                  style: AegisTypography.labelLarge.copyWith(color: Colors.white),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _teal,
+                  backgroundColor: AegisColors.primary,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
+                  textStyle: AegisTypography.labelLarge,
                 ),
               ),
             ),
-            const SizedBox(height: 32),
-            Divider(color: _border.withOpacity(0.4)),
-            const SizedBox(height: 28),
+            const SizedBox(height: AegisSpacing.lg),
+            const Divider(color: AegisColors.border),
+            const SizedBox(height: AegisSpacing.base),
 
-            // ── QR Code Card ──────────────────────────────────
+            // ── QR Code Card ───────────────────────────────────
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(28),
+              padding: const EdgeInsets.all(AegisSpacing.xl),
               decoration: BoxDecoration(
-                color: _card,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _border, width: 1.5),
+                color: AegisColors.surface,
+                borderRadius: AegisRadius.card,
+                border: Border.all(color: AegisColors.border),
+                boxShadow: AegisShadows.md,
               ),
               child: Column(
                 children: [
                   Text(
                     'Scan to Connect',
-                    style: GoogleFonts.sora(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: _text,
-                    ),
+                    style: AegisTypography.headlineSmall.copyWith(
+                        color: AegisColors.textPrimary),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AegisSpacing.xs),
                   Text(
                     'Show this QR to your doctor or pharmacist.',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(fontSize: 13, color: _sub),
+                    style: AegisTypography.bodySmall.copyWith(
+                        color: AegisColors.textSecondary),
                   ),
-                  const SizedBox(height: 28),
-                  // QR code with copper border frame
+                  const SizedBox(height: AegisSpacing.lg),
+
+                  // QR code — blue primary color
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AegisSpacing.base),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _border, width: 2),
+                      color: AegisColors.surface,
+                      borderRadius: AegisRadius.card,
+                      border: Border.all(
+                          color: AegisColors.primary.withValues(alpha: 0.3),
+                          width: 2),
+                      boxShadow: AegisShadows.primaryGlow,
                     ),
                     child: QrImageView(
                       data: qrPayload,
@@ -138,63 +145,77 @@ class PatientShareScreen extends StatelessWidget {
                       size: 180.0,
                       eyeStyle: const QrEyeStyle(
                         eyeShape: QrEyeShape.square,
-                        color: Color(0xFF4A3325),
+                        color: AegisColors.primary,
                       ),
                       dataModuleStyle: const QrDataModuleStyle(
                         dataModuleShape: QrDataModuleShape.square,
-                        color: Color(0xFF4A3325),
+                        color: AegisColors.textPrimary,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  // Patient ID tag
+                  const SizedBox(height: AegisSpacing.base),
+
+                  // Patient ID tag — blue surface
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _teal.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(10),
-                      border:
-                          Border.all(color: _teal.withOpacity(0.4), width: 1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AegisSpacing.base,
+                      vertical: AegisSpacing.sm,
                     ),
-                    child: Text(
-                      'ID: $patientId',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: _teal,
-                      ),
+                    decoration: BoxDecoration(
+                      color: AegisColors.primarySurface,
+                      borderRadius: AegisRadius.chip,
+                      border: Border.all(
+                          color: AegisColors.primary.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.badge_outlined,
+                            size: AegisIconSize.sm, color: AegisColors.primary),
+                        const SizedBox(width: AegisSpacing.xs),
+                        Text(
+                          'ID: $patientId',
+                          style: AegisTypography.monoMedium.copyWith(
+                            color: AegisColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AegisSpacing.base),
 
-            // ── Warning note ──────────────────────────────────
+            // ── Warning note ───────────────────────────────────
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AegisSpacing.md),
               decoration: BoxDecoration(
-                color: _amber.withOpacity(0.07),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _amber.withOpacity(0.4), width: 1),
+                color: AegisColors.warningLight,
+                borderRadius: AegisRadius.card,
+                border: Border.all(
+                    color: AegisColors.warning.withValues(alpha: 0.4)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline, color: _amber, size: 18),
-                  const SizedBox(width: 10),
+                  const Icon(Icons.info_outline_rounded,
+                      color: AegisColors.warning, size: AegisIconSize.sm),
+                  const SizedBox(width: AegisSpacing.sm),
                   Expanded(
                     child: Text(
                       'This QR code grants temporary read-only access. Only share with authorized medical personnel.',
-                      style: GoogleFonts.inter(
-                          fontSize: 13, color: _text, height: 1.5),
+                      style: AegisTypography.bodySmall.copyWith(
+                        color: AegisColors.warningDark,
+                        height: 1.5,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: AegisSpacing.xxl),
           ],
         ),
       ),

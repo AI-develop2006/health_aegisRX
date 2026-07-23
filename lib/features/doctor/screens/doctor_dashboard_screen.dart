@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/state/app_state.dart';
+import '../../../core/theme/design_system.dart';
 import '../doctor_theme.dart';
 import 'doctor_patient_search_screen.dart';
 import 'doctor_patient_history_screen.dart';
@@ -112,70 +113,126 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             sectionHeader('Active Consultation'),
             if (appState.activePatientId != null) ...[
               DoctorCard(
-                borderColor: Dr.green.withOpacity(0.4),
-                child: Row(
+                borderColor: AegisColors.secondary.withValues(alpha: 0.4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Dr.green.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.wifi_tethering_rounded,
-                        color: Dr.green,
-                        size: 20,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AegisColors.secondarySurface,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.wifi_tethering_rounded,
+                            color: AegisColors.secondary,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                appState.activePatientName ?? 'Patient',
+                                style: AegisTypography.titleSmall.copyWith(
+                                  color: AegisColors.textPrimary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                'ID: ${appState.activePatientId} · Live',
+                                style: AegisTypography.bodySmall.copyWith(
+                                  color: AegisColors.secondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            appState.activePatientName ?? 'Patient',
-                            style: Dr.heading(14),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            'ID: ${appState.activePatientId} · Live',
-                            style: Dr.meta(12),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DoctorPatientHistoryScreen(
-                            patientId: appState.activePatientId!,
-                            patientName: appState.activePatientName!,
+                    const SizedBox(height: AegisSpacing.md),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              await appState.cancelActiveSession();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AegisColors.danger),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: AegisSpacing.sm,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: AegisRadius.button,
+                              ),
+                            ),
+                            child: Text(
+                              'Disconnect',
+                              style: AegisTypography.labelSmall.copyWith(
+                                color: AegisColors.danger,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Dr.green,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                        const SizedBox(width: AegisSpacing.sm),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () =>
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        DoctorPatientHistoryScreen(
+                                          patientId: appState.activePatientId!,
+                                          patientName:
+                                              appState.activePatientName!,
+                                        ),
+                                  ),
+                                ).then((_) {
+                                  if (context.mounted) {
+                                    Provider.of<AppState>(
+                                      context,
+                                      listen: false,
+                                    ).resumePolling(
+                                      screen: 'DoctorDashboardScreen',
+                                      reason:
+                                          'Doctor returned to dashboard from active consultation',
+                                    );
+                                  }
+                                }),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AegisColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                vertical: AegisSpacing.sm,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: AegisRadius.button,
+                              ),
+                            ),
+                            icon: const Icon(
+                              Icons.folder_open_rounded,
+                              size: AegisIconSize.xs,
+                              color: Colors.white,
+                            ),
+                            label: Text(
+                              'Open Vault',
+                              style: AegisTypography.labelSmall.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                         ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                      ),
-                      child: Text(
-                        'Open Vault',
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: Colors.white,
-                        ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
@@ -217,7 +274,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                 final String time = rx['time'] ?? '10:00';
                 final String mobile = rx['patient_mobile'] ?? 'N/A';
                 final String disease = rx['disease'] ?? 'Consultation';
-                final String patientId = rx['patient_id'] ?? rx['patientName'] ?? '';
+                final String patientId =
+                    rx['patient_id'] ?? rx['patientName'] ?? '';
                 final bool isDispensed = rx['isDispensed'] ?? false;
 
                 return Padding(
@@ -263,15 +321,25 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     required Color statusColor,
   }) {
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DoctorPatientHistoryScreen(
-            patientId: patientId,
-            patientName: name,
-          ),
-        ),
-      ),
+      onTap: () =>
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DoctorPatientHistoryScreen(
+                patientId: patientId,
+                patientName: name,
+              ),
+            ),
+          ).then((_) {
+            // AppState could have been disposed/popped during signout/error Widget
+            // check mounted to make sure context is valid
+            if (context.mounted) {
+              Provider.of<AppState>(context, listen: false).resumePolling(
+                screen: 'DoctorDashboardScreen',
+                reason: 'Doctor returned to dashboard from appointment tile',
+              );
+            }
+          }),
       child: DoctorCard(
         padding: const EdgeInsets.all(14),
         child: Row(

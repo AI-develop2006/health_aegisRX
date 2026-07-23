@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from app.config import TEST_PHARMACY_PRIVATE_KEY, ALLOW_MOCK_POLYGON_TX, logger
 from app.db import prescriptions_col
 from app.blockchain import BlockchainManager, log_activity
-from app.utils.signature import sha256_hash, decrypt, json_stringify_rx
+from shared_core.signature import sha256_hash, decrypt, json_stringify_rx
 from app.integrations import polygon_client
 
 logger = logging.getLogger("pharmacy-service")

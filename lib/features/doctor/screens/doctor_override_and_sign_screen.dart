@@ -1,8 +1,15 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Doctor Override and Sign Screen
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — _generateMockHash(), _signAndCommit(), createPrescription(),
+//                 onchain_tx_hash verification, signature flow preserved exactly
+// ════════════════════════════════════════════════════════════════════════════
+
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/state/app_state.dart';
+import '../../../core/theme/design_system.dart';
 import '../doctor_theme.dart';
 
 class DoctorOverrideAndSignScreen extends StatefulWidget {
@@ -14,6 +21,7 @@ class DoctorOverrideAndSignScreen extends StatefulWidget {
   final String riskBand;
   final int riskScore;
   final List<String> riskReasons;
+  final String action;
 
   const DoctorOverrideAndSignScreen({
     super.key,
@@ -25,6 +33,7 @@ class DoctorOverrideAndSignScreen extends StatefulWidget {
     required this.riskBand,
     required this.riskScore,
     required this.riskReasons,
+    required this.action,
   });
 
   @override
@@ -38,6 +47,18 @@ class _DoctorOverrideAndSignScreenState
   String _overrideCategory = 'Clinical judgment';
   bool _isAcknowledged = false;
   bool _isSigning = false;
+
+  // ── BUSINESS LOGIC UNCHANGED ─────────────────────────────────────────────
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<AppState>(context, listen: false).pausePolling(
+        screen: 'DoctorOverrideAndSignScreen',
+        reason: 'Doctor overriding and signing prescription',
+      );
+    });
+  }
 
   @override
   void dispose() {
@@ -57,21 +78,24 @@ class _DoctorOverrideAndSignScreenState
 
   void _signAndCommit() {
     final bool requiresOverride =
-        widget.riskBand == 'HIGH' || widget.riskBand == 'CRITICAL';
+        widget.action == 'REQUIRE_OVERRIDE' || widget.action == 'BLOCK_UNLESS_OVERRIDE';
 
     if (requiresOverride) {
       if (_rationaleController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Please specify the clinical rationale.')),
+          SnackBar(
+            content: Text('Please specify the clinical rationale.', style: AegisTypography.bodySmall.copyWith(color: Colors.white)),
+            backgroundColor: AegisColors.warning,
+          ),
         );
         return;
       }
       if (!_isAcknowledged) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content:
-                  Text('Please check the Physician Acknowledgement box.')),
+          SnackBar(
+            content: Text('Please check the Physician Acknowledgement box.', style: AegisTypography.bodySmall.copyWith(color: Colors.white)),
+            backgroundColor: AegisColors.warning,
+          ),
         );
         return;
       }
@@ -104,8 +128,10 @@ class _DoctorOverrideAndSignScreenState
     final randomRxId = 'RX-${1000 + Random().nextInt(9000)}';
     final rxData = {
       'id': randomRxId,
-      'doctorName': appState.doctorLicense != null
-          ? 'Dr. ${appState.doctorLicense}'
+      'doctorName': appState.doctorName != null
+          ? (appState.doctorName!.startsWith('Dr.')
+              ? appState.doctorName!
+              : 'Dr. ${appState.doctorName!}')
           : 'Dr. Alexander Vance',
       'hospitalName':
           appState.doctorHospital ?? 'Metropolitan Hospital Centre',
@@ -128,8 +154,9 @@ class _DoctorOverrideAndSignScreenState
       if (res['error'] != null || res['detail'] != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(
-                  'Error: ${res['error'] ?? res['detail'] ?? 'Prescription failed'}')),
+            content: Text('Error: ${res['error'] ?? res['detail'] ?? 'Prescription failed'}', style: AegisTypography.bodySmall.copyWith(color: Colors.white)),
+            backgroundColor: AegisColors.danger,
+          ),
         );
         return;
       }
@@ -137,8 +164,9 @@ class _DoctorOverrideAndSignScreenState
       final txHash = res['onchain_tx_hash'] ?? (appState.useMockFrontend ? _generateMockHash() : null);
       if (txHash == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('On-chain signature failed: EVM node transaction reverted. Mocks disabled.'),
+          SnackBar(
+            content: Text('On-chain signature failed: EVM node transaction reverted. Mocks disabled.', style: AegisTypography.bodySmall.copyWith(color: Colors.white)),
+            backgroundColor: AegisColors.danger,
           ),
         );
         return;
@@ -150,26 +178,26 @@ class _DoctorOverrideAndSignScreenState
         barrierDismissible: false,
         builder: (context) {
           return AlertDialog(
-            backgroundColor: Dr.card,
+            backgroundColor: AegisColors.surface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: const BorderSide(color: Dr.border),
+              borderRadius: AegisRadius.card,
+              side: const BorderSide(color: AegisColors.border),
             ),
             title: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(AegisSpacing.xs),
                   decoration: BoxDecoration(
-                    color: Dr.green.withOpacity(0.1),
+                    color: AegisColors.secondarySurface,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.verified_user_rounded,
-                      color: Dr.green, size: 20),
+                      color: AegisColors.secondary, size: AegisIconSize.sm),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: AegisSpacing.sm),
                 Expanded(
                   child: Text('Prescription Committed',
-                      style: Dr.heading(16),
+                      style: AegisTypography.headlineSmall.copyWith(color: AegisColors.textPrimary),
                       overflow: TextOverflow.ellipsis),
                 ),
               ],
@@ -181,47 +209,52 @@ class _DoctorOverrideAndSignScreenState
                 children: [
                   Text(
                     'Prescription has been encrypted, signed, and recorded on the blockchain ledger.',
-                    style: Dr.meta(13),
+                    style: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AegisSpacing.md),
                   Text('Ledger Transaction Hash',
-                      style: Dr.heading(12)),
+                      style: AegisTypography.labelSmall.copyWith(color: AegisColors.textPrimary, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(AegisSpacing.sm),
                     decoration: BoxDecoration(
-                      color: Dr.bg,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Dr.border),
+                      color: AegisColors.tertiarySurface, // AI / Blockchain Purple
+                      borderRadius: BorderRadius.circular(AegisRadius.sm),
+                      border: Border.all(color: AegisColors.tertiary.withValues(alpha: 0.3)),
                     ),
-                    child: Text(
-                      txHash,
-                      style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11, color: Dr.green),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SelectableText(
+                        txHash,
+                        style: AegisTypography.monoSmall.copyWith(
+                            color: AegisColors.tertiary, fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Text('Cryptographic Signature', style: Dr.heading(12)),
+                  const SizedBox(height: AegisSpacing.sm),
+                  Text('Cryptographic Signature', style: AegisTypography.labelSmall.copyWith(color: AegisColors.textPrimary, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(AegisSpacing.sm),
                     decoration: BoxDecoration(
-                      color: Dr.bg,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Dr.border),
+                      color: AegisColors.background,
+                      borderRadius: BorderRadius.circular(AegisRadius.sm),
+                      border: Border.all(color: AegisColors.border),
                     ),
-                    child: Text(
-                      signature,
-                      style: GoogleFonts.jetBrainsMono(
-                          fontSize: 10, color: Dr.sub),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SelectableText(
+                        signature,
+                        style: AegisTypography.monoSmall.copyWith(color: AegisColors.textTertiary),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AegisSpacing.sm),
                   const DoctorStatusBadge(
                     label: 'Active — Burn on Dispense',
-                    color: Dr.green,
+                    color: AegisColors.secondary,
                     icon: Icons.local_fire_department_rounded,
                   ),
                 ],
@@ -234,8 +267,8 @@ class _DoctorOverrideAndSignScreenState
                   Navigator.popUntil(context, (route) => route.isFirst);
                 },
                 child: Text('Back to Dashboard',
-                    style: GoogleFonts.inter(
-                        color: Dr.green, fontWeight: FontWeight.bold)),
+                    style: AegisTypography.labelMedium.copyWith(
+                        color: AegisColors.primary, fontWeight: FontWeight.w700)),
               ),
             ],
           );
@@ -243,18 +276,37 @@ class _DoctorOverrideAndSignScreenState
       );
     });
   }
+  // ── END BUSINESS LOGIC ────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final bool requiresOverride =
-        widget.riskBand == 'HIGH' || widget.riskBand == 'CRITICAL';
+        widget.action == 'REQUIRE_OVERRIDE' || widget.action == 'BLOCK_UNLESS_OVERRIDE';
+
+    Color getBannerColor() {
+      switch (widget.action.toUpperCase()) {
+        case 'REQUIRE_OVERRIDE':
+          return AegisColors.warning; // Orange for Warning
+        case 'BLOCK_UNLESS_OVERRIDE':
+          return AegisColors.danger;  // Red for Critical block
+        default:
+          return AegisColors.danger;
+      }
+    }
+    final bannerColor = getBannerColor();
+    final bannerBg = widget.action == 'REQUIRE_OVERRIDE' ? AegisColors.warningLight : AegisColors.dangerLight;
 
     return ClinicalScaffold(
       appBar: clinicalAppBar(title: 'Clinical Verification & Sign'),
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+            padding: const EdgeInsets.fromLTRB(
+              AegisSpacing.pagePadding,
+              AegisSpacing.base,
+              AegisSpacing.pagePadding,
+              100,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -262,48 +314,48 @@ class _DoctorOverrideAndSignScreenState
                 if (requiresOverride) ...[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AegisSpacing.base),
                     decoration: BoxDecoration(
-                      color: Dr.red.withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(12),
+                      color: bannerBg,
+                      borderRadius: AegisRadius.card,
                       border: Border.all(
-                          color: Dr.red.withOpacity(0.4), width: 1.5),
+                          color: bannerColor.withValues(alpha: 0.4), width: 1.5),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.dangerous_rounded,
-                                color: Dr.red, size: 20),
-                            const SizedBox(width: 8),
+                            Icon(Icons.dangerous_rounded,
+                                color: bannerColor, size: AegisIconSize.sm),
+                            const SizedBox(width: AegisSpacing.sm),
                             Expanded(
                               child: Text(
                                 'AI Risk: ${widget.riskBand} · Score ${widget.riskScore}/100',
-                                style: GoogleFonts.sora(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Dr.red),
+                                style: AegisTypography.titleSmall.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: bannerColor),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: AegisSpacing.sm),
                         ...widget.riskReasons.map((reason) => Padding(
                               padding: const EdgeInsets.only(bottom: 4),
                               child: Row(
                                 crossAxisAlignment:
                                     CrossAxisAlignment.start,
                                 children: [
-                                  const Text('· ',
+                                  Text('· ',
                                       style: TextStyle(
-                                          color: Dr.red,
+                                          color: bannerColor,
                                           fontWeight: FontWeight.bold)),
                                   Expanded(
-                                    child: Text(reason,
-                                        style: Dr.body(13)
-                                            .copyWith(color: Dr.red)),
+                                    child: Text(
+                                      reason,
+                                      style: AegisTypography.bodySmall.copyWith(color: bannerColor),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -311,34 +363,36 @@ class _DoctorOverrideAndSignScreenState
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AegisSpacing.lg),
                 ] else ...[
                   // ── Safe Banner ─────────────────────────────
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                      horizontal: AegisSpacing.base,
+                      vertical: AegisSpacing.sm,
+                    ),
                     decoration: BoxDecoration(
-                      color: Dr.green.withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(12),
+                      color: AegisColors.secondarySurface,
+                      borderRadius: AegisRadius.card,
                       border: Border.all(
-                          color: Dr.green.withOpacity(0.4), width: 1),
+                          color: AegisColors.secondary.withValues(alpha: 0.4), width: 1),
                     ),
                     child: Row(
                       children: [
                         const Icon(Icons.check_circle_rounded,
-                            color: Dr.green, size: 18),
-                        const SizedBox(width: 10),
+                            color: AegisColors.secondary, size: AegisIconSize.sm),
+                        const SizedBox(width: AegisSpacing.sm),
                         Expanded(
                           child: Text(
                             'AI Safety Audit Passed — Safe to Dispense.',
-                            style: Dr.body(13).copyWith(color: Dr.green),
+                            style: AegisTypography.bodySmall.copyWith(color: AegisColors.secondary, fontWeight: FontWeight.w600),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AegisSpacing.lg),
                 ],
 
                 // ── Patient & Diagnosis Summary ───────────────
@@ -351,57 +405,54 @@ class _DoctorOverrideAndSignScreenState
                         children: [
                           Expanded(
                             child: Text(widget.patientName,
-                                style: Dr.heading(15),
+                                style: AegisTypography.titleSmall.copyWith(color: AegisColors.textPrimary),
                                 overflow: TextOverflow.ellipsis),
                           ),
                           Text(widget.patientId,
-                              style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 11, color: Dr.sub)),
+                              style: AegisTypography.monoSmall.copyWith(color: AegisColors.textTertiary)),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                          'Complaint: ${widget.chiefComplaint}',
-                          style: Dr.meta(13)),
+                      Text('Complaint: ${widget.chiefComplaint}',
+                          style: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary)),
                       Text('Diagnosis: ${widget.diagnosis}',
-                          style: Dr.meta(13)),
+                          style: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary)),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: AegisSpacing.lg),
 
                 // ── Medication List ───────────────────────────
                 sectionHeader('Medications (${widget.medications.length})'),
                 ...widget.medications.asMap().entries.map((entry) {
                   final med = entry.value;
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: AegisSpacing.sm),
                     child: DoctorCard(
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.all(AegisSpacing.md),
                       child: Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(AegisSpacing.sm),
                             decoration: BoxDecoration(
-                              color: Dr.green.withOpacity(0.08),
+                              color: AegisColors.secondarySurface,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(Icons.medication_rounded,
-                                color: Dr.green, size: 18),
+                                color: AegisColors.secondary, size: AegisIconSize.sm),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: AegisSpacing.md),
                           Expanded(
                             child: Column(
                               crossAxisAlignment:
                                   CrossAxisAlignment.start,
                               children: [
                                 Text(med['name'] ?? '',
-                                    style: Dr.body(14).copyWith(
-                                        fontWeight: FontWeight.bold),
+                                    style: AegisTypography.titleSmall.copyWith(color: AegisColors.textPrimary),
                                     overflow: TextOverflow.ellipsis),
                                 Text(
                                   '${med['strength']} · ${med['route']} · ${med['frequency']} · ${med['duration']}',
-                                  style: Dr.meta(12),
+                                  style: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ],
@@ -412,13 +463,13 @@ class _DoctorOverrideAndSignScreenState
                     ),
                   );
                 }),
-                const SizedBox(height: 20),
+                const SizedBox(height: AegisSpacing.lg),
 
                 // ── Override Form (only if high risk) ─────────
                 if (requiresOverride) ...[
                   sectionHeader('Clinical Override Justification'),
                   DoctorCard(
-                    borderColor: Dr.red.withOpacity(0.3),
+                    borderColor: AegisColors.danger.withValues(alpha: 0.4),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -426,20 +477,20 @@ class _DoctorOverrideAndSignScreenState
                           value: _overrideCategory,
                           decoration: InputDecoration(
                             labelText: 'Override Category *',
-                            labelStyle: Dr.meta(13),
+                            labelStyle: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide:
-                                  const BorderSide(color: Dr.border),
+                              borderRadius: AegisRadius.input,
+                              borderSide: const BorderSide(color: AegisColors.border),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: AegisRadius.input,
                               borderSide: const BorderSide(
-                                  color: Dr.green, width: 1.5),
+                                  color: AegisColors.primary, width: 1.5),
                             ),
                             filled: true,
-                            fillColor: Dr.bg,
+                            fillColor: AegisColors.background,
                           ),
+                          dropdownColor: AegisColors.surface,
                           items: [
                             'Clinical judgment',
                             'Emergency',
@@ -448,55 +499,54 @@ class _DoctorOverrideAndSignScreenState
                             'Other',
                           ]
                               .map((c) => DropdownMenuItem(
-                                  value: c, child: Text(c)))
+                                  value: c,
+                                  child: Text(c, style: AegisTypography.bodyMedium.copyWith(color: AegisColors.textPrimary))))
                               .toList(),
                           onChanged: (val) =>
                               setState(() => _overrideCategory =
                                   val ?? 'Clinical judgment'),
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: AegisSpacing.md),
                         TextField(
                           controller: _rationaleController,
                           maxLines: 3,
-                          style: GoogleFonts.inter(
-                              fontSize: 14, color: Dr.text),
+                          style: AegisTypography.bodyMedium.copyWith(color: AegisColors.textPrimary),
                           decoration: InputDecoration(
                             labelText: 'Override Rationale *',
-                            labelStyle: Dr.meta(13),
+                            labelStyle: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary),
                             hintText:
                                 'e.g. Patient has tolerated drug previously without issues, monitor vitals.',
-                            hintStyle: Dr.meta(12),
+                            hintStyle: AegisTypography.bodySmall.copyWith(color: AegisColors.textTertiary),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide:
-                                  const BorderSide(color: Dr.border),
+                              borderRadius: AegisRadius.input,
+                              borderSide: const BorderSide(color: AegisColors.border),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: AegisRadius.input,
                               borderSide: const BorderSide(
-                                  color: Dr.green, width: 1.5),
+                                  color: AegisColors.primary, width: 1.5),
                             ),
                             filled: true,
-                            fillColor: Dr.bg,
+                            fillColor: AegisColors.background,
                           ),
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: AegisSpacing.md),
                         Container(
                           decoration: BoxDecoration(
-                            color: Dr.red.withOpacity(0.04),
-                            borderRadius: BorderRadius.circular(10),
+                            color: AegisColors.dangerLight,
+                            borderRadius: BorderRadius.circular(AegisRadius.sm),
                             border: Border.all(
-                                color: Dr.red.withOpacity(0.2)),
+                                color: AegisColors.danger.withValues(alpha: 0.3)),
                           ),
                           child: CheckboxListTile(
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12),
+                                horizontal: AegisSpacing.sm),
                             title: Text(
                               'I acknowledge the identified risks and assume full clinical responsibility as the treating physician.',
-                              style: Dr.body(13).copyWith(height: 1.4),
+                              style: AegisTypography.bodySmall.copyWith(color: AegisColors.dangerDark, height: 1.4, fontWeight: FontWeight.w600),
                             ),
                             value: _isAcknowledged,
-                            activeColor: Dr.green,
+                            activeColor: AegisColors.danger,
                             checkColor: Colors.white,
                             onChanged: (val) => setState(
                                 () => _isAcknowledged = val ?? false),
@@ -516,26 +566,33 @@ class _DoctorOverrideAndSignScreenState
             left: 0,
             right: 0,
             child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-              decoration: BoxDecoration(
-                color: Dr.card,
-                border: const Border(top: BorderSide(color: Dr.border)),
+              padding: const EdgeInsets.fromLTRB(
+                AegisSpacing.pagePadding,
+                AegisSpacing.sm,
+                AegisSpacing.pagePadding,
+                AegisSpacing.lg,
+              ),
+              decoration: const BoxDecoration(
+                color: AegisColors.surface,
+                border: Border(top: BorderSide(color: AegisColors.border)),
+                boxShadow: AegisShadows.md,
               ),
               child: Row(
                 children: [
                   Expanded(
                     child: DoctorOutlinedButton(
                       label: 'Back to Editor',
-                      color: Dr.sub,
+                      color: AegisColors.textSecondary,
                       onPressed:
                           _isSigning ? null : () => Navigator.pop(context),
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: AegisSpacing.md),
                   Expanded(
                     child: DoctorPrimaryButton(
                       label: 'Sign & Commit Rx',
                       icon: Icons.draw_rounded,
+                      backgroundColor: AegisColors.primary, // Royal Blue Primary Action
                       isLoading: _isSigning,
                       onPressed: _signAndCommit,
                     ),

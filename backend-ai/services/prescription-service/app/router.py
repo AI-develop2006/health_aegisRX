@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api", tags=["Prescription"])
 
 
 @router.get("/prescriptions", summary="Get prescriptions by patient name")
-async def get_prescriptions(patient: str = "Elenavan"):
+async def get_prescriptions(patient: Optional[str] = Query(None)):
     return service.get_prescriptions_by_patient(patient)
 
 

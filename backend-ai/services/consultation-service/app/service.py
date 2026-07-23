@@ -213,3 +213,85 @@ async def reject_consultation(req_id: str) -> dict:
         logger.error(f"Failed to log ACCESS_REVOKE consent event to Fabric: {lex}")
 
     return _serialize_doc(updated)
+
+
+async def cancel_consultation(
+    req_id: str | None,
+    patient_id: str | None,
+    patient_name: str | None,
+    doctor_id: str | None,
+) -> dict:
+    query = {}
+    if req_id:
+        query["id"] = req_id
+    else:
+        # Match any active (accepted) or pending consultation request for this doctor-patient pair
+        or_conditions = []
+        if patient_id:
+            or_conditions.append({"patientId": patient_id})
+        if patient_name:
+            or_conditions.append({"patientName": patient_name})
+            
+        if not or_conditions:
+            raise HTTPException(status_code=400, detail="Must provide at least one identifier (req_id, patient_id, or patient_name)")
+            
+        query["$or"] = or_conditions
+        query["status"] = {"$in": ["accepted", "pending"]}
+        if doctor_id:
+            query["doctorId"] = doctor_id
+
+    # Find the latest matching consultation
+    matched_doc = consultations_col().find_one(query, sort=[("createdAt", -1)])
+    if not matched_doc:
+        logger.warning(f"Cancel session requested but no matching active/pending consultation found. Query: {query}")
+        return {"status": "already_inactive"}
+
+    actual_req_id = matched_doc["id"]
+    updated = consultations_col().find_one_and_update(
+        {"id": actual_req_id},
+        {"$set": {"status": "cancelled"}},
+        return_document=True
+    )
+
+    await blockchain.log_activity(
+        "CANCEL_CONSULTATION", updated.get("patientName", "Unknown"), updated.get("doctorId", "Doctor"),
+        f"Consultation request {actual_req_id} was cancelled/disconnected."
+    )
+
+    bm = blockchain.BlockchainManager()
+    bm.add_block("ACCESS_REVOKE", {
+        "request_id": actual_req_id,
+        "patient_name": updated.get("patientName", ""),
+        "patient_id": updated.get("patientId", ""),
+        "doctor_id": updated.get("doctorId", ""),
+        "revoked_at": datetime.utcnow().isoformat(),
+        "reason": "cancelled_by_user",
+    })
+
+    # Write consent event on-chain to Fabric private channel
+    try:
+        import os
+        import httpx
+        
+        ledger_url = os.getenv("LEDGER_SERVICE_URL", "http://localhost:4007")
+        p_id = updated.get("patientId", "") or updated.get("patientName", "")
+        patient_id_anon = f"anon-patient-{hashlib.sha256(p_id.encode('utf-8')).hexdigest()[:8]}"
+        
+        payload = {
+            "consent_id": actual_req_id,
+            "patient_id": patient_id_anon,
+            "scope": "ACCESS_REVOKE",
+            "action_type": "cancel",
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+        
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            res = await client.post(f"{ledger_url}/api/ledger/consent-event", json=payload)
+            if res.status_code == 200:
+                logger.info(f"Consent ACCESS_REVOKE event successfully logged on Fabric: {res.json()}")
+            else:
+                logger.warning(f"Ledger service returned status {res.status_code}: {res.text}")
+    except Exception as lex:
+        logger.error(f"Failed to log ACCESS_REVOKE consent event to Fabric: {lex}")
+
+    return _serialize_doc(updated)

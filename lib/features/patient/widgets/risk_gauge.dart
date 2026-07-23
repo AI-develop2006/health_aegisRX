@@ -1,14 +1,34 @@
+// ─────────────────────────────────────────────────────────────
+// AegisRx Patient Widget — RiskGauge
+// Migrated to AegisRx Design System
+// Semicircular health risk gauge with needle indicator
+// ─────────────────────────────────────────────────────────────
+
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:health_lock/core/theme/design_system.dart';
 
 class RiskGauge extends StatelessWidget {
-  final int severityScore; // out of 100
+  final int severityScore; // 0–100
 
   const RiskGauge({super.key, required this.severityScore});
 
+  Color _scoreColor() {
+    final ext = AegisRiskTheme.defaultLight;
+    return ext.forScore(severityScore);
+  }
+
+  String _scoreLabel() {
+    if (severityScore <= 30) return 'LOW RISK';
+    if (severityScore <= 60) return 'MODERATE RISK';
+    if (severityScore <= 80) return 'HIGH RISK';
+    return 'CRITICAL RISK';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final color = _scoreColor();
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -16,28 +36,28 @@ class RiskGauge extends StatelessWidget {
           size: const Size(160, 90),
           painter: SemicircleGaugePainter(score: severityScore),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AegisSpacing.sm),
         Text(
           '$severityScore/100',
-          style: GoogleFonts.sora(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF4A3325), // Deep Matte Bronze
-          ),
+          style: AegisTypography.displaySmall.copyWith(color: AegisColors.textPrimary),
         ),
-        Text(
-          severityScore <= 30
-              ? 'LOW RISK'
-              : (severityScore <= 70 ? 'MEDIUM RISK' : 'CRITICAL RISK'),
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: severityScore <= 30
-                ? const Color(0xFF2E8B90) // Deep Medical Teal
-                : (severityScore <= 70
-                    ? const Color(0xFFD97736) // Warm Amber
-                    : const Color(0xFFB33A3A)), // Burgundy Red
-            letterSpacing: 0.8,
+        const SizedBox(height: AegisSpacing.xs),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AegisTokens.chipPaddingH,
+            vertical: AegisTokens.chipPaddingV,
+          ),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.10),
+            borderRadius: AegisRadius.chip,
+            border: Border.all(color: color.withValues(alpha: 0.35)),
+          ),
+          child: Text(
+            _scoreLabel(),
+            style: AegisTypography.labelSmall.copyWith(
+              color: color,
+              letterSpacing: 0.8,
+            ),
           ),
         ),
       ],
@@ -55,92 +75,77 @@ class SemicircleGaugePainter extends CustomPainter {
     final double centerX = size.width / 2;
     final double centerY = size.height;
     final double radius = size.width / 2 - 10;
-
     final Offset center = Offset(centerX, centerY);
 
-    // Segment color declarations
-    final Paint paintTeal = Paint()
-      ..color = const Color(0xFF2E8B90)
+    const strokeWidth = 14.0;
+
+    // Segment paints — use AegisColors tokens
+    final Paint paintSafe = Paint()
+      ..color = AegisColors.success
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 14
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.butt;
 
-    final Paint paintCopper = Paint()
-      ..color = const Color(0xFFB88E74)
+    final Paint paintModerate = Paint()
+      ..color = AegisColors.warning.withValues(alpha: 0.7)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 14
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.butt;
 
-    final Paint paintAmber = Paint()
-      ..color = const Color(0xFFD97736)
+    final Paint paintHigh = Paint()
+      ..color = AegisTokens.riskHigh
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 14
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.butt;
 
-    final Paint paintBurgundy = Paint()
-      ..color = const Color(0xFFB33A3A)
+    final Paint paintCritical = Paint()
+      ..color = AegisColors.danger
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 14
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.butt;
 
-    // Drawing semicircle gauge segments (from PI to 2 * PI)
-    // 70% Teal (0.7 * PI)
+    // Track background
+    final Paint trackPaint = Paint()
+      ..color = AegisColors.border
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth + 2
+      ..strokeCap = StrokeCap.round;
+
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
-      pi,
-      pi * 0.70,
-      false,
-      paintTeal,
+      pi, pi, false, trackPaint,
     );
 
-    // 15% Copper (0.15 * PI)
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      pi + (pi * 0.70),
-      pi * 0.15,
-      false,
-      paintCopper,
-    );
+    // Colored segments: 60% safe, 20% moderate, 10% high, 10% critical
+    canvas.drawArc(Rect.fromCircle(center: center, radius: radius),
+        pi, pi * 0.60, false, paintSafe);
+    canvas.drawArc(Rect.fromCircle(center: center, radius: radius),
+        pi + pi * 0.60, pi * 0.20, false, paintModerate);
+    canvas.drawArc(Rect.fromCircle(center: center, radius: radius),
+        pi + pi * 0.80, pi * 0.10, false, paintHigh);
+    canvas.drawArc(Rect.fromCircle(center: center, radius: radius),
+        pi + pi * 0.90, pi * 0.10, false, paintCritical);
 
-    // 10% Amber (0.10 * PI)
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      pi + (pi * 0.85),
-      pi * 0.10,
-      false,
-      paintAmber,
-    );
-
-    // 5% Burgundy (0.05 * PI)
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      pi + (pi * 0.95),
-      pi * 0.05,
-      false,
-      paintBurgundy,
-    );
-
-    // Drawing needle indicator based on the actual score
+    // Needle
     final double normalizedValue = score / 100.0;
     final double angle = pi + (pi * normalizedValue);
 
     final Paint needlePaint = Paint()
-      ..color = const Color(0xFF4A3325)
+      ..color = AegisColors.textPrimary
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
+      ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
 
-    final double needleLength = radius - 8;
+    final double needleLength = radius - 6;
     final double needleX = centerX + needleLength * cos(angle);
     final double needleY = centerY + needleLength * sin(angle);
-
     canvas.drawLine(center, Offset(needleX, needleY), needlePaint);
 
-    // Needle pivot circle
+    // Pivot dot
     final Paint pivotPaint = Paint()
-      ..color = const Color(0xFF4A3325)
+      ..color = AegisColors.textPrimary
       ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, 6, pivotPaint);
+    canvas.drawCircle(center, 5, pivotPaint);
   }
 
   @override

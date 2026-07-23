@@ -1,9 +1,13 @@
+// ─────────────────────────────────────────────────────────────
+// AegisRx Patient Widget — QrDrawer / showQrPopup
+// Migrated to AegisRx Design System
+// ─────────────────────────────────────────────────────────────
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:health_lock/core/constants/app_colors.dart';
-
+import 'package:health_lock/core/theme/design_system.dart';
 import 'package:health_lock/shared/models/prescription.dart';
 import '../../../core/state/app_state.dart';
 
@@ -11,15 +15,19 @@ import '../../../core/state/app_state.dart';
 void showQrPopup(BuildContext context, Prescription prescription) {
   final state = Provider.of<AppState>(context, listen: false);
 
-  // Format QR code data as: DATA##SIGNATURE
-  final String medsJson = jsonEncode(prescription.medicines.map((m) => m.toJson()).toList());
-  
-  // Item 3: Add expiry timestamp (10 minutes from now), nonce, and narrow scope (DISPENSE)
-  final int expiry = DateTime.now().add(const Duration(minutes: 10)).millisecondsSinceEpoch ~/ 1000;
-  final String nonce = '${UniqueKey().hashCode}-${DateTime.now().microsecondsSinceEpoch}';
+  final String medsJson = jsonEncode(
+      prescription.medicines.map((m) => m.toJson()).toList());
+
+  final int expiry = DateTime.now()
+          .add(const Duration(minutes: 10))
+          .millisecondsSinceEpoch ~/
+      1000;
+  final String nonce =
+      '${UniqueKey().hashCode}-${DateTime.now().microsecondsSinceEpoch}';
   const String scope = 'DISPENSE';
 
-  final String rawPayload = '${prescription.id}|${prescription.doctorName}|${prescription.hospitalName}|${prescription.patientName}|${prescription.disease}|${prescription.date}|${prescription.time}|$medsJson|${prescription.doctorSignId}|$expiry|$nonce|$scope';
+  final String rawPayload =
+      '${prescription.id}|${prescription.doctorName}|${prescription.hospitalName}|${prescription.patientName}|${prescription.disease}|${prescription.date}|${prescription.time}|$medsJson|${prescription.doctorSignId}|$expiry|$nonce|$scope';
   final String qrCodeData = '$rawPayload##${prescription.signature}';
 
   showGeneralDialog(
@@ -27,14 +35,11 @@ void showQrPopup(BuildContext context, Prescription prescription) {
     barrierDismissible: true,
     barrierLabel: 'QR Code Popup',
     barrierColor: Colors.black.withValues(alpha: 0.45),
-    transitionDuration: const Duration(milliseconds: 300),
+    transitionDuration: AegisMotion.moderate,
     transitionBuilder: (context, animation, secondaryAnimation, child) {
       return ScaleTransition(
-        scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
-        child: FadeTransition(
-          opacity: animation,
-          child: child,
-        ),
+        scale: CurvedAnimation(parent: animation, curve: AegisMotion.emphasized),
+        child: FadeTransition(opacity: animation, child: child),
       );
     },
     pageBuilder: (context, animation, secondaryAnimation) {
@@ -42,25 +47,16 @@ void showQrPopup(BuildContext context, Prescription prescription) {
         child: Material(
           color: Colors.transparent,
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 32),
+            margin: const EdgeInsets.symmetric(horizontal: AegisSpacing.xl),
             constraints: const BoxConstraints(maxWidth: 360),
             decoration: BoxDecoration(
-              color: AppColors.cardSurface,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: AppColors.borderWhite,
-                width: 1.0,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.08),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+              color: AegisColors.surface,
+              borderRadius: AegisRadius.card,
+              border: Border.all(color: AegisColors.border, width: AegisBorders.thin),
+              boxShadow: AegisShadows.xl,
             ),
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(AegisSpacing.lg),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -71,25 +67,22 @@ void showQrPopup(BuildContext context, Prescription prescription) {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(6),
+                            padding: const EdgeInsets.all(AegisSpacing.sm - 2),
                             decoration: BoxDecoration(
-                              color: AppColors.tintViolet,
-                              borderRadius: BorderRadius.circular(8),
+                              color: AegisColors.tertiarySurface,
+                              borderRadius: BorderRadius.circular(AegisRadius.sm),
                             ),
                             child: const Icon(
                               Icons.qr_code_2_rounded,
-                              color: AppColors.pharmacyViolet,
-                              size: 18,
+                              color: AegisColors.tertiary,
+                              size: AegisIconSize.md,
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          const Text(
+                          const SizedBox(width: AegisSpacing.sm),
+                          Text(
                             'PHARMACY CHECKOUT QR',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.pharmacyViolet,
-                              letterSpacing: 0.8,
+                            style: AegisTypography.labelCaps.copyWith(
+                              color: AegisColors.tertiary,
                             ),
                           ),
                         ],
@@ -97,36 +90,37 @@ void showQrPopup(BuildContext context, Prescription prescription) {
                       GestureDetector(
                         onTap: () => Navigator.of(context).pop(),
                         child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: AppColors.surfaceMuted,
+                          padding: const EdgeInsets.all(AegisSpacing.sm - 2),
+                          decoration: BoxDecoration(
+                            color: AegisColors.surfaceDim,
                             shape: BoxShape.circle,
+                            border: Border.all(color: AegisColors.border),
                           ),
                           child: const Icon(
                             Icons.close_rounded,
-                            color: AppColors.mutedText,
-                            size: 18,
+                            color: AegisColors.textSecondary,
+                            size: AegisIconSize.sm,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  const Divider(color: AppColors.borderWhite, height: 1),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AegisSpacing.base),
+                  const Divider(height: 1, color: AegisColors.border),
+                  const SizedBox(height: AegisSpacing.lg),
 
-                  // QR Code
+                  // QR Code container
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(AegisSpacing.md),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.borderWhite),
+                      borderRadius: AegisRadius.card,
+                      border: Border.all(color: AegisColors.border),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.pharmacyViolet.withValues(alpha: 0.05),
+                          color: AegisColors.tertiary.withValues(alpha: 0.06),
                           blurRadius: 16,
-                          spreadRadius: 1,
+                          spreadRadius: 0,
                         ),
                       ],
                     ),
@@ -134,59 +128,64 @@ void showQrPopup(BuildContext context, Prescription prescription) {
                       data: qrCodeData,
                       version: QrVersions.auto,
                       size: 180,
+                      backgroundColor: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AegisSpacing.base),
 
                   // Prescription info
                   Text(
                     prescription.disease,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primaryText,
+                    style: AegisTypography.titleLarge.copyWith(
+                      color: AegisColors.textPrimary,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AegisSpacing.xs),
                   Text(
                     'Dr. ${prescription.doctorName} • ${prescription.hospitalName}',
-                    style: const TextStyle(fontSize: 12, color: AppColors.mutedText),
+                    style: AegisTypography.bodySmall.copyWith(
+                      color: AegisColors.textSecondary,
+                    ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AegisSpacing.base),
 
-                  // Instruction
+                  // Instruction chip
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.tintViolet,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: AppColors.pharmacyViolet.withValues(alpha: 0.15),
-                      ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AegisSpacing.md,
+                      vertical: AegisSpacing.sm,
                     ),
-                    child: const Row(
+                    decoration: BoxDecoration(
+                      color: AegisColors.tertiarySurface,
+                      borderRadius: BorderRadius.circular(AegisRadius.sm),
+                      border: Border.all(
+                          color: AegisColors.tertiary.withValues(alpha: 0.20)),
+                    ),
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.qr_code_scanner_rounded, size: 14, color: AppColors.pharmacyViolet),
-                        SizedBox(width: 8),
+                        const Icon(Icons.qr_code_scanner_rounded,
+                            size: AegisIconSize.xs, color: AegisColors.tertiary),
+                        const SizedBox(width: AegisSpacing.sm),
                         Flexible(
                           child: Text(
                             'Scan at pharmacy to dispense medications',
-                            style: TextStyle(fontSize: 11, color: AppColors.pharmacyViolet, fontWeight: FontWeight.w500),
+                            style: AegisTypography.labelSmall.copyWith(
+                              color: AegisColors.tertiary,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AegisSpacing.sm),
                   Text(
                     '${state.backendUrl}/pharmacy-portal?rxId=${prescription.id}',
-                    style: const TextStyle(
+                    style: AegisTypography.monoSmall.copyWith(
+                      color: AegisColors.textTertiary,
                       fontSize: 9,
-                      color: AppColors.mutedText,
-                      fontFamily: 'monospace',
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -208,10 +207,8 @@ class QrDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Auto-trigger popup on build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showQrPopup(context, prescription);
-      // Deselect prescription after showing popup
       final state = Provider.of<AppState>(context, listen: false);
       state.selectPrescription(null);
     });

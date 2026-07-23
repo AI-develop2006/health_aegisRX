@@ -32,15 +32,16 @@ SERVICES = {
 }
 
 
-def start_service(name: str, folder: str, port: int) -> subprocess.Popen:
+def start_service(name: str, folder: str, port: int, reload: bool = False) -> subprocess.Popen:
     """Start a single microservice with its folder as root."""
     cmd = [
         sys.executable, "-m", "uvicorn",
         "app.main:app",
         "--host", "0.0.0.0",
         "--port", str(port),
-        "--reload",
     ]
+    if reload:
+        cmd.append("--reload")
     # Set CWD and PYTHONPATH to the service folder to isolate imports, adding the base project root
     svc_path = BASE_DIR / folder
     env = {**os.environ, "PYTHONPATH": f"{svc_path}{os.pathsep}{BASE_DIR}"}
@@ -51,6 +52,7 @@ def start_service(name: str, folder: str, port: int) -> subprocess.Popen:
 def main():
     parser = argparse.ArgumentParser(description="AegisRx Local Dev Launcher")
     parser.add_argument("--service", help="Run only one service by name")
+    parser.add_argument("--reload", action="store_true", help="Enable uvicorn auto-reloader")
     args = parser.parse_args()
 
     print("\n" + "=" * 60)
@@ -89,10 +91,10 @@ def main():
         if not svc:
             print(f"Unknown service '{args.service}'. Valid: {', '.join(SERVICES.keys())}")
             sys.exit(1)
-        procs.append(start_service(args.service, svc[0], svc[1]))
+        procs.append(start_service(args.service, svc[0], svc[1], reload=args.reload))
     else:
         for name, (folder, port) in SERVICES.items():
-            procs.append(start_service(name, folder, port))
+            procs.append(start_service(name, folder, port, reload=args.reload))
             time.sleep(0.4)
 
     print(f"\n[OK] {len(procs)} process(es) started. Press Ctrl+C to stop all.\n")

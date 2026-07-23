@@ -1,23 +1,15 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Patient Verification Screen (OTP)
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — _verify(), _resend(), timer, OTP cell logic preserved
+// ════════════════════════════════════════════════════════════════════════════
+
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/state/app_state.dart';
-
-// ── Design Tokens ─────────────────────────────────────────────────────────
-const _kBg      = Color(0xFF0A0F1D);
-const _kCard    = Color(0xFF1E293B);
-const _kBorder  = Color(0xFF334155);
-const _kAccent  = Color(0xFF0EA5E9);
-const _kSuccess = Color(0xFF10B981);
-const _kText    = Color(0xFFFFFFFF);
-const _kMuted   = Color(0xFF94A3B8);
-
-// ══════════════════════════════════════════════════════════════════════════
-//  PATIENT VERIFICATION SCREEN — 6-digit OTP layout
-// ══════════════════════════════════════════════════════════════════════════
+import '../../../../core/theme/design_system.dart';
 
 class PatientVerificationScreen extends StatefulWidget {
   final String identifier;
@@ -30,25 +22,23 @@ class PatientVerificationScreen extends StatefulWidget {
 
 class _PatientVerificationScreenState
     extends State<PatientVerificationScreen> {
-  // 6 individual OTP controllers + focus nodes
   static const int _otpLen = 6;
   final List<TextEditingController> _ctrl =
       List.generate(_otpLen, (_) => TextEditingController());
   final List<FocusNode> _focus =
       List.generate(_otpLen, (_) => FocusNode());
 
-  // Countdown timer
   int _countdown = 60;
   Timer? _timer;
-  bool _canResend = false;
+  bool _canResend  = false;
   bool _isVerifying = false;
-  bool _isVerified = false;
+  bool _isVerified  = false;
 
+  // ── BUSINESS LOGIC UNCHANGED ──────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
     _startTimer();
-    // Auto-focus first cell
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) FocusScope.of(context).requestFocus(_focus[0]);
     });
@@ -71,8 +61,8 @@ class _PatientVerificationScreenState
 
   @override
   void dispose() {
-    for (final c in _ctrl) c.dispose();
-    for (final f in _focus) f.dispose();
+    for (final c in _ctrl) { c.dispose(); }
+    for (final f in _focus) { f.dispose(); }
     _timer?.cancel();
     super.dispose();
   }
@@ -85,7 +75,6 @@ class _PatientVerificationScreenState
         FocusScope.of(context).requestFocus(_focus[index + 1]);
       } else {
         _focus[index].unfocus();
-        // Auto-submit when last digit entered
         Future.delayed(const Duration(milliseconds: 100), _verify);
       }
     }
@@ -106,9 +95,8 @@ class _PatientVerificationScreenState
     if (code.length != _otpLen) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please enter all $_otpLen digits.',
-              style: GoogleFonts.inter()),
-          backgroundColor: const Color(0xFFEF4444),
+          content: Text('Please enter all $_otpLen digits.'),
+          backgroundColor: AegisColors.danger,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
@@ -118,58 +106,51 @@ class _PatientVerificationScreenState
 
     setState(() => _isVerifying = true);
 
-    // Simulate verification (mock success after 1s)
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (!mounted) return;
-      setState(() {
-        _isVerifying = false;
-        _isVerified = true;
-      });
+      setState(() { _isVerifying = false; _isVerified = true; });
+
       Future.delayed(const Duration(milliseconds: 900), () {
         if (!mounted) return;
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) => Dialog(
-            backgroundColor: _kCard,
+            backgroundColor: AegisColors.surface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: const BorderSide(color: _kBorder, width: 1),
+              borderRadius: AegisRadius.card,
+              side: const BorderSide(color: AegisColors.border),
             ),
             child: Padding(
-              padding: const EdgeInsets.all(28),
+              padding: const EdgeInsets.all(AegisSpacing.xl),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(14),
+                    width: 64,
+                    height: 64,
                     decoration: BoxDecoration(
-                      color: _kSuccess.withValues(alpha: 0.1),
+                      color: AegisColors.successLight,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      CupertinoIcons.checkmark_shield_fill,
-                      color: _kSuccess,
-                      size: 38,
-                    ),
+                    child: const Icon(Icons.verified_rounded,
+                        color: AegisColors.success, size: 32),
                   ),
-                  const SizedBox(height: 16),
-                  Text('Verified!',
-                      style: GoogleFonts.sora(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: _kText)),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: AegisSpacing.base),
+                  Text('Vault Activated!',
+                      style: AegisTypography.headlineMedium.copyWith(
+                          color: AegisColors.textPrimary)),
+                  const SizedBox(height: AegisSpacing.sm),
                   Text(
-                    'Your vault is activated. You can now sign in with your credentials.',
+                    'Your identity is verified. You can now sign in with your credentials.',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                        fontSize: 13, color: _kMuted, height: 1.5),
+                    style: AegisTypography.bodyMedium.copyWith(
+                        color: AegisColors.textSecondary, height: 1.5),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AegisSpacing.lg),
                   SizedBox(
                     width: double.infinity,
-                    height: 48,
+                    height: AegisTokens.btnHeight,
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);
@@ -177,15 +158,13 @@ class _PatientVerificationScreenState
                             .setPatientAuthState(PatientAuthState.login);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _kSuccess,
+                        backgroundColor: AegisColors.success,
+                        foregroundColor: Colors.white,
                         elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
+                        textStyle: AegisTypography.labelLarge,
                       ),
-                      child: Text('Proceed to Login',
-                          style: GoogleFonts.inter(
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white)),
+                      child: const Text('Proceed to Login'),
                     ),
                   ),
                 ],
@@ -200,20 +179,19 @@ class _PatientVerificationScreenState
   void _resend() {
     if (!_canResend) return;
     _startTimer();
-    // Clear all cells
-    for (final c in _ctrl) c.clear();
-    setState(() { _isVerified = false; });
+    for (final c in _ctrl) { c.clear(); }
+    setState(() => _isVerified = false);
     FocusScope.of(context).requestFocus(_focus[0]);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Verification code resent (mock).',
-            style: GoogleFonts.inter()),
-        backgroundColor: _kAccent,
+        content: const Text('Verification code resent.'),
+        backgroundColor: AegisColors.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
+  // ── END BUSINESS LOGIC ────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -225,205 +203,200 @@ class _PatientVerificationScreenState
             : 'your registered contact';
 
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: AegisColors.background,
       body: Stack(
         children: [
-          Positioned.fill(child: CustomPaint(painter: _MeshPainter())),
+          Positioned.fill(child: CustomPaint(painter: _AuthGridPainter())),
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AegisSpacing.pagePadding,
+                vertical: AegisSpacing.base,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Back
-                  IconButton(
-                    onPressed: () =>
-                        appState.setPatientAuthState(PatientAuthState.signup),
-                    icon: const Icon(CupertinoIcons.arrow_left,
-                        color: _kMuted, size: 22),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
+                  _BackBtn(onTap: () => appState.setPatientAuthState(PatientAuthState.signup)),
+                  const SizedBox(height: AegisSpacing.xl),
 
-                  const SizedBox(height: 32),
-
-                  // Badge
-                  Container(
+                  // ── Icon badge (animated) ──────────────────────
+                  AnimatedContainer(
+                    duration: AegisMotion.moderate,
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: _kCard,
-                      borderRadius: BorderRadius.circular(14),
+                      color: _isVerified ? AegisColors.successLight : AegisColors.primarySurface,
+                      borderRadius: BorderRadius.circular(AegisRadius.md),
                       border: Border.all(
-                          color: _isVerified
-                              ? _kSuccess.withValues(alpha: 0.5)
-                              : _kAccent.withValues(alpha: 0.4),
-                          width: 1.5),
+                        color: (_isVerified ? AegisColors.success : AegisColors.primary)
+                            .withValues(alpha: 0.4),
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: (_isVerified ? _kSuccess : _kAccent)
-                              .withValues(alpha: 0.2),
+                          color: (_isVerified ? AegisColors.success : AegisColors.primary)
+                              .withValues(alpha: 0.15),
                           blurRadius: 16,
-                        )
+                          offset: const Offset(0, 4),
+                        ),
                       ],
                     ),
                     child: Icon(
                       _isVerified
-                          ? CupertinoIcons.checkmark_shield_fill
-                          : CupertinoIcons.shield_lefthalf_fill,
-                      color: _isVerified ? _kSuccess : _kAccent,
-                      size: 26,
+                          ? Icons.verified_rounded
+                          : Icons.shield_outlined,
+                      color: _isVerified ? AegisColors.success : AegisColors.primary,
+                      size: AegisIconSize.lg,
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AegisSpacing.base),
 
                   Text(
-                    'Verify your mobile number',
-                    style: GoogleFonts.sora(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: _kText),
+                    'Verify your\nmobile number',
+                    style: AegisTypography.displaySmall.copyWith(
+                      color: AegisColors.textPrimary,
+                      height: 1.15,
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AegisSpacing.sm),
                   RichText(
                     text: TextSpan(
-                      style: GoogleFonts.inter(fontSize: 14, color: _kMuted),
+                      style: AegisTypography.bodyMedium.copyWith(
+                          color: AegisColors.textSecondary),
                       children: [
-                        const TextSpan(text: 'A 6-digit code was sent to your mobile: '),
+                        const TextSpan(text: 'A 6-digit code was sent to '),
                         TextSpan(
                           text: masked,
-                          style: GoogleFonts.inter(
-                              color: _kAccent, fontWeight: FontWeight.w600),
+                          style: AegisTypography.bodyMedium.copyWith(
+                            color: AegisColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: AegisSpacing.xxl),
 
-                  // ── OTP Grid ─────────────────────────────────
+                  // ── OTP Grid ───────────────────────────────────
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(_otpLen, (i) => _OtpCell(
-                      controller: _ctrl[i],
-                      focusNode: _focus[i],
-                      isVerified: _isVerified,
-                      onChanged: (v) => _onDigitEntered(i, v),
-                      onKey: (e) => _onKeyEvent(i, e),
-                    )),
+                    children: List.generate(
+                      _otpLen,
+                      (i) => _OtpCell(
+                        controller: _ctrl[i],
+                        focusNode: _focus[i],
+                        isVerified: _isVerified,
+                        onChanged: (v) => _onDigitEntered(i, v),
+                        onKey: (e) => _onKeyEvent(i, e),
+                      ),
+                    ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: AegisSpacing.lg),
 
-                  // ── Timer / Resend ────────────────────────────
+                  // ── Timer / Resend ─────────────────────────────
                   Center(
                     child: _canResend
                         ? TextButton(
                             onPressed: _resend,
                             child: Text(
                               'Resend code',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: _kAccent,
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: AegisTypography.labelMedium.copyWith(
+                                  color: AegisColors.primary),
                             ),
                           )
                         : Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(CupertinoIcons.clock,
-                                  size: 14, color: _kMuted),
-                              const SizedBox(width: 6),
+                              const Icon(Icons.timer_outlined,
+                                  size: AegisIconSize.sm,
+                                  color: AegisColors.textTertiary),
+                              const SizedBox(width: AegisSpacing.xs),
                               Text(
                                 'Resend in ${_countdown}s',
-                                style: GoogleFonts.inter(
-                                    fontSize: 13, color: _kMuted),
+                                style: AegisTypography.bodySmall.copyWith(
+                                    color: AegisColors.textTertiary),
                               ),
                             ],
                           ),
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: AegisSpacing.base),
 
-                  // ── Verify CTA ────────────────────────────────
-                  SizedBox(
+                  // ── Verify CTA ─────────────────────────────────
+                  AnimatedContainer(
+                    duration: AegisMotion.moderate,
                     width: double.infinity,
-                    height: 52,
+                    height: AegisTokens.btnHeight,
                     child: ElevatedButton(
                       onPressed: _isVerifying || _isVerified ? null : _verify,
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
-                            _isVerified ? _kSuccess : _kAccent,
+                            _isVerified ? AegisColors.success : AegisColors.primary,
+                        foregroundColor: Colors.white,
                         disabledBackgroundColor:
-                            (_isVerified ? _kSuccess : _kAccent)
+                            (_isVerified ? AegisColors.success : AegisColors.primary)
                                 .withValues(alpha: 0.4),
                         elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
+                        textStyle: AegisTypography.labelLarge,
                       ),
                       child: _isVerifying
                           ? const SizedBox(
-                              width: 20,
-                              height: 20,
+                              width: 22,
+                              height: 22,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
+                                  strokeWidth: 2.5, color: Colors.white),
                             )
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 if (_isVerified)
                                   const Padding(
-                                    padding: EdgeInsets.only(right: 8),
-                                    child: Icon(
-                                        CupertinoIcons.checkmark,
-                                        size: 18,
-                                        color: Colors.white),
+                                    padding: EdgeInsets.only(right: AegisSpacing.sm),
+                                    child: Icon(Icons.check_rounded,
+                                        size: AegisIconSize.sm, color: Colors.white),
                                   ),
-                                Text(
-                                  _isVerified
-                                      ? 'Identity Confirmed'
-                                      : 'Verify Code',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                                Text(_isVerified ? 'Identity Confirmed' : 'Verify Code'),
                               ],
                             ),
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AegisSpacing.base),
 
-                  // Security note
+                  // ── Security info note ─────────────────────────
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
+                      horizontal: AegisSpacing.md,
+                      vertical: AegisSpacing.sm,
+                    ),
                     decoration: BoxDecoration(
-                      color: _kCard,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: _kBorder, width: 1),
+                      color: AegisColors.surface,
+                      borderRadius: AegisRadius.card,
+                      border: Border.all(color: AegisColors.border),
                     ),
                     child: Row(
                       children: [
-                        const Icon(CupertinoIcons.info_circle,
-                            color: _kMuted, size: 16),
-                        const SizedBox(width: 10),
+                        const Icon(Icons.info_outline_rounded,
+                            color: AegisColors.textTertiary, size: AegisIconSize.sm),
+                        const SizedBox(width: AegisSpacing.sm),
                         Expanded(
                           child: Text(
-                            'This code expires in 10 minutes. Do not share it with anyone.',
-                            style: GoogleFonts.inter(
-                                fontSize: 12, color: _kMuted, height: 1.4),
+                            'This code expires in 10 minutes. Never share it with anyone.',
+                            style: AegisTypography.labelSmall.copyWith(
+                              color: AegisColors.textSecondary,
+                              height: 1.4,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AegisSpacing.base),
                 ],
               ),
             ),
@@ -434,7 +407,7 @@ class _PatientVerificationScreenState
   }
 }
 
-// ── Individual OTP cell widget ─────────────────────────────────────────────
+// ── OTP Cell ──────────────────────────────────────────────────────────────
 class _OtpCell extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -457,37 +430,35 @@ class _OtpCell extends StatelessWidget {
       onKey: onKey,
       child: SizedBox(
         width: 46,
-        height: 56,
+        height: 58,
         child: TextField(
           controller: controller,
           focusNode: focusNode,
           textAlign: TextAlign.center,
           keyboardType: TextInputType.number,
           maxLength: 1,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: isVerified ? _kSuccess : _kText,
+          style: AegisTypography.monoLarge.copyWith(
+            color: isVerified ? AegisColors.success : AegisColors.textPrimary,
           ),
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           onChanged: onChanged,
           decoration: InputDecoration(
             counterText: '',
             filled: true,
-            fillColor: _kCard,
+            fillColor: AegisColors.surface,
             contentPadding: EdgeInsets.zero,
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AegisRadius.input,
               borderSide: BorderSide(
-                color: isVerified ? _kSuccess : _kBorder,
-                width: 1.5,
+                color: isVerified ? AegisColors.success : AegisColors.border,
+                width: AegisBorders.regular,
               ),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AegisRadius.input,
               borderSide: BorderSide(
-                color: isVerified ? _kSuccess : _kAccent,
-                width: 2,
+                color: isVerified ? AegisColors.success : AegisColors.primary,
+                width: AegisBorders.thick,
               ),
             ),
           ),
@@ -497,11 +468,12 @@ class _OtpCell extends StatelessWidget {
   }
 }
 
-class _MeshPainter extends CustomPainter {
+// ── Shared helpers ─────────────────────────────────────────────────────────
+class _AuthGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF0EA5E9).withValues(alpha: 0.03)
+      ..color = AegisColors.primary.withValues(alpha: 0.025)
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
     const step = 44.0;
@@ -515,4 +487,27 @@ class _MeshPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _BackBtn extends StatelessWidget {
+  final VoidCallback onTap;
+  const _BackBtn({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AegisRadius.sm),
+      child: Container(
+        padding: const EdgeInsets.all(AegisSpacing.sm),
+        decoration: BoxDecoration(
+          color: AegisColors.surface,
+          borderRadius: BorderRadius.circular(AegisRadius.sm),
+          border: Border.all(color: AegisColors.border),
+        ),
+        child: const Icon(Icons.arrow_back_ios_new_rounded,
+            size: AegisIconSize.sm, color: AegisColors.textSecondary),
+      ),
+    );
+  }
 }

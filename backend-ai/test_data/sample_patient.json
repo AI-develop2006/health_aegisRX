@@ -1,227 +1,201 @@
 {
-"patients": [
-  {
-    "patient_id": "Priya_123",
-    "name": "Priya Sharma",
-    "age": 45,
-    "gender": "Female",
-    "email": "priya@test.com",
-    "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$dyMwJkSWOolMFeGdFNhLdg$HjAupVXgmOp6qB3whl2cOSEhID55Unt45YS7GXTjxjM"
-  },
-  {
-    "patient_id": "Elena Vance",
-    "name": "Elena Vance",
-    "age": 28,
-    "gender": "Female",
-    "email": "elena@test.com",
-    "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$dyMwJkSWOolMFeGdFNhLdg$HjAupVXgmOp6qB3whl2cOSEhID55Unt45YS7GXTjxjM"
-  },
-  {
-    "patient_id": "john_doe",
-    "name": "John Doe",
-    "age": 55,
-    "gender": "Male",
-    "email": "john@test.com",
-    "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$dyMwJkSWOolMFeGdFNhLdg$HjAupVXgmOp6qB3whl2cOSEhID55Unt45YS7GXTjxjM"
-  }
-],
-"allergies": [
-  {
-    "patient_id": "Priya_123",
-    "allergy_name": "Penicillin",
-    "severity": "HIGH"
-  },
-  {
-    "patient_id": "Priya_123",
-    "allergy_name": "Sulfa",
-    "severity": "MEDIUM"
-  },
-  {
-    "patient_id": "Elena Vance",
-    "allergy_name": "Penicillin",
-    "severity": "HIGH"
-  },
-  {
-    "patient_id": "Elena Vance",
-    "allergy_name": "Sulfa",
-    "severity": "MEDIUM"
-  },
-  {
-    "patient_id": "john_doe",
-    "allergy_name": "Codeine",
-    "severity": "HIGH"
-  }
-],
-"prescriptions": [
-  {
-    "patient_id": "Elena Vance",
-    "medicine": "Albuterol Inhaler",
-    "dosage": "90mcg",
-    "frequency": "2 puffs every 4 hours",
-    "doctor_id": "Marcus Vance",
-    "date": "2026-06-19T14:20:00"
-  },
-  {
-    "patient_id": "Elena Vance",
-    "medicine": "Metformin",
-    "dosage": "500mg",
-    "frequency": "twice daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-20T14:46:00"
-  },
-  {
-    "patient_id": "Priya_123",
-    "medicine": "Metformin",
-    "dosage": "500mg",
-    "frequency": "twice daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-15T08:00:00"
-  },
-  {
-    "patient_id": "Priya_123",
-    "medicine": "Aspirin",
-    "dosage": "75mg",
-    "frequency": "once daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-05-10T09:00:00"
-  },
-  {
-    "patient_id": "Priya_123",
-    "medicine": "Atorvastatin",
-    "dosage": "10mg",
-    "frequency": "once daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-05-20T10:00:00"
-  },
-  {
-    "patient_id": "Priya_123",
-    "medicine": "Lisinopril",
-    "dosage": "10mg",
-    "frequency": "once daily",
-    "doctor_id": "Dr_Kumar_456",
-    "date": "2026-04-18T09:00:00"
-  },
-  {
-    "patient_id": "Priya_123",
-    "medicine": "Paracetamol",
-    "dosage": "650mg",
-    "frequency": "as needed",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-01T14:30:00"
-  },
-  {
-    "patient_id": "Rahul_789",
-    "medicine": "Metformin",
-    "dosage": "1000mg",
-    "frequency": "twice daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-10T10:00:00"
-  },
-  {
-    "patient_id": "Amit_555",
-    "medicine": "Metformin",
-    "dosage": "500mg",
-    "frequency": "twice daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-12T11:00:00"
-  },
-  {
-    "patient_id": "Amit_555",
-    "medicine": "Metformin",
-    "dosage": "500mg",
-    "frequency": "twice daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-13T11:00:00"
-  },
-  {
-    "patient_id": "Amit_555",
-    "medicine": "Metformin",
-    "dosage": "500mg",
-    "frequency": "twice daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-14T11:00:00"
-  },
-  {
-    "patient_id": "Amit_555",
-    "medicine": "Metformin",
-    "dosage": "500mg",
-    "frequency": "twice daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-15T11:00:00"
-  },
-  {
-    "patient_id": "Amit_555",
-    "medicine": "Metformin",
-    "dosage": "500mg",
-    "frequency": "twice daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-16T11:00:00"
-  },
-  {
-    "patient_id": "Amit_555",
-    "medicine": "Metformin",
-    "dosage": "500mg",
-    "frequency": "twice daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-17T11:00:00"
-  },
-  {
-    "patient_id": "Amit_555",
-    "medicine": "Metformin",
-    "dosage": "500mg",
-    "frequency": "twice daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-18T11:00:00"
-  },
-  {
-    "patient_id": "Amit_555",
-    "medicine": "Metformin",
-    "dosage": "500mg",
-    "frequency": "twice daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-19T11:00:00"
-  },
-  {
-    "patient_id": "Amit_555",
-    "medicine": "Metformin",
-    "dosage": "500mg",
-    "frequency": "twice daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-20T11:00:00"
-  },
-  {
-    "patient_id": "Suresh_444",
-    "medicine": "Aspirin",
-    "dosage": "75mg",
-    "frequency": "once daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-08T09:00:00"
-  },
-  {
-    "patient_id": "Suresh_444",
-    "medicine": "Paracetamol",
-    "dosage": "500mg",
-    "frequency": "once daily",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-09T09:00:00"
-  },
-  {
-    "patient_id": "john_doe",
-    "medicine": "Sildenafil",
-    "dosage": "50mg",
-    "frequency": "as needed",
-    "doctor_id": "Dr_Arun_456",
-    "date": "2026-06-20T14:46:00"
-  }
-],
-"doctors": [
-  {
-    "doctor_id": "Dr_Arun_456",
-    "name": "Dr. Arun Sharma"
-  },
-  {
-    "doctor_id": "Dr_Kumar_456",
-    "name": "Dr. Kumar Patel"
-  }
-]
+  "patients": [
+    {
+      "patient_id": "Elena Vance",
+      "name": "Elena Vance",
+      "age": 28,
+      "gender": "Female",
+      "email": "elena@test.com",
+      "mobile": "992818",
+      "blood_group": "A+",
+      "conditions": ["Mild Asthma", "Hypertension"],
+      "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$dyMwJkSWOolMFeGdFNhLdg$HjAupVXgmOp6qB3whl2cOSEhID55Unt45YS7GXTjxjM"
+    },
+    {
+      "patient_id": "Priya_123",
+      "name": "Priya Sharma",
+      "age": 45,
+      "gender": "Female",
+      "email": "priya@test.com",
+      "mobile": "9812345678",
+      "blood_group": "B+",
+      "conditions": ["Type 2 Diabetes", "Chronic Hypertension"],
+      "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$dyMwJkSWOolMFeGdFNhLdg$HjAupVXgmOp6qB3whl2cOSEhID55Unt45YS7GXTjxjM"
+    },
+    {
+      "patient_id": "rahul_v01",
+      "name": "Rahul Verma",
+      "age": 34,
+      "gender": "Male",
+      "email": "rahul@test.com",
+      "mobile": "9440123456",
+      "blood_group": "O+",
+      "conditions": ["Seasonal Allergic Rhinitis"],
+      "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$dyMwJkSWOolMFeGdFNhLdg$HjAupVXgmOp6qB3whl2cOSEhID55Unt45YS7GXTjxjM"
+    },
+    {
+      "patient_id": "john_doe",
+      "name": "John Doe",
+      "age": 55,
+      "gender": "Male",
+      "email": "john@test.com",
+      "mobile": "9123456789",
+      "blood_group": "AB+",
+      "conditions": ["Coronary Artery Disease"],
+      "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$dyMwJkSWOolMFeGdFNhLdg$HjAupVXgmOp6qB3whl2cOSEhID55Unt45YS7GXTjxjM"
+    }
+  ],
+  "allergies": [
+    {
+      "patient_id": "Elena Vance",
+      "allergy_name": "Penicillin",
+      "severity": "HIGH"
+    },
+    {
+      "patient_id": "Elena Vance",
+      "allergy_name": "Sulfa",
+      "severity": "MEDIUM"
+    },
+    {
+      "patient_id": "Priya_123",
+      "allergy_name": "Penicillin",
+      "severity": "HIGH"
+    },
+    {
+      "patient_id": "Priya_123",
+      "allergy_name": "Aspirin",
+      "severity": "HIGH"
+    },
+    {
+      "patient_id": "rahul_v01",
+      "allergy_name": "Amoxicillin",
+      "severity": "MEDIUM"
+    },
+    {
+      "patient_id": "rahul_v01",
+      "allergy_name": "Codeine",
+      "severity": "HIGH"
+    },
+    {
+      "patient_id": "john_doe",
+      "allergy_name": "Codeine",
+      "severity": "HIGH"
+    }
+  ],
+  "prescriptions": [
+    {
+      "id": "RX-8891-EV",
+      "patient_id": "Elena Vance",
+      "patientName": "Elena Vance",
+      "disease": "Asthma & Allergic Airway Response",
+      "medicine": "Albuterol Inhaler",
+      "dosage": "90mcg",
+      "frequency": "2 puffs every 4 hours",
+      "doctorName": "Dr. Alexander Vance",
+      "doctor_id": "NPI-88912",
+      "doctorSignId": "NPI-88912",
+      "hospitalName": "Metropolitan Hospital Centre",
+      "date": "2026-07-20T14:20:00",
+      "time": "14:20",
+      "isDispensed": false,
+      "medicines": [
+        {
+          "name": "Albuterol Inhaler 90mcg",
+          "interval": "2 puffs every 4 hours",
+          "morning": true,
+          "afternoon": true,
+          "evening": true,
+          "night": true,
+          "beforeFood": true
+        },
+        {
+          "name": "Montelukast 10mg",
+          "interval": "Once daily at bedtime",
+          "night": true,
+          "afterFood": true
+        }
+      ]
+    },
+    {
+      "id": "RX-9921-PS",
+      "patient_id": "Priya_123",
+      "patientName": "Priya Sharma",
+      "disease": "Type 2 Diabetes Mellitus & Lipid Control",
+      "medicine": "Metformin",
+      "dosage": "500mg",
+      "frequency": "twice daily",
+      "doctorName": "Dr. Arun Sharma",
+      "doctor_id": "9876543210",
+      "doctorSignId": "9876543210",
+      "hospitalName": "Apollo Healthcare Clinic",
+      "date": "2026-07-20T09:30:00",
+      "time": "09:30",
+      "isDispensed": false,
+      "medicines": [
+        {
+          "name": "Metformin 500mg",
+          "interval": "Twice daily after meal",
+          "morning": true,
+          "night": true,
+          "afterFood": true
+        },
+        {
+          "name": "Atorvastatin 10mg",
+          "interval": "Once daily at bedtime",
+          "night": true,
+          "afterFood": true
+        }
+      ]
+    },
+    {
+      "id": "RX-7742-RV",
+      "patient_id": "rahul_v01",
+      "patientName": "Rahul Verma",
+      "disease": "Acute Allergic Rhinitis & Sinusitis",
+      "medicine": "Cetirizine",
+      "dosage": "10mg",
+      "frequency": "once daily",
+      "doctorName": "Dr. Kumar Patel",
+      "doctor_id": "Dr_Kumar_456",
+      "doctorSignId": "Dr_Kumar_456",
+      "hospitalName": "City General Hospital",
+      "date": "2026-07-20T11:15:00",
+      "time": "11:15",
+      "isDispensed": false,
+      "medicines": [
+        {
+          "name": "Cetirizine 10mg",
+          "interval": "Once daily at night",
+          "night": true,
+          "afterFood": true
+        },
+        {
+          "name": "Vitamin D3 60000IU",
+          "interval": "Once weekly",
+          "morning": true,
+          "afterFood": true
+        }
+      ]
+    }
+  ],
+  "doctors": [
+    {
+      "doctor_id": "NPI-88912",
+      "name": "Dr. Alexander Vance",
+      "hospitalName": "Metropolitan Hospital Centre",
+      "specialty": "Cardiology & Internal Medicine"
+    },
+    {
+      "doctor_id": "9876543210",
+      "name": "Dr. Arun Sharma",
+      "hospitalName": "Apollo Healthcare Clinic",
+      "specialty": "General Internal Medicine"
+    },
+    {
+      "doctor_id": "Dr_Kumar_456",
+      "name": "Dr. Kumar Patel",
+      "hospitalName": "City General Hospital",
+      "specialty": "Pulmonology & CDSS Safety"
+    }
+  ]
 }

@@ -20,12 +20,16 @@ async def run_audit(patient_id: str, doctor_id: str, new_medicine: str, new_dosa
     current_meds = []
 
     try:
-        # Find patient record to build context
-        patient_doc = patients_col().find_one({"patient_id": patient_id})
+        import re
+        clean_id = patient_id.replace("_", " ").strip()
+        escaped_id = re.escape(clean_id).replace(r"\ ", r"[\ _]")
+        regex_pattern = f"^{escaped_id}$"
+        
+        patient_doc = patients_col().find_one({"patient_id": {"$regex": regex_pattern, "$options": "i"}})
         if not patient_doc:
-            patient_doc = patients_col().find_one({"name": patient_id})
+            patient_doc = patients_col().find_one({"name": {"$regex": regex_pattern, "$options": "i"}})
         if not patient_doc:
-            patient_doc = patients_col().find_one({"email": patient_id})
+            patient_doc = patients_col().find_one({"email": {"$regex": f"^{re.escape(patient_id)}$", "$options": "i"}})
 
         if patient_doc:
             p_id = patient_doc.get("patient_id")
@@ -35,12 +39,16 @@ async def run_audit(patient_id: str, doctor_id: str, new_medicine: str, new_dosa
             search_terms = []
             if p_id:
                 search_terms.append(p_id)
+                search_terms.append(p_id.replace("_", " "))
+                search_terms.append(p_id.replace(" ", "_"))
             if p_name:
                 search_terms.append(p_name)
+                search_terms.append(p_name.replace("_", " "))
+                search_terms.append(p_name.replace(" ", "_"))
             
             import re
             allergy_filters = []
-            for term in search_terms:
+            for term in list(set(search_terms)):
                 safe_term = re.escape(term)
                 allergy_filters.append({"patient_id": {"$regex": f"^({safe_term})$", "$options": "i"}})
                 allergy_filters.append({"patient_name": {"$regex": f"^({safe_term})$", "$options": "i"}})

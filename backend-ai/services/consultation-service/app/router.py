@@ -1,7 +1,7 @@
 """Consultation Service — Routes"""
 from fastapi import APIRouter
 from typing import Optional
-from app.models import ConsultationRequestInput, AcceptRejectInput
+from app.models import ConsultationRequestInput, AcceptRejectInput, CancelInput
 from app import service
 
 router = APIRouter(prefix="/api/consultation", tags=["Consultation Management"])
@@ -40,3 +40,13 @@ async def accept_consultation(input_data: AcceptRejectInput):
 @router.post("/reject", summary="Patient rejects a consultation request")
 async def reject_consultation(input_data: AcceptRejectInput):
     return await service.reject_consultation(input_data.id)
+
+
+@router.post("/cancel", summary="Cancel/disconnect a consultation request")
+async def cancel_consultation(input_data: CancelInput):
+    return await service.cancel_consultation(
+        req_id=input_data.id,
+        patient_id=input_data.patient_id,
+        patient_name=input_data.patient_name,
+        doctor_id=input_data.doctor_id,
+    )

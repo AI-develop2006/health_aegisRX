@@ -6,6 +6,8 @@ from app.core.config import settings
 logger = logging.getLogger("AegisRx.OpenFDA")
 
 class OpenFDAMock(BaseOpenFDA):
+    _cache = {}
+
     def __init__(self):
         # Database of adverse events and risk guidelines
         self.fda_db = {
@@ -48,6 +50,11 @@ class OpenFDAMock(BaseOpenFDA):
         }
 
     async def get_adverse_events(self, drug_name: str) -> Dict[str, Any]:
+        drug_name_clean = drug_name.strip().lower()
+        if drug_name_clean in self._cache:
+            logger.info(f"openFDA cache hit for: {drug_name_clean}")
+            return self._cache[drug_name_clean]
+
         if settings.USE_MOCK_AUDIT:
             logger.info("USE_MOCK_AUDIT is enabled. Using openFDA mock database.")
             return self._get_mock_adverse_events(drug_name)
@@ -63,15 +70,17 @@ class OpenFDAMock(BaseOpenFDA):
                 results = data.get("results", [])
                 if not results:
                     raise ValueError(f"No FDA adverse event data found for {drug_name}")
-                return {
+                result = {
                     "age_risks": f"Real openFDA warning logs show potential geriatric/pediatric reports.",
                     "kidney_risks": f"FDA adverse events logs show interactions.",
                     "liver_risks": f"FDA database indicates metabolism concerns.",
                     "weight_risks": "Refer to FDA weight guidelines."
                 }
+                self._cache[drug_name_clean] = result
+                return result
         except Exception as e:
-            logger.error(f"openFDA query failed: {e}")
-            raise e
+            logger.warning(f"openFDA query failed for '{drug_name}': {e}. Falling back to mock database.")
+            return self._get_mock_adverse_events(drug_name)
 
     def _get_mock_adverse_events(self, drug_name: str) -> Dict[str, Any]:
         normalized = drug_name.strip().lower()

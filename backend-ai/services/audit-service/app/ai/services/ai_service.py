@@ -272,9 +272,31 @@ async def run_full_audit(request) -> AuditResponse:
         run_doctor_agent(context)
     )
 
-    risk_band, risk_score, override_required = combine_results(
+    risk_band, risk_score, _ = combine_results(
         allergy, disease, dosage, interaction, doctor
     )
+
+    # Deterministic mapping according to Clinical Decision Matrix
+    action = "ALLOW"
+    block_submission = False
+    override_required = False
+
+    if risk_score >= 90:
+        action = "BLOCK_UNLESS_OVERRIDE"
+        block_submission = True
+        override_required = True
+    elif risk_score >= 70:
+        action = "REQUIRE_OVERRIDE"
+        block_submission = False
+        override_required = True
+    elif risk_score >= 30:
+        action = "REVIEW"
+        block_submission = False
+        override_required = False
+    else:
+        action = "ALLOW"
+        block_submission = False
+        override_required = False
 
     # 1. Gather all rule reasons
     reasons = []
@@ -302,11 +324,7 @@ async def run_full_audit(request) -> AuditResponse:
         reasons.append("No clinical contraindications, drug-drug interactions, or safety warnings detected.")
 
     legacy_risk_level = "SAFE" if risk_band == "LOW" else ("WARNING" if risk_band == "MEDIUM" else "CRITICAL")
-    recommended_action = "SAFE_TO_DISPENSE"
-    if legacy_risk_level == "CRITICAL":
-        recommended_action = "DO_NOT_DISPENSE"
-    elif legacy_risk_level == "WARNING":
-        recommended_action = "DOCTOR_REVIEW"
+    recommended_action = action
 
     # Deterministic alternatives suggestion
     from app.ai.knowledge import RxNormMock, DrugBankMock, DailyMedMock, OpenFDAMock, SNOMEDMock
@@ -381,6 +399,11 @@ async def run_full_audit(request) -> AuditResponse:
         risk_level=legacy_risk_level,
         confidence_score=float(risk_score) / 100.0,
         clinical_explanation=explanation,
+        action=action,
+        block_submission=block_submission,
+        warnings=reasons,
+        alternative_medicines=suggested_alternatives,
+        recommended_action=recommended_action,
         allergy_check={
             "allergy_conflict": has_allergy_issues,
             "allergy_details": "; ".join(allergy.issues) if has_allergy_issues else "",

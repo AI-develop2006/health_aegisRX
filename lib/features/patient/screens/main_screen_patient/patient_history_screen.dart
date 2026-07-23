@@ -1,21 +1,18 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Patient History Screen (Vault Ledger)
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — vault reads, visit parsing, navigation preserved
+// ════════════════════════════════════════════════════════════════════════════
+
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/state/app_state.dart';
+import '../../../../core/theme/design_system.dart';
 import '../../../../shared/models/prescription.dart';
 import '../patient_prescription_detail_screen.dart';
 
 class PatientHistoryScreen extends StatelessWidget {
   const PatientHistoryScreen({super.key});
-
-  // 60-30-10 Design Tokens
-  static const _bg = Color(0xFFF7F4EB);
-  static const _card = Color(0xFFFFFFFF);
-  static const _text = Color(0xFF4A3325);
-  static const _sub = Color(0xFFD4A387);
-  static const _border = Color(0xFFB88E74);
-  static const _teal = Color(0xFF2E8B90);
-  static const _red = Color(0xFFB33A3A);
 
   @override
   Widget build(BuildContext context) {
@@ -25,126 +22,187 @@ class PatientHistoryScreen extends StatelessWidget {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: _bg,
+        backgroundColor: AegisColors.background,
         appBar: AppBar(
-          backgroundColor: _bg,
+          backgroundColor: AegisColors.surface,
           elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
+          automaticallyImplyLeading: false,
+          titleSpacing: AegisSpacing.pagePadding,
           title: Text(
             'Health Vault Ledger',
-            style: GoogleFonts.sora(fontWeight: FontWeight.bold, color: _text),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _text),
-            onPressed: () => Navigator.pop(context),
+            style: AegisTypography.headlineMedium.copyWith(
+                color: AegisColors.textPrimary),
           ),
           bottom: TabBar(
-            labelColor: _teal,
-            unselectedLabelColor: _sub,
-            indicatorColor: _teal,
-            labelStyle: GoogleFonts.sora(fontWeight: FontWeight.bold, fontSize: 13),
-            unselectedLabelStyle: GoogleFonts.sora(fontSize: 13),
+            labelColor: AegisColors.primary,
+            unselectedLabelColor: AegisColors.textTertiary,
+            indicatorColor: AegisColors.primary,
+            indicatorWeight: 2,
+            indicatorSize: TabBarIndicatorSize.tab,
+            labelStyle: AegisTypography.labelMedium.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+            unselectedLabelStyle: AegisTypography.labelMedium,
+            dividerColor: AegisColors.border,
             tabs: const [
-              Tab(text: 'Prescriptions', icon: Icon(Icons.description_rounded, size: 20)),
-              Tab(text: 'Visits Ledger', icon: Icon(Icons.verified_user_rounded, size: 20)),
+              Tab(
+                icon: Icon(Icons.description_rounded, size: AegisIconSize.sm),
+                text: 'Prescriptions',
+              ),
+              Tab(
+                icon: Icon(Icons.link_rounded, size: AegisIconSize.sm),
+                text: 'Ledger',
+              ),
             ],
           ),
         ),
         body: TabBarView(
           children: [
-            _buildPrescriptionsTab(context, vault),
-            _buildVisitsTab(appState),
+            _PrescriptionsTab(vault: vault),
+            _VisitsLedgerTab(appState: appState),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildPrescriptionsTab(BuildContext context, List<Prescription> vault) {
+// ── Prescriptions Tab ─────────────────────────────────────────────────────
+class _PrescriptionsTab extends StatelessWidget {
+  final List<Prescription> vault;
+  const _PrescriptionsTab({required this.vault});
+
+  @override
+  Widget build(BuildContext context) {
     if (vault.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.history_rounded, size: 64, color: _border),
-            const SizedBox(height: 16),
-            Text(
-              'No prescription history found.',
-              style: GoogleFonts.inter(color: _sub, fontSize: 16),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AegisColors.surfaceDim,
+                borderRadius: BorderRadius.circular(AegisRadius.md),
+              ),
+              child: const Icon(Icons.history_rounded,
+                  size: AegisIconSize.xxl, color: AegisColors.textTertiary),
             ),
+            const SizedBox(height: AegisSpacing.base),
+            Text('No prescription history found.',
+                style: AegisTypography.bodyMedium.copyWith(
+                    color: AegisColors.textSecondary)),
           ],
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AegisSpacing.pagePadding,
+        vertical: AegisSpacing.base,
+      ),
       itemCount: vault.length,
       itemBuilder: (context, index) {
         final rx = vault[index];
-        final statusColor = rx.isDispensed ? _red : _teal;
+        final bool isActive = !rx.isDispensed;
+        final Color statusColor =
+            isActive ? AegisColors.secondary : AegisColors.textTertiary;
+        final Color statusBg =
+            isActive ? AegisColors.secondarySurface : AegisColors.surfaceDim;
 
         return Padding(
-          padding: const EdgeInsets.only(bottom: 16.0),
-          child: GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      PatientPrescriptionDetailScreen(prescription: rx),
-                ),
-              );
-            },
+          padding: const EdgeInsets.only(bottom: AegisSpacing.md),
+          child: InkWell(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    PatientPrescriptionDetailScreen(prescription: rx),
+              ),
+            ),
+            borderRadius: AegisRadius.card,
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AegisSpacing.base),
               decoration: BoxDecoration(
-                color: _card,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: _border, width: 1.0),
+                color: AegisColors.surface,
+                borderRadius: AegisRadius.card,
+                border: Border.all(color: AegisColors.border),
+                boxShadow: AegisShadows.sm,
               ),
               child: Row(
                 children: [
+                  // Status icon
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: statusColor.withOpacity(0.4), width: 1),
+                      color: statusBg,
+                      borderRadius:
+                          BorderRadius.circular(AegisRadius.sm),
                     ),
-                    child: Icon(Icons.description_rounded,
-                        color: statusColor, size: 22),
+                    child: Icon(
+                      Icons.description_rounded,
+                      color: statusColor,
+                      size: AegisIconSize.md,
+                    ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: AegisSpacing.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           rx.doctorName,
-                          style: GoogleFonts.sora(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: _text,
-                          ),
+                          style: AegisTypography.titleSmall.copyWith(
+                              color: AegisColors.textPrimary),
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 2),
                         Text(
                           '${rx.hospitalName} · ${rx.disease}',
-                          style: GoogleFonts.inter(
-                              fontSize: 12, color: _sub),
+                          style: AegisTypography.bodySmall.copyWith(
+                              color: AegisColors.textSecondary),
                         ),
-                        const SizedBox(height: 5),
+                        const SizedBox(height: AegisSpacing.xs),
                         Text(
-                          '${rx.date} at ${rx.time}',
-                          style: GoogleFonts.jetBrainsMono(
-                              fontSize: 10, color: _border),
+                          '${rx.date}  ${rx.time}',
+                          style: AegisTypography.monoSmall.copyWith(
+                              color: AegisColors.textTertiary),
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_ios_rounded,
-                      size: 14, color: _border),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AegisSpacing.sm,
+                          vertical: AegisSpacing.xs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusBg,
+                          borderRadius: AegisRadius.chip,
+                          border: Border.all(
+                              color: statusColor.withValues(alpha: 0.4)),
+                        ),
+                        child: Text(
+                          isActive ? 'Active' : 'Dispensed',
+                          style: AegisTypography.labelSmall.copyWith(
+                            color: statusColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AegisSpacing.xs),
+                      const Icon(Icons.arrow_forward_ios_rounded,
+                          size: AegisIconSize.xs,
+                          color: AegisColors.textTertiary),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -153,34 +211,53 @@ class PatientHistoryScreen extends StatelessWidget {
       },
     );
   }
+}
 
-  Widget _buildVisitsTab(AppState appState) {
+// ── Visits Ledger Tab ─────────────────────────────────────────────────────
+class _VisitsLedgerTab extends StatelessWidget {
+  final AppState appState;
+  const _VisitsLedgerTab({required this.appState});
+
+  @override
+  Widget build(BuildContext context) {
     final visits = appState.visitHistory;
+
     if (visits.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.history_toggle_off_rounded, size: 64, color: _border),
-            const SizedBox(height: 16),
-            Text(
-              'No visit logs written to the ledger yet.',
-              style: GoogleFonts.inter(color: _sub, fontSize: 16),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AegisColors.tertiarySurface,
+                borderRadius: BorderRadius.circular(AegisRadius.md),
+              ),
+              child: const Icon(Icons.link_rounded,
+                  size: AegisIconSize.xxl, color: AegisColors.tertiary),
             ),
+            const SizedBox(height: AegisSpacing.base),
+            Text('No visit logs written to the ledger yet.',
+                style: AegisTypography.bodyMedium.copyWith(
+                    color: AegisColors.textSecondary)),
           ],
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AegisSpacing.pagePadding,
+        vertical: AegisSpacing.base,
+      ),
       itemCount: visits.length,
       itemBuilder: (context, index) {
+        // UNCHANGED — visit parsing logic
         final block = visits[index];
         final map = block is Map ? block : {};
         final data = map['data'] is Map ? map['data'] : map;
         final timestamp = map['timestamp'] ?? '';
-
         final docName = data['doctor_name'] ?? 'Doctor';
         final hospital = data['hospital'] ?? 'Hospital';
         final disease = data['disease'] ?? 'Consultation';
@@ -188,96 +265,138 @@ class PatientHistoryScreen extends StatelessWidget {
         final date = data['date'] ?? '';
 
         return Padding(
-          padding: const EdgeInsets.only(bottom: 16.0),
+          padding: const EdgeInsets.only(bottom: AegisSpacing.md),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AegisSpacing.base),
             decoration: BoxDecoration(
-              color: _card,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _border, width: 1.0),
+              color: AegisColors.surface,
+              borderRadius: AegisRadius.card,
+              border: Border.all(color: AegisColors.border),
+              boxShadow: AegisShadows.sm,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
+                    // Hyperledger icon — AI Purple
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
-                        color: _teal.withOpacity(0.1),
-                        shape: BoxShape.circle,
+                        color: AegisColors.tertiarySurface,
+                        borderRadius: BorderRadius.circular(AegisRadius.sm),
                       ),
-                      child: const Icon(Icons.verified_rounded, color: _teal, size: 20),
+                      child: const Icon(Icons.link_rounded,
+                          color: AegisColors.tertiary, size: AegisIconSize.md),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AegisSpacing.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             docName,
-                            style: GoogleFonts.sora(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: _text,
-                            ),
+                            style: AegisTypography.titleSmall.copyWith(
+                                color: AegisColors.textPrimary),
                           ),
                           Text(
                             hospital,
-                            style: GoogleFonts.inter(fontSize: 11, color: _sub),
+                            style: AegisTypography.bodySmall.copyWith(
+                                color: AegisColors.textSecondary),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-                const Divider(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Indication:',
-                      style: GoogleFonts.inter(fontSize: 11, color: _sub, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      disease,
-                      style: GoogleFonts.inter(fontSize: 12, color: _text),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Prescription ID:',
-                      style: GoogleFonts.inter(fontSize: 11, color: _sub, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      rxId,
-                      style: GoogleFonts.jetBrainsMono(fontSize: 11, color: _border, fontWeight: FontWeight.bold),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AegisSpacing.sm,
+                        vertical: AegisSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AegisColors.secondarySurface,
+                        borderRadius: AegisRadius.chip,
+                        border: Border.all(
+                            color: AegisColors.secondary.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        'Verified',
+                        style: AegisTypography.labelSmall.copyWith(
+                          color: AegisColors.secondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Ledger Timestamp:',
-                      style: GoogleFonts.inter(fontSize: 11, color: _sub, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      date.isNotEmpty ? date : timestamp,
-                      style: GoogleFonts.jetBrainsMono(fontSize: 11, color: _border),
-                    ),
-                  ],
+                const SizedBox(height: AegisSpacing.sm),
+                const Divider(height: 1, color: AegisColors.border),
+                const SizedBox(height: AegisSpacing.sm),
+
+                // Data rows
+                _LedgerRow(label: 'Indication', value: disease),
+                const SizedBox(height: AegisSpacing.xs),
+                _LedgerRow(
+                  label: 'Prescription ID',
+                  value: rxId,
+                  isMono: true,
+                  valueColor: AegisColors.tertiary,
+                ),
+                const SizedBox(height: AegisSpacing.xs),
+                _LedgerRow(
+                  label: 'Ledger Timestamp',
+                  value: date.isNotEmpty ? date : timestamp,
+                  isMono: true,
                 ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _LedgerRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool isMono;
+  final Color? valueColor;
+
+  const _LedgerRow({
+    required this.label,
+    required this.value,
+    this.isMono = false,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: AegisTypography.labelSmall.copyWith(
+            color: AegisColors.textTertiary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(width: AegisSpacing.sm),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: isMono
+                ? AegisTypography.monoSmall.copyWith(
+                    color: valueColor ?? AegisColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  )
+                : AegisTypography.bodySmall.copyWith(
+                    color: valueColor ?? AegisColors.textPrimary),
+          ),
+        ),
+      ],
     );
   }
 }

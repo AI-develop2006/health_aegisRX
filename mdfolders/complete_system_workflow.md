@@ -1,116 +1,289 @@
-# AegisRx — End-to-End System Workflow Map
+# Phase X Improvement - Deterministic Clinical Decision Engine
 
-This document describes the complete screen-to-screen routing and data transaction workflow across the **Patient Portal**, **Doctor Portal**, and **Pharmacy Portal**, showing where databases, API registries, AI checks, and smart contract transactions intersect.
+Before implementing the current plan, review the entire backend architecture and refactor it so that the Clinical Decision Support System (CDSS) follows a strict separation of responsibilities.
 
----
+## IMPORTANT ARCHITECTURE RULE
 
-## 🗺️ Complete System Flowchart (Mermaid)
+The Audit Service must be the ONLY component that makes clinical decisions.
 
-```mermaid
-flowchart TD
-    %% Roles Selection
-    Start([App Launch]) --> Onboarding[Onboarding Carousel]
-    Onboarding --> RoleSelect{Role Selection Screen}
+The AI Service must NEVER determine:
 
-    %% Patient Portal Flow
-    RoleSelect -- "Patient Portal" --> PatientAuth{Account Exists?}
-    PatientAuth -- "No" --> PatientSignUp[Patient Sign-Up & Verification]
-    PatientSignUp --> PatientLogin[Patient Login / Biometric Setup]
-    PatientAuth -- "Yes" --> PatientLogin
-    PatientLogin --> PatientDashboard[Patient Dashboard]
-    
-    %% Patient Options
-    PatientDashboard --> ViewMedications[View Active Medications]
-    PatientDashboard --> ViewHistory[View Health Vault Ledger]
-    PatientDashboard --> GenQR[Generate P2P Access QR Code]
-    
-    %% Patient Prescription Details (Dispense QR)
-    ViewMedications --> RxDetails[Prescription Detail Screen]
-    RxDetails --> GenDispenseQR[Generate Dispense QR Code]
+- risk_score
+- risk_level
+- action
+- block_submission
+- override_required
 
-    %% Doctor Portal Flow
-    RoleSelect -- "Doctor Portal" --> DoctorLogin[Doctor Login - License Input]
-    DoctorLogin --> DoctorDashboard[Doctor Search Dashboard]
-    DoctorDashboard --> ScanPatient{Scan Patient P2P QR Code?}
-    
-    %% Scan Connection
-    ScanPatient -- "Scan Live QR" --> ViewFinder[MobileScanner Camera Feed]
-    ScanPatient -- "Simulate" --> ManualDialog[Custom QR Dialog Input]
-    GenQR -.-> |"Scan Target"| ViewFinder
-    ViewFinder --> FetchConsent[P2P Connection Handshake]
-    ManualDialog --> FetchConsent
-    
-    %% Doctor Patient Interaction
-    FetchConsent --> PatientConsentPending[Patient Receives Notification]
-    PatientConsentPending -- "Grant Access" --> LoadMedicalFile[Doctor Views Patient Medical File Screen]
-    PatientConsentPending -- "Decline" --> ConnectionReject[Connection Terminated]
-    
-    %% Prescription Editor
-    LoadMedicalFile --> ComposeRx[Compose New Prescription Screen]
-    ComposeRx --> InputMeds[Input Medication, Timing, & Duration]
-    
-    %% Real-time AI Safety Audit Pipeline
-    InputMeds --> AIAudit{AI Safety Audit Pipeline}
-    AIAudit --> RxNormAPI[1. NIH RxNorm API - Generic Codes]
-    AIAudit --> OpenFDA[2. openFDA API - Side Effects]
-    AIAudit --> GeminiCloud[3. Google Gemini 2.5 Flash - Structured Clinical Audit]
-    
-    %% Audit Results Gating
-    RxNormAPI & OpenFDA & GeminiCloud --> AuditOutput{Audit Result}
-    AuditOutput -- "SAFE / LOW RISK" --> SignFlow[Proceed to Sign Screen]
-    AuditOutput -- "WARNING / CRITICAL" --> AlertDoctor[Display Contraindication Alert & Safe Alternatives]
-    AlertDoctor --> OverrideAction{Doctor Chooses to Override?}
-    OverrideAction -- "Yes" --> SignFlow
-    OverrideAction -- "No" --> InputMeds
+The AI Service should ONLY generate human-readable explanations after the decision has already been made.
 
-    %% Blockchain Submission
-    SignFlow --> SignRx[Confirm & Sign Sovereign Lock]
-    SignRx --> Sha256[Generate Deterministic SHA-256 Rx Hash]
-    Sha256 --> PolygonSubmit{ALLOW_MOCK_POLYGON_TX?}
-    PolygonSubmit -- "false (Production)" --> RealTx[Submit Tx to Polygon Amoy Testnet via Web3]
-    PolygonSubmit -- "true (Mock)" --> MockTx[Sign Locally & Return Mock Transaction Hash]
-    RealTx & MockTx --> SaveMongo[Save Record to cloud MongoDB Atlas]
-    SaveMongo --> ReturnToFile[Return to Patient Medical File - History Updated]
+The final execution order must always be:
 
-    %% Pharmacy Portal Flow
-    RoleSelect -- "Pharmacy Portal" --> PharmacyLogin[Pharmacy Login - Enter License]
-    PharmacyLogin --> PharmacyScan[Scan Patient Dispense QR Code]
-    GenDispenseQR -.-> |"Scan Target"| PharmacyScan
-    PharmacyScan --> VerifyBlockchain[Query Blockchain & Match SHA-256 Hash]
-    VerifyBlockchain --> MatchResult{Hash Matches?}
-    MatchResult -- "Yes" --> DispenseRx[Dispense: Set isDispensed = true in Mongo & Blockchain]
-    MatchResult -- "No" --> BlockDispensation[Block Dispense - Tamper Warning]
-    DispenseRx --> Done[Medication Dispensed]
-    Done --> UpdatePatientVault[Vault Updated: Prescription moves from 'Active' to 'Dispensed Ledger History']
-    UpdatePatientVault --> EndFlow([Process Complete])
-```
+Doctor
+    ↓
+Prescription Service
+    ↓
+Audit Service
+        ↓
+Clinical Rule Engine
+        ↓
+Allergy Rules
+Disease Rules
+Dosage Rules
+Interaction Rules
+Patient History Rules
+Lab Rules
+        ↓
+Combine Rule Results
+        ↓
+Calculate Final Risk Score
+        ↓
+Determine Risk Level
+        ↓
+Determine Required Action
+        ↓
+Call AI Service
+        ↓
+Generate Explanation
+Alternative Medicines
+Patient Friendly Summary
+Doctor Clinical Rationale
+        ↓
+Return Complete Audit Response
+        ↓
+Prescription Service
+        ↓
+Store Prescription
+        ↓
+Ledger Service
+        ↓
+Hyperledger Fabric
 
----
+--------------------------------------------------
 
-## 🔁 Complete Lifecycle Stages of a Prescription
+## Refactor Required
 
-### 1. The Clinical Consultation Stage
-1.  **Doctor Scan:** The Doctor logs in, scans the patient's **P2P Access Handshake QR**, and requests connection permission.
-2.  **Consent Approval:** The Patient grants access in the Patient App, allowing the Doctor to view their active allergies, health conditions, and history.
-3.  **Prescription Entry:** The Doctor enters the medication name and dosages in the prescription composer.
+Audit Service must expose a Clinical Decision Matrix.
 
-### 2. The Real-Time AI Audit Stage
-As the doctor inputs the medication, the backend **Audit Service** automatically checks:
-*   **NIH RxNorm:** normalizes drug names to standard identifier codes (RxCUIs).
-*   **openFDA:** retrieves known adverse side effects for the drug.
-*   **Google Gemini (2.5 Flash):** evaluates the full patient profile (age, gender, active diseases, and current medications) against the new drug to spot drug-drug interactions or allergies.
-*   **Clinician Gate:** If conflicts exist, the UI locks and displays red warnings. The doctor must provide a valid clinical justification override before proceeding.
+Example:
 
-### 3. The Sovereign Signature & Blockchain Stage
-1.  **SHA-256 Hashing:** The backend combines all prescription metadata and override reasons into a single JSON payload and generates a deterministic SHA-256 fingerprint hash.
-2.  **On-Chain Record:** The Doctor signs this hash using their private key. The unique transaction registers the **Prescription ID** and **SHA-256 hash** onto the Polygon blockchain ledger.
-3.  **Database Storage:** The complete human-readable text is stored in MongoDB Atlas, with the status `isDispensed = false`. The prescription appears as **"Active (Pending)"** in the Patient App.
+if risk_score >= 90:
+    risk_level = "CRITICAL"
+    action = "BLOCK_UNLESS_OVERRIDE"
+    block_submission = true
+    override_required = true
 
-### 4. The Pharmacy Verification & Dispensing Stage
-1.  **Dispense QR:** The patient opens the prescription details screen in their app to generate a secure **Dispense QR Code** (valid for 10 minutes, encoded with a narrow scope).
-2.  **Double-Ledger Check:** The pharmacist scans the QR code. The pharmacy desk automatically cross-references:
-    *   The database record hash.
-    *   The live on-chain smart contract hash.
-    *   If they mismatch (meaning database tampering), a red **Tamper Alert** blocks dispensation.
-3.  **Ledger Update:** If verified, the pharmacist clicks **"Dispense"**, which updates MongoDB and registers the prescription as `isDispensed = true` on the Polygon ledger.
-4.  **Completed State:** The prescription automatically moves from the patient's active screen into their **"Dispensed Ledger History"** to populate active daily medication schedules.
+elif risk_score >= 70:
+    risk_level = "HIGH"
+    action = "REQUIRE_OVERRIDE"
+    block_submission = false
+    override_required = true
+
+elif risk_score >= 30:
+    risk_level = "MEDIUM"
+    action = "REVIEW"
+    block_submission = false
+    override_required = false
+
+else:
+    risk_level = "LOW"
+    action = "ALLOW"
+    block_submission = false
+    override_required = false
+
+This mapping must exist ONLY inside Audit Service.
+
+No AI code should calculate these values.
+
+--------------------------------------------------
+
+## Audit Response
+
+The Audit Service should always return
+
+{
+    "risk_score":95,
+    "risk_level":"CRITICAL",
+    "action":"BLOCK_UNLESS_OVERRIDE",
+    "block_submission":true,
+    "override_required":true,
+    "warnings":[...],
+    "triggered_rules":[...],
+    "alternative_medicines":[...],
+    "clinical_explanation":"...",
+    "patient_summary":"..."
+}
+
+--------------------------------------------------
+
+## AI Service Responsibilities
+
+Move ALL generative AI into AI Service.
+
+AI Service should ONLY provide
+
+• Clinical Explanation
+
+• Patient-friendly Summary
+
+• Suggested Alternative Medicines
+
+• Medication Explanation
+
+• OCR Summary
+
+• Patient History Summary
+
+• Medical Chat
+
+• Doctor Assistant
+
+• Voice Prescription Parser
+
+• Patient Education
+
+AI Service receives
+
+risk_score
+risk_level
+triggered_rules
+patient history
+current prescription
+
+and returns ONLY narrative text.
+
+It must NEVER change any risk score.
+
+--------------------------------------------------
+
+## Prescription Service
+
+Prescription Service must NOT trust the frontend.
+
+Every prescription save must execute
+
+Prescription
+↓
+
+Audit Service
+
+↓
+
+Receive action
+
+↓
+
+if block_submission == true
+
+AND overrideReason is empty
+
+return HTTP 403
+
+otherwise continue
+
+No prescription should ever bypass Audit Service.
+
+--------------------------------------------------
+
+## Flutter Changes
+
+Doctor screen must render using the returned action.
+
+ALLOW
+→ Green
+
+REVIEW
+→ Yellow
+
+REQUIRE_OVERRIDE
+→ Orange
+
+BLOCK_UNLESS_OVERRIDE
+→ Red
+
+Never calculate colors locally from score.
+
+Always use backend action.
+
+--------------------------------------------------
+
+## Verification
+
+Verify these scenarios.
+
+Scenario 1
+
+Penicillin Allergy
+
+Expected
+
+Risk Score = 95
+
+Risk Level = CRITICAL
+
+Action = BLOCK_UNLESS_OVERRIDE
+
+block_submission = true
+
+override_required = true
+
+Scenario 2
+
+Unsafe prescription without override
+
+Expected
+
+HTTP 403
+
+Scenario 3
+
+Unsafe prescription with signed override
+
+Expected
+
+HTTP 200
+
+Scenario 4
+
+AI Service Offline
+
+Expected
+
+Risk calculation still works.
+
+Only explanation becomes unavailable.
+
+Prescription should still be blocked if CRITICAL.
+
+Scenario 5
+
+Frontend Manipulation
+
+Attempt to directly call Prescription Service without Audit.
+
+Expected
+
+Rejected.
+
+Audit is mandatory.
+
+--------------------------------------------------
+
+## Final Validation
+
+Review the entire backend implementation and confirm that
+
+✓ AI Service performs zero clinical decision making
+
+✓ Audit Service owns all safety decisions
+
+✓ Prescription Service cannot bypass Audit Service
+
+✓ Frontend never computes clinical logic
+
+✓ Risk score is deterministic
+
+✓ AI only explains the result
+
+✓ The architecture follows zero-trust clinical design
+
+If any module violates this architecture, refactor it before proceeding.

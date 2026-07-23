@@ -1,8 +1,14 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Pharmacy Dispense & Fulfillment Desk
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — _dispense(), dispensePrescription(), form validation,
+//                 token burn dialog, billing calculation, receipt upload preserved
+// ════════════════════════════════════════════════════════════════════════════
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/state/app_state.dart';
-import 'package:flutter/cupertino.dart';
+import '../../../core/theme/design_system.dart';
 
 class PharmacyDispenseScreen extends StatefulWidget {
   final String prescriptionId;
@@ -32,17 +38,7 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
   late List<bool> _medicationChecks;
   late AnimationController _pulseController;
 
-  // --- Design Token Definitions (60-30-10 System) ---
-  static const Color _bgCanvas = Color(0xFFF8FAFC);
-  static const Color _cardBg = Color(0xFFFFFFFF);
-  static const Color _primaryText = Color(0xFF0F172A);
-  static const Color _secondaryText = Color(0xFF475569);
-  static const Color _brandBlue = Color(0xFF1E3A8A);
-  static const Color _accentReady = Color(0xFF2563EB);
-  static const Color _accentWarning = Color(0xFFDC2626);
-  static const Color _accentStamp = Color(0xFF000000);
-  static const Color _borderSlate = Color(0xFFE2E8F0);
-
+  // ── BUSINESS LOGIC UNCHANGED ─────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
@@ -66,9 +62,10 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
   void _dispense() async {
     if (!_formKey.currentState!.validate() || !_signatureCaptured) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Verification Aborted: Complete technical entries & touch signature verification.'),
-          backgroundColor: _accentWarning,
+        SnackBar(
+          content: Text('Verification Aborted: Complete technical entries & touch signature verification.',
+              style: AegisTypography.bodySmall.copyWith(color: Colors.white)),
+          backgroundColor: AegisColors.danger,
         ),
       );
       return;
@@ -77,9 +74,10 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
     final allItemsChecked = _medicationChecks.every((check) => check);
     if (!allItemsChecked) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Safety Check Failed: Verify and check all active medicines in the ledger list.'),
-          backgroundColor: _accentWarning,
+        SnackBar(
+          content: Text('Safety Check Failed: Verify and check all active medicines in the ledger list.',
+              style: AegisTypography.bodySmall.copyWith(color: Colors.white)),
+          backgroundColor: AegisColors.danger,
         ),
       );
       return;
@@ -110,8 +108,9 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Dispensation Blocked: ${res['error'] ?? res['detail']}'),
-            backgroundColor: _accentWarning,
+            content: Text('Dispensation Blocked: ${res['error'] ?? res['detail']}',
+                style: AegisTypography.bodySmall.copyWith(color: Colors.white)),
+            backgroundColor: AegisColors.danger,
           ),
         );
       }
@@ -125,21 +124,27 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
-          backgroundColor: _cardBg,
+          backgroundColor: AegisColors.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: const BorderSide(color: _primaryText, width: 2),
+            borderRadius: AegisRadius.card,
+            side: const BorderSide(color: AegisColors.border),
           ),
           title: Row(
             children: [
-              const Icon(Icons.verified_user_rounded, color: _accentReady),
-              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.all(AegisSpacing.xs),
+                decoration: BoxDecoration(
+                  color: AegisColors.secondarySurface,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.verified_user_rounded, color: AegisColors.secondary, size: AegisIconSize.sm),
+              ),
+              const SizedBox(width: AegisSpacing.sm),
               Text(
                 'TOKEN BURNED',
-                style: GoogleFonts.sora(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: _primaryText,
+                style: AegisTypography.headlineSmall.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: AegisColors.textPrimary,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -151,32 +156,30 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
             children: [
               Text(
                 'Single-use cryptographic prescription token has been burned. Dispensation recorded immutably on dual ledgers.',
-                style: GoogleFonts.inter(fontSize: 13, color: _secondaryText),
+                style: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AegisSpacing.base),
               Text(
                 'ON-CHAIN TX RECEIPT:',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: _primaryText,
+                style: AegisTypography.monoSmall.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AegisColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 6),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(AegisSpacing.sm),
                 decoration: BoxDecoration(
-                  color: _bgCanvas,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _borderSlate),
+                  color: AegisColors.tertiarySurface,
+                  borderRadius: BorderRadius.circular(AegisRadius.sm),
+                  border: Border.all(color: AegisColors.tertiary.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   txHash,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
-                    color: _brandBlue,
-                    fontWeight: FontWeight.bold,
+                  style: AegisTypography.monoSmall.copyWith(
+                    color: AegisColors.tertiary,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -185,9 +188,9 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
           actions: [
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: _brandBlue,
-                foregroundColor: _cardBg,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                backgroundColor: AegisColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
                 elevation: 0,
               ),
               onPressed: () {
@@ -198,7 +201,7 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
               },
               child: Text(
                 'Fulfillment Complete',
-                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
+                style: AegisTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
               ),
             ),
           ],
@@ -206,27 +209,32 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
       );
     }
   }
+  // ── END BUSINESS LOGIC ────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bgCanvas,
+      backgroundColor: AegisColors.background,
       appBar: AppBar(
-        backgroundColor: _cardBg,
+        backgroundColor: AegisColors.surface,
         elevation: 0,
-        iconTheme: const IconThemeData(color: _primaryText),
-        shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(10), // Matches our layout structure
-    side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.0), // Your border goes here
-  ),
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: AegisIconSize.sm, color: AegisColors.textSecondary),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
           'PRESCRIPTION DISPENSE DESK',
-          style: GoogleFonts.sora(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: _primaryText,
+          style: AegisTypography.headlineMedium.copyWith(
+            color: AegisColors.textPrimary,
             letterSpacing: 0.8,
           ),
+        ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: AegisColors.border),
         ),
       ),
       body: Stack(
@@ -239,39 +247,39 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
           ),
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              padding: const EdgeInsets.all(AegisSpacing.pagePadding),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    
                     // --- 1. Workstation Header Component ---
                     _buildWorkstationHeader(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AegisSpacing.base),
 
                     // --- 2. Verification Safety Center ---
                     _buildSafetyIndexCard(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AegisSpacing.base),
 
                     // --- 3. Active Fulfillment Ledger ---
                     _buildFulfillmentLedger(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AegisSpacing.base),
 
                     // --- 4. Technical Entries Form ---
                     _buildTechnicalForm(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AegisSpacing.base),
 
                     // --- 4.5. Billing & Invoice Management ---
                     _buildBillingCard(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AegisSpacing.base),
 
                     // --- 5. Dispatch Lifecycle Timeline ---
                     _buildDispatchTimeline(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AegisSpacing.lg),
 
                     // --- 6. Primary Action Burn Button ---
                     _buildBurnButton(),
+                    const SizedBox(height: AegisSpacing.xxl),
                   ],
                 ),
               ),
@@ -285,18 +293,12 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
   // --- Workstation Credentials & Sync Indicator Widget ---
   Widget _buildWorkstationHeader() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AegisSpacing.md),
       decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _primaryText, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: _brandBlue.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AegisColors.surface,
+        borderRadius: AegisRadius.card,
+        border: Border.all(color: AegisColors.border),
+        boxShadow: AegisShadows.sm,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -307,23 +309,22 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
               children: [
                 Text(
                   'WORKSTATION: WRK-PH-7721',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: _primaryText,
+                  style: AegisTypography.monoSmall.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: AegisColors.textPrimary,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 3),
                 Text(
                   'Pharmacist Desk #1 (Verified)',
-                  style: GoogleFonts.inter(fontSize: 12, color: _secondaryText),
+                  style: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AegisSpacing.sm),
           Row(
             children: [
               AnimatedBuilder(
@@ -334,10 +335,10 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
                     height: 8,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _accentReady,
+                      color: AegisColors.secondary,
                       boxShadow: [
                         BoxShadow(
-                          color: _accentReady.withOpacity(0.4 * _pulseController.value),
+                          color: AegisColors.secondary.withValues(alpha: 0.4 * _pulseController.value),
                           blurRadius: 6,
                           spreadRadius: 3,
                         ),
@@ -349,10 +350,9 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
               const SizedBox(width: 6),
               Text(
                 'On-Chain Syncing',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: _accentReady,
+                style: AegisTypography.monoSmall.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AegisColors.secondary,
                 ),
               ),
             ],
@@ -365,44 +365,37 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
   // --- Fulfillment Safety Index Card ---
   Widget _buildSafetyIndexCard() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AegisSpacing.base),
       decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _borderSlate),
-        boxShadow: [
-          BoxShadow(
-            color: _brandBlue.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AegisColors.surface,
+        borderRadius: AegisRadius.card,
+        border: Border.all(color: AegisColors.border),
+        boxShadow: AegisShadows.sm,
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(AegisSpacing.sm),
             decoration: BoxDecoration(
-              color: _accentReady.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(8),
+              color: AegisColors.secondarySurface,
+              borderRadius: BorderRadius.circular(AegisRadius.sm),
             ),
-            child: Icon(
-  CupertinoIcons.checkmark_shield_fill, // or CupertinoIcons.shield_fill
-  color: _accentReady, 
-  size: 28,
-),
+            child: const Icon(
+              Icons.shield_rounded,
+              color: AegisColors.secondary,
+              size: AegisIconSize.md,
+            ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: AegisSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Fulfillment Safety Index',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: _secondaryText,
+                  style: AegisTypography.bodySmall.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AegisColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -410,19 +403,24 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
                   children: [
                     Text(
                       '98 / 100',
-                      style: GoogleFonts.sora(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: _primaryText,
+                      style: AegisTypography.headlineSmall.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: AegisColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'VERIFIED ORDER',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: _accentReady,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: AegisSpacing.sm, vertical: AegisSpacing.xs),
+                      decoration: BoxDecoration(
+                        color: AegisColors.secondarySurface,
+                        borderRadius: AegisRadius.chip,
+                        border: Border.all(color: AegisColors.secondary.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        'VERIFIED ORDER',
+                        style: AegisTypography.labelSmall.copyWith(
+                          color: AegisColors.secondary,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ],
@@ -438,18 +436,12 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
   // --- Active Fulfillment Ledger Grid & Checklist ---
   Widget _buildFulfillmentLedger() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AegisSpacing.base),
       decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _primaryText, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: _brandBlue.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AegisColors.surface,
+        borderRadius: AegisRadius.card,
+        border: Border.all(color: AegisColors.border),
+        boxShadow: AegisShadows.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,28 +452,25 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
               Expanded(
                 child: Text(
                   'ORDER FULFILLMENT LEDGER',
-                  style: GoogleFonts.sora(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: _primaryText,
+                  style: AegisTypography.titleSmall.copyWith(
+                    color: AegisColors.textPrimary,
                     letterSpacing: 0.5,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AegisSpacing.sm),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: AegisSpacing.sm, vertical: AegisSpacing.xs),
                 decoration: BoxDecoration(
-                  color: _accentStamp,
-                  borderRadius: BorderRadius.circular(4),
+                  color: AegisColors.primarySurface,
+                  borderRadius: BorderRadius.circular(AegisRadius.xs),
                 ),
                 child: Text(
                   'ID: ${widget.prescriptionId.toUpperCase()}',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
-                    color: _cardBg,
-                    fontWeight: FontWeight.bold,
+                  style: AegisTypography.monoSmall.copyWith(
+                    color: AegisColors.primary,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
@@ -490,19 +479,18 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
           const SizedBox(height: 6),
           Text(
             'Patient: ${widget.prescriptionName}',
-            style: GoogleFonts.inter(fontSize: 12, color: _secondaryText),
+            style: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary),
           ),
-          const Divider(color: _borderSlate, height: 20, thickness: 1),
+          const Divider(color: AegisColors.border, height: 20, thickness: 1),
           Text(
             'CHECKLIST: SCAN & DISPENSE ITEMS',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: _secondaryText,
+            style: AegisTypography.monoSmall.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AegisColors.textTertiary,
             ),
           ),
-          const SizedBox(height: 10),
-          
+          const SizedBox(height: AegisSpacing.sm),
+
           // List of medicines with individual checkboxes
           ...List.generate(widget.medicines.length, (index) {
             final med = widget.medicines[index];
@@ -512,17 +500,17 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
             final String duration = med['duration'] ?? '30 days';
 
             return Padding(
-              padding: const EdgeInsets.only(bottom: 10.0),
+              padding: const EdgeInsets.only(bottom: AegisSpacing.sm),
               child: Container(
                 decoration: BoxDecoration(
-                  color: _bgCanvas,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _borderSlate),
+                  color: AegisColors.background,
+                  borderRadius: BorderRadius.circular(AegisRadius.sm),
+                  border: Border.all(color: AegisColors.border),
                 ),
                 child: CheckboxListTile(
                   value: _medicationChecks[index],
-                  activeColor: _primaryText,
-                  checkColor: _cardBg,
+                  activeColor: AegisColors.primary,
+                  checkColor: Colors.white,
                   onChanged: (val) {
                     setState(() {
                       _medicationChecks[index] = val ?? false;
@@ -530,31 +518,29 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
                   },
                   title: Text(
                     '$medName $strength'.trim(),
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: _primaryText,
+                    style: AegisTypography.titleSmall.copyWith(
+                      color: AegisColors.textPrimary,
                       decoration: _medicationChecks[index] ? TextDecoration.lineThrough : null,
                     ),
                   ),
                   subtitle: Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
+                    spacing: AegisSpacing.xs,
                     runSpacing: 4,
                     children: [
                       Text(
                         '$duration | $interval',
-                        style: GoogleFonts.inter(fontSize: 11, color: _secondaryText),
+                        style: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                         decoration: BoxDecoration(
-                          color: _accentReady.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(4),
+                          color: AegisColors.secondarySurface,
+                          borderRadius: BorderRadius.circular(AegisRadius.xs),
                         ),
                         child: Text(
                           index == 0 ? 'Batch Match' : 'Qty Match',
-                          style: GoogleFonts.jetBrainsMono(fontSize: 8, color: _accentReady, fontWeight: FontWeight.bold),
+                          style: AegisTypography.monoSmall.copyWith(fontSize: 9, color: AegisColors.secondary, fontWeight: FontWeight.w800),
                         ),
                       ),
                     ],
@@ -571,95 +557,87 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
   // --- Technical Form Fields (Batch, Expiry, Tracking) ---
   Widget _buildTechnicalForm() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AegisSpacing.base),
       decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _borderSlate),
-        boxShadow: [
-          BoxShadow(
-            color: _brandBlue.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AegisColors.surface,
+        borderRadius: AegisRadius.card,
+        border: Border.all(color: AegisColors.border),
+        boxShadow: AegisShadows.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'TECHNICAL CHECKS REGISTRY',
-            style: GoogleFonts.sora(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: _primaryText,
+            style: AegisTypography.titleSmall.copyWith(
+              color: AegisColors.textPrimary,
               letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 14),
-          
+          const SizedBox(height: AegisSpacing.md),
+
           TextFormField(
             controller: _batchController,
-            style: GoogleFonts.jetBrainsMono(fontSize: 13, color: _primaryText),
+            style: AegisTypography.monoSmall.copyWith(color: AegisColors.textPrimary),
             decoration: InputDecoration(
               labelText: 'Batch / Lot Number',
-              labelStyle: GoogleFonts.inter(fontSize: 12, color: _secondaryText),
-              border: const OutlineInputBorder(borderSide: BorderSide(color: _borderSlate)),
-              enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: _borderSlate)),
-              focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _primaryText)),
-              prefixIcon: const Icon(Icons.inventory_2_outlined, size: 20, color: _secondaryText),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              labelStyle: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary),
+              border: OutlineInputBorder(borderRadius: AegisRadius.input, borderSide: const BorderSide(color: AegisColors.border)),
+              enabledBorder: OutlineInputBorder(borderRadius: AegisRadius.input, borderSide: const BorderSide(color: AegisColors.border)),
+              focusedBorder: OutlineInputBorder(borderRadius: AegisRadius.input, borderSide: const BorderSide(color: AegisColors.primary, width: 1.5)),
+              prefixIcon: const Icon(Icons.inventory_2_outlined, size: AegisIconSize.sm, color: AegisColors.textTertiary),
+              contentPadding: const EdgeInsets.symmetric(horizontal: AegisSpacing.base, vertical: AegisSpacing.md),
             ),
             validator: (val) => val == null || val.isEmpty ? 'Batch Lot required' : null,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AegisSpacing.md),
 
           TextFormField(
             controller: _expiryController,
-            style: GoogleFonts.jetBrainsMono(fontSize: 13, color: _primaryText),
+            style: AegisTypography.monoSmall.copyWith(color: AegisColors.textPrimary),
             decoration: InputDecoration(
               labelText: 'Medication Expiry Date',
-              labelStyle: GoogleFonts.inter(fontSize: 12, color: _secondaryText),
-              border: const OutlineInputBorder(borderSide: BorderSide(color: _borderSlate)),
-              enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: _borderSlate)),
-              focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _primaryText)),
-              prefixIcon: const Icon(Icons.date_range_outlined, size: 20, color: _secondaryText),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              labelStyle: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary),
+              border: OutlineInputBorder(borderRadius: AegisRadius.input, borderSide: const BorderSide(color: AegisColors.border)),
+              enabledBorder: OutlineInputBorder(borderRadius: AegisRadius.input, borderSide: const BorderSide(color: AegisColors.border)),
+              focusedBorder: OutlineInputBorder(borderRadius: AegisRadius.input, borderSide: const BorderSide(color: AegisColors.primary, width: 1.5)),
+              prefixIcon: const Icon(Icons.date_range_outlined, size: AegisIconSize.sm, color: AegisColors.textTertiary),
+              contentPadding: const EdgeInsets.symmetric(horizontal: AegisSpacing.base, vertical: AegisSpacing.md),
             ),
             validator: (val) => val == null || val.isEmpty ? 'Expiry required (e.g. 12/2028)' : null,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AegisSpacing.md),
 
           TextFormField(
             controller: _trackingController,
-            style: GoogleFonts.jetBrainsMono(fontSize: 13, color: _primaryText),
+            style: AegisTypography.monoSmall.copyWith(color: AegisColors.textPrimary),
             decoration: InputDecoration(
               labelText: 'Delivery / Handout Tracking ID',
-              labelStyle: GoogleFonts.inter(fontSize: 12, color: _secondaryText),
-              border: const OutlineInputBorder(borderSide: BorderSide(color: _borderSlate)),
-              enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: _borderSlate)),
-              focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _primaryText)),
-              prefixIcon: const Icon(Icons.local_shipping_outlined, size: 20, color: _secondaryText),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              labelStyle: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary),
+              border: OutlineInputBorder(borderRadius: AegisRadius.input, borderSide: const BorderSide(color: AegisColors.border)),
+              enabledBorder: OutlineInputBorder(borderRadius: AegisRadius.input, borderSide: const BorderSide(color: AegisColors.border)),
+              focusedBorder: OutlineInputBorder(borderRadius: AegisRadius.input, borderSide: const BorderSide(color: AegisColors.primary, width: 1.5)),
+              prefixIcon: const Icon(Icons.local_shipping_outlined, size: AegisIconSize.sm, color: AegisColors.textTertiary),
+              contentPadding: const EdgeInsets.symmetric(horizontal: AegisSpacing.base, vertical: AegisSpacing.md),
             ),
             validator: (val) => val == null || val.isEmpty ? 'Tracking ID required' : null,
           ),
-          const SizedBox(height: 10),
-          
-          const Divider(color: _borderSlate, height: 20),
-          
+          const SizedBox(height: AegisSpacing.sm),
+
+          const Divider(color: AegisColors.border, height: 20),
+
           CheckboxListTile(
             title: Text(
               'Touch Signature Captured',
-              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: _primaryText),
+              style: AegisTypography.titleSmall.copyWith(color: AegisColors.textPrimary),
             ),
             subtitle: Text(
               'Physical pharmacist authorization stamped.',
-              style: GoogleFonts.inter(fontSize: 11, color: _secondaryText),
+              style: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary),
             ),
             value: _signatureCaptured,
-            activeColor: _primaryText,
-            checkColor: _cardBg,
+            activeColor: AegisColors.primary,
+            checkColor: Colors.white,
             contentPadding: EdgeInsets.zero,
             onChanged: (val) {
               setState(() {
@@ -675,25 +653,23 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
   // --- Dispatch Lifecycle Timeline Widget ---
   Widget _buildDispatchTimeline() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AegisSpacing.base),
       decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _borderSlate),
+        color: AegisColors.surface,
+        borderRadius: AegisRadius.card,
+        border: Border.all(color: AegisColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'LOGISTIC DISPATCH TIMELINE',
-            style: GoogleFonts.sora(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: _primaryText,
+            style: AegisTypography.titleSmall.copyWith(
+              color: AegisColors.textPrimary,
               letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AegisSpacing.base),
           _buildTimelineItem('Order Received', 'Cryptographic token validated.', true),
           _buildTimelineItem('Order Clinical Check', 'Allergy & interaction audit verified.', true),
           _buildTimelineItem('Preparation & Labeling', 'Verification index passed. Batch verified.', true),
@@ -710,46 +686,45 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
         Column(
           children: [
             Container(
-              width: 14,
-              height: 14,
+              width: 16,
+              height: 16,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isFinished ? _brandBlue : _cardBg,
+                color: isFinished ? AegisColors.primary : AegisColors.surface,
                 border: Border.all(
-                  color: isFinished ? _brandBlue : _accentStamp,
+                  color: isFinished ? AegisColors.primary : AegisColors.border,
                   width: 2,
                 ),
               ),
               child: isFinished
-                  ? const Icon(Icons.check, size: 8, color: Colors.white)
+                  ? const Icon(Icons.check, size: 10, color: Colors.white)
                   : null,
             ),
             Container(
               width: 2,
-              height: 24,
-              color: isFinished ? _brandBlue : _accentStamp.withOpacity(0.2),
+              height: 26,
+              color: isFinished ? AegisColors.primary : AegisColors.border,
             ),
           ],
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: AegisSpacing.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: isFinished ? _primaryText : _secondaryText,
+                style: AegisTypography.labelMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: isFinished ? AegisColors.textPrimary : AegisColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 description,
-                style: GoogleFonts.inter(fontSize: 11, color: _secondaryText),
+                style: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AegisSpacing.sm),
             ],
           ),
         ),
@@ -761,32 +736,31 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
   Widget _buildBurnButton() {
     return SizedBox(
       width: double.infinity,
-      height: 48,
+      height: AegisTokens.btnHeight,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: _accentStamp,
-          foregroundColor: _cardBg,
+          backgroundColor: AegisColors.primary,
+          foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: const BorderSide(color: _primaryText, width: 1.5),
+            borderRadius: AegisRadius.button,
           ),
         ),
         onPressed: _isDispensing ? null : _dispense,
         child: _isDispensing
             ? const SizedBox(
-                width: 20,
-                height: 20,
+                width: 22,
+                height: 22,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: _cardBg,
+                  strokeWidth: 2.5,
+                  color: Colors.white,
                 ),
               )
             : Text(
                 'BURN TOKEN & DISPENSE',
-                style: GoogleFonts.sora(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                style: AegisTypography.labelLarge.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -796,18 +770,12 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
 
   Widget _buildBillingCard() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AegisSpacing.base),
       decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _borderSlate),
-        boxShadow: [
-          BoxShadow(
-            color: _brandBlue.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AegisColors.surface,
+        borderRadius: AegisRadius.card,
+        border: Border.all(color: AegisColors.border),
+        boxShadow: AegisShadows.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -817,35 +785,33 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
             children: [
               Text(
                 'BILLING & INVOICE MANAGEMENT',
-                style: GoogleFonts.sora(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: _primaryText,
+                style: AegisTypography.titleSmall.copyWith(
+                  color: AegisColors.textPrimary,
                   letterSpacing: 0.5,
                 ),
               ),
-              const Icon(Icons.receipt_long_rounded, size: 18, color: _accentReady),
+              const Icon(Icons.receipt_long_rounded, size: AegisIconSize.sm, color: AegisColors.primary),
             ],
           ),
-          const SizedBox(height: 14),
-          
+          const SizedBox(height: AegisSpacing.md),
+
           // Custom Invoice Amount Input
           TextFormField(
             controller: _invoiceController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: GoogleFonts.jetBrainsMono(fontSize: 13, color: _primaryText, fontWeight: FontWeight.bold),
+            style: AegisTypography.monoSmall.copyWith(color: AegisColors.textPrimary, fontWeight: FontWeight.bold),
             decoration: InputDecoration(
               labelText: 'Total Billing Amount (\$ USD)',
-              labelStyle: GoogleFonts.inter(fontSize: 12, color: _secondaryText),
-              border: const OutlineInputBorder(borderSide: BorderSide(color: _borderSlate)),
-              enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: _borderSlate)),
-              focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _primaryText)),
-              prefixIcon: const Icon(Icons.attach_money_rounded, size: 20, color: _secondaryText),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              labelStyle: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary),
+              border: OutlineInputBorder(borderRadius: AegisRadius.input, borderSide: const BorderSide(color: AegisColors.border)),
+              enabledBorder: OutlineInputBorder(borderRadius: AegisRadius.input, borderSide: const BorderSide(color: AegisColors.border)),
+              focusedBorder: OutlineInputBorder(borderRadius: AegisRadius.input, borderSide: const BorderSide(color: AegisColors.primary, width: 1.5)),
+              prefixIcon: const Icon(Icons.attach_money_rounded, size: AegisIconSize.sm, color: AegisColors.textTertiary),
+              contentPadding: const EdgeInsets.symmetric(horizontal: AegisSpacing.base, vertical: AegisSpacing.md),
             ),
             validator: (val) => val == null || val.isEmpty ? 'Invoice amount required' : null,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AegisSpacing.base),
 
           // Digital Receipt File Uploader
           InkWell(
@@ -855,23 +821,26 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
               });
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(_receiptUploaded 
-                    ? 'Invoice Receipt Uploaded: receipt_${widget.prescriptionId.toLowerCase().substring(0, 6)}.pdf attached.'
-                    : 'Invoice Receipt Removed.'),
-                  backgroundColor: _receiptUploaded ? Colors.green : Colors.grey[700],
+                  content: Text(
+                    _receiptUploaded
+                        ? 'Invoice Receipt Uploaded: receipt_${widget.prescriptionId.toLowerCase().substring(0, 6)}.pdf attached.'
+                        : 'Invoice Receipt Removed.',
+                    style: AegisTypography.bodySmall.copyWith(color: Colors.white),
+                  ),
+                  backgroundColor: _receiptUploaded ? AegisColors.secondary : AegisColors.textSecondary,
                   duration: const Duration(seconds: 2),
                 ),
               );
             },
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: AegisSpacing.md, horizontal: AegisSpacing.base),
               decoration: BoxDecoration(
-                color: _receiptUploaded ? const Color(0xFFECFDF5) : _bgCanvas,
-                borderRadius: BorderRadius.circular(8),
+                color: _receiptUploaded ? AegisColors.secondarySurface : AegisColors.background,
+                borderRadius: BorderRadius.circular(AegisRadius.sm),
                 border: Border.all(
-                  color: _receiptUploaded ? const Color(0xFF10B981) : _borderSlate,
-                  width: 1.2,
+                  color: _receiptUploaded ? AegisColors.secondary : AegisColors.border,
+                  width: AegisBorders.thin,
                 ),
               ),
               child: Row(
@@ -879,17 +848,16 @@ class _PharmacyDispenseScreenState extends State<PharmacyDispenseScreen> with Si
                 children: [
                   Icon(
                     _receiptUploaded ? Icons.task_alt_rounded : Icons.cloud_upload_outlined,
-                    color: _receiptUploaded ? const Color(0xFF10B981) : _secondaryText,
-                    size: 20,
+                    color: _receiptUploaded ? AegisColors.secondary : AegisColors.textSecondary,
+                    size: AegisIconSize.sm,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: AegisSpacing.sm),
                   Flexible(
                     child: Text(
                       _receiptUploaded ? 'Receipt Attached (Click to remove)' : 'Upload Pharmacy Invoice Receipt (PDF/JPG)',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
+                      style: AegisTypography.labelSmall.copyWith(
+                        color: _receiptUploaded ? AegisColors.secondary : AegisColors.textSecondary,
                         fontWeight: FontWeight.w600,
-                        color: _receiptUploaded ? const Color(0xFF065F46) : _secondaryText,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -909,7 +877,7 @@ class PharmacyGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF1E3A8A).withOpacity(0.04)
+      ..color = AegisColors.primary.withValues(alpha: 0.04)
       ..strokeWidth = 1.0;
 
     const double gridSpacing = 24.0;

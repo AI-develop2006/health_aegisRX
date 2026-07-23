@@ -1,37 +1,57 @@
+// ─────────────────────────────────────────────────────────────
+// AegisRx Patient Widget — DangerBanner
+// Migrated to AegisRx Design System
+// ─────────────────────────────────────────────────────────────
+
 import 'package:flutter/material.dart';
+import 'package:health_lock/core/theme/design_system.dart';
 
 class DangerBanner extends StatelessWidget {
   final String message;
+  final IconData icon;
+  final bool showBorder;
 
-  const DangerBanner({super.key, required this.message});
+  const DangerBanner({
+    super.key,
+    required this.message,
+    this.icon = Icons.warning_amber_rounded,
+    this.showBorder = true,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
-
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.redAccent.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.redAccent.withOpacity(0.5),
-          width: 1.0,
-        ),
+        color: AegisColors.dangerLight,
+        borderRadius: AegisRadius.card,
+        border: showBorder
+            ? Border.all(
+                color: AegisColors.danger.withValues(alpha: 0.4),
+                width: AegisBorders.thin,
+              )
+            : null,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AegisSpacing.base,
+        vertical: AegisSpacing.md,
+      ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
-          const SizedBox(width: 12),
+          Icon(
+            icon,
+            color: AegisColors.danger,
+            size: AegisIconSize.md,
+          ),
+          const SizedBox(width: AegisSpacing.md),
           Expanded(
             child: Text(
               message,
-              style: TextStyle(
-                color: isLight ? const Color(0xFF7F1D1D) : Colors.white,
+              style: AegisTypography.bodySmall.copyWith(
+                color: AegisColors.dangerDark,
                 fontWeight: FontWeight.w600,
-                fontSize: 14,
+                height: 1.5,
               ),
             ),
           ),

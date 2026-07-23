@@ -1,5 +1,10 @@
+// ─────────────────────────────────────────────────────────────
+// AegisRx Shared Widget — CustomButton
+// Migrated to AegisRx Design System
+// ─────────────────────────────────────────────────────────────
+
 import 'package:flutter/material.dart';
-import 'package:health_lock/core/constants/app_colors.dart';
+import 'package:health_lock/core/theme/design_system.dart';
 
 class CustomButton extends StatefulWidget {
   final String text;
@@ -15,10 +20,10 @@ class CustomButton extends StatefulWidget {
     required this.text,
     this.onPressed,
     this.icon,
-    this.backgroundColor = AppColors.patientBlue, // Default to primary Patient Blue
+    this.backgroundColor = AegisColors.primary,
     this.borderColor = Colors.transparent,
-    this.textColor = Colors.white,
-    this.height = 48.0,
+    this.textColor = AegisColors.onPrimary,
+    this.height = AegisTokens.btnHeight,
   });
 
   @override
@@ -35,12 +40,12 @@ class _CustomButtonState extends State<CustomButton>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 100),
+      duration: AegisMotion.fastest,
     );
     _scaleAnimation = Tween<double>(
       begin: 1.0,
       end: 0.97,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    ).animate(CurvedAnimation(parent: _controller, curve: AegisMotion.standard));
   }
 
   @override
@@ -53,24 +58,24 @@ class _CustomButtonState extends State<CustomButton>
   Widget build(BuildContext context) {
     final isEnabled = widget.onPressed != null;
 
-    // Disabled state treatment
     final activeBg = isEnabled
         ? widget.backgroundColor
-        : AppColors.surfaceMuted;
+        : AegisTokens.btnPrimaryDisabled;
     final activeBorder = isEnabled
         ? widget.borderColor
-        : AppColors.borderWhite;
+        : AegisColors.border;
     final activeText = isEnabled
         ? widget.textColor
-        : AppColors.textFaint;
+        : AegisColors.textDisabled;
 
-    // Custom shadow: 30% opacity of the background color if solid CTA
-    final List<BoxShadow>? shadows = isEnabled &&
-            widget.backgroundColor != Colors.transparent &&
-            widget.backgroundColor != AppColors.cardSurface
+    final hasShadow = isEnabled &&
+        widget.backgroundColor != Colors.transparent &&
+        widget.backgroundColor != AegisColors.surface;
+
+    final List<BoxShadow>? shadows = hasShadow
         ? [
             BoxShadow(
-              color: widget.backgroundColor.withValues(alpha: 0.3),
+              color: widget.backgroundColor.withValues(alpha: 0.28),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -86,15 +91,15 @@ class _CustomButtonState extends State<CustomButton>
           onTapDown: (_) => _controller.forward(),
           onTapUp: (_) => _controller.reverse(),
           onTapCancel: () => _controller.reverse(),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: AegisRadius.button,
           child: Container(
             height: widget.height,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: AegisSpacing.base),
             decoration: BoxDecoration(
               color: activeBg,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AegisRadius.button,
               border: activeBorder != Colors.transparent
-                  ? Border.all(color: activeBorder, width: 1.0)
+                  ? Border.all(color: activeBorder, width: AegisBorders.thin)
                   : null,
               boxShadow: shadows,
             ),
@@ -102,17 +107,12 @@ class _CustomButtonState extends State<CustomButton>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (widget.icon != null) ...[
-                  Icon(widget.icon, size: 16, color: activeText),
-                  const SizedBox(width: 8),
+                  Icon(widget.icon, size: AegisIconSize.sm, color: activeText),
+                  const SizedBox(width: AegisSpacing.sm),
                 ],
                 Text(
                   widget.text,
-                  style: TextStyle(
-                    color: activeText,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.3,
-                  ),
+                  style: AegisTypography.labelLarge.copyWith(color: activeText),
                 ),
               ],
             ),

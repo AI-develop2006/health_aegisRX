@@ -1,18 +1,13 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/cupertino.dart';
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Patient Login Screen
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — loginWithEmail(), setPatientAuthState() preserved
+// ════════════════════════════════════════════════════════════════════════════
+
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/state/app_state.dart';
-
-// ── Design Tokens ─────────────────────────────────────────────────────────
-const _kBg = Color(0xFF0A0F1D);
-const _kCard = Color(0xFF1E293B);
-const _kBorder = Color(0xFF334155);
-const _kAccent = Color(0xFF0EA5E9);
-const _kText = Color(0xFFFFFFFF);
-const _kMuted = Color(0xFF94A3B8);
-const _kError = Color(0xFFEF4444);
+import '../../../../core/theme/design_system.dart';
 
 class PatientLoginScreen extends StatefulWidget {
   const PatientLoginScreen({super.key});
@@ -23,9 +18,9 @@ class PatientLoginScreen extends StatefulWidget {
 
 class _PatientLoginScreenState extends State<PatientLoginScreen> {
   final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  bool _isLoading = false;
-  bool _obscure = true;
+  final _passCtrl  = TextEditingController();
+  bool _isLoading  = false;
+  bool _obscure    = true;
   String? _errorMsg;
 
   @override
@@ -35,12 +30,11 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
     super.dispose();
   }
 
+  // ── BUSINESS LOGIC UNCHANGED ──────────────────────────────────────────────
   Future<void> _login() async {
-    setState(() {
-      _errorMsg = null;
-    });
+    setState(() => _errorMsg = null);
     final email = _emailCtrl.text.trim();
-    final pass = _passCtrl.text;
+    final pass  = _passCtrl.text;
 
     if (email.isEmpty || pass.isEmpty) {
       setState(() => _errorMsg = 'Please enter your email and password.');
@@ -58,119 +52,99 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
       if (mounted) setState(() => _errorMsg = error);
     }
   }
-
+  // ─────────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
 
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: AegisColors.background,
       body: Stack(
         children: [
-          // Security mesh background
-          Positioned.fill(child: CustomPaint(painter: _AuthMeshBg())),
-
+          Positioned.fill(child: CustomPaint(painter: _AuthGridPainter())),
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AegisSpacing.pagePadding,
+                vertical: AegisSpacing.base,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+
                   // Back
-                  IconButton(
-                    onPressed: () => appState.setPatientAuthState(
-                      PatientAuthState.authChoice,
-                    ),
-                    icon: const Icon(
-                      CupertinoIcons.arrow_left,
-                      color: _kMuted,
-                      size: 22,
-                    ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
+                  _BackBtn(onTap: () => appState.setPatientAuthState(PatientAuthState.authChoice)),
+                  const SizedBox(height: AegisSpacing.xl),
 
-                  const SizedBox(height: 32),
-
-                  // Shield badge
+                  // ── Shield badge ───────────────────────────────
                   Container(
-                    width: 56,
-                    height: 56,
+                    width: 52,
+                    height: 52,
                     decoration: BoxDecoration(
-                      color: _kCard,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: _kAccent.withValues(alpha: 0.4),
-                        width: 1.5,
-                      ),
+                      color: AegisColors.primarySurface,
+                      borderRadius: BorderRadius.circular(AegisRadius.md),
+                      border: Border.all(color: AegisColors.primary.withValues(alpha: 0.3)),
                       boxShadow: [
                         BoxShadow(
-                          color: _kAccent.withValues(alpha: 0.2),
+                          color: AegisColors.primary.withValues(alpha: 0.12),
                           blurRadius: 16,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
                     child: const Icon(
-                      CupertinoIcons.lock_shield_fill,
-                      color: _kAccent,
-                      size: 26,
+                      Icons.lock_person_rounded,
+                      color: AegisColors.primary,
+                      size: AegisIconSize.lg,
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AegisSpacing.base),
 
                   Text(
                     'Sign in to your\nHealth Vault',
-                    style: GoogleFonts.sora(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: _kText,
-                      height: 1.2,
+                    style: AegisTypography.displaySmall.copyWith(
+                      color: AegisColors.textPrimary,
+                      height: 1.15,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AegisSpacing.sm),
                   Text(
                     'Authenticate with your AegisRx credentials.',
-                    style: GoogleFonts.inter(fontSize: 14, color: _kMuted),
+                    style: AegisTypography.bodyMedium.copyWith(
+                        color: AegisColors.textSecondary),
                   ),
 
-                  const SizedBox(height: 36),
+                  const SizedBox(height: AegisSpacing.xl),
 
-                  // ── Email field ────────────────────────────────
-                  TextField(
+                  // ── Email ──────────────────────────────────────
+                  _AuthField(
                     controller: _emailCtrl,
+                    label: 'Email address',
+                    hint: 'you@example.com',
+                    icon: Icons.mail_outline_rounded,
                     keyboardType: TextInputType.emailAddress,
-                    style: GoogleFonts.inter(color: _kText, fontSize: 14),
-                    decoration: _field(
-                      label: 'Email address',
-                      icon: CupertinoIcons.mail,
-                      hint: 'you@example.com',
-                    ),
+                    hasError: _errorMsg != null,
                   ),
+                  const SizedBox(height: AegisSpacing.md),
 
-                  const SizedBox(height: 14),
-
-                  // ── Password field ─────────────────────────────
-                  TextField(
+                  // ── Password ───────────────────────────────────
+                  _AuthField(
                     controller: _passCtrl,
+                    label: 'Password',
+                    icon: Icons.lock_outline_rounded,
                     obscureText: _obscure,
-                    style: GoogleFonts.inter(color: _kText, fontSize: 14),
-                    decoration: _field(
-                      label: 'Password',
-                      icon: CupertinoIcons.lock,
-                      suffix: IconButton(
-                        icon: Icon(
-                          _obscure
-                              ? CupertinoIcons.eye
-                              : CupertinoIcons.eye_slash,
-                          color: _kMuted,
-                          size: 18,
-                        ),
-                        onPressed: () => setState(() => _obscure = !_obscure),
-                      ),
-                    ),
+                    hasError: _errorMsg != null,
                     onSubmitted: (_) => _login(),
+                    suffix: IconButton(
+                      icon: Icon(
+                        _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        color: AegisColors.textTertiary,
+                        size: AegisIconSize.md,
+                      ),
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
                   ),
 
                   // ── Forgot password ────────────────────────────
@@ -180,138 +154,86 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
                       onPressed: () => _showForgotDialog(context),
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 8,
-                        ),
+                            horizontal: AegisSpacing.xs, vertical: AegisSpacing.sm),
                       ),
                       child: Text(
                         'Forgot password?',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: _kAccent,
-                          fontWeight: FontWeight.w600,
+                        style: AegisTypography.labelMedium.copyWith(
+                          color: AegisColors.primary,
                         ),
                       ),
                     ),
                   ),
 
                   // ── Error banner ───────────────────────────────
-                  if (_errorMsg != null) ...[
-                    const SizedBox(height: 4),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _kError.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: _kError.withValues(alpha: 0.35),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            CupertinoIcons.exclamationmark_circle,
-                            color: _kError,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _errorMsg!,
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                color: _kError,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ] else
-                    const SizedBox(height: 20),
+                  AnimatedSize(
+                    duration: AegisMotion.moderate,
+                    curve: AegisMotion.decelerate,
+                    child: _errorMsg != null
+                        ? Padding(
+                            padding: const EdgeInsets.only(bottom: AegisSpacing.md),
+                            child: _ErrorBanner(message: _errorMsg!),
+                          )
+                        : const SizedBox(height: AegisSpacing.md),
+                  ),
 
                   // ── Sign-in CTA ────────────────────────────────
-                  _PrimaryBtn(
+                  _PrimaryAuthBtn(
                     label: 'Sign in',
                     onPressed: _login,
                     isLoading: _isLoading,
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AegisSpacing.lg),
 
                   // Divider
                   Row(
                     children: [
-                      const Expanded(child: Divider(color: _kBorder)),
+                      const Expanded(child: Divider(color: AegisColors.border)),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(
-                          'OR',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: _kMuted,
-                          ),
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: AegisSpacing.md),
+                        child: Text('OR',
+                            style: AegisTypography.labelSmall.copyWith(
+                                color: AegisColors.textTertiary)),
                       ),
-                      const Expanded(child: Divider(color: _kBorder)),
+                      const Expanded(child: Divider(color: AegisColors.border)),
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AegisSpacing.base),
 
-                  // Create account
+                  // ── Create account ─────────────────────────────
                   SizedBox(
                     width: double.infinity,
-                    height: 52,
+                    height: AegisTokens.btnHeight,
                     child: OutlinedButton(
                       onPressed: () =>
                           appState.setPatientAuthState(PatientAuthState.signup),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: _kBorder, width: 1.5),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        side: const BorderSide(
+                            color: AegisColors.border, width: AegisBorders.regular),
+                        shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
+                        textStyle: AegisTypography.labelLarge,
+                        foregroundColor: AegisColors.textPrimary,
                       ),
-                      child: Text(
-                        'Create new account',
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: _kText,
-                        ),
-                      ),
+                      child: const Text('Create new account'),
                     ),
                   ),
 
-                  const SizedBox(height: 14),
+                  const SizedBox(height: AegisSpacing.md),
 
-                  // Back to role
                   Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextButton(
-                          onPressed: () => appState.resetFlow(),
-                          child: Text(
-                            'Back to role selection',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              color: _kMuted,
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: TextButton(
+                      onPressed: () => appState.resetFlow(),
+                      child: Text(
+                        'Back to role selection',
+                        style: AegisTypography.bodySmall.copyWith(
+                            color: AegisColors.textSecondary),
+                      ),
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AegisSpacing.base),
                 ],
               ),
             ),
@@ -321,71 +243,43 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
     );
   }
 
-  InputDecoration _field({
-    required String label,
-    required IconData icon,
-    Widget? suffix,
-    String? hint,
-  }) => InputDecoration(
-    labelText: label,
-    hintText: hint,
-    hintStyle: GoogleFonts.inter(color: _kMuted, fontSize: 14),
-    labelStyle: GoogleFonts.inter(color: _kMuted, fontSize: 14),
-    prefixIcon: Icon(icon, color: _kMuted, size: 20),
-    suffixIcon: suffix,
-    filled: true,
-    fillColor: _kCard,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: _kBorder, width: 1.5),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: _kAccent, width: 1.5),
-    ),
-  );
-
   void _showForgotDialog(BuildContext ctx) {
     showDialog(
       context: ctx,
       builder: (context) => Dialog(
-        backgroundColor: _kCard,
+        backgroundColor: AegisColors.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: _kBorder, width: 1),
+          borderRadius: AegisRadius.card,
+          side: const BorderSide(color: AegisColors.border),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AegisSpacing.lg),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                CupertinoIcons.lock_rotation,
-                color: _kAccent,
-                size: 36,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Password Recovery',
-                style: GoogleFonts.sora(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: _kText,
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AegisColors.primarySurface,
+                  borderRadius: BorderRadius.circular(AegisRadius.md),
                 ),
+                child: const Icon(Icons.lock_reset_rounded,
+                    color: AegisColors.primary, size: AegisIconSize.lg),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: AegisSpacing.base),
+              Text('Password Recovery',
+                  style: AegisTypography.headlineSmall.copyWith(
+                      color: AegisColors.textPrimary)),
+              const SizedBox(height: AegisSpacing.sm),
               Text(
                 'Self-sovereign password recovery will be available soon. Contact your vault administrator.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: _kMuted,
-                  height: 1.5,
-                ),
+                style: AegisTypography.bodyMedium.copyWith(
+                    color: AegisColors.textSecondary, height: 1.5),
               ),
-              const SizedBox(height: 24),
-              _PrimaryBtn(label: 'OK', onPressed: () => Navigator.pop(context)),
+              const SizedBox(height: AegisSpacing.lg),
+              _PrimaryAuthBtn(label: 'OK', onPressed: () => Navigator.pop(context)),
             ],
           ),
         ),
@@ -394,13 +288,15 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
   }
 }
 
-// ── Shared helpers ─────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+//  Shared Auth Screen Components
+// ════════════════════════════════════════════════════════════════════════════
 
-class _AuthMeshBg extends CustomPainter {
+class _AuthGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF0EA5E9).withValues(alpha: 0.03)
+      ..color = AegisColors.primary.withValues(alpha: 0.025)
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
     const step = 44.0;
@@ -416,12 +312,137 @@ class _AuthMeshBg extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _PrimaryBtn extends StatelessWidget {
+class _BackBtn extends StatelessWidget {
+  final VoidCallback onTap;
+  const _BackBtn({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AegisRadius.sm),
+      child: Container(
+        padding: const EdgeInsets.all(AegisSpacing.sm),
+        decoration: BoxDecoration(
+          color: AegisColors.surface,
+          borderRadius: BorderRadius.circular(AegisRadius.sm),
+          border: Border.all(color: AegisColors.border),
+        ),
+        child: const Icon(Icons.arrow_back_ios_new_rounded,
+            size: AegisIconSize.sm, color: AegisColors.textSecondary),
+      ),
+    );
+  }
+}
+
+class _AuthField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String? hint;
+  final IconData icon;
+  final bool obscureText;
+  final bool hasError;
+  final TextInputType? keyboardType;
+  final Widget? suffix;
+  final ValueChanged<String>? onSubmitted;
+
+  const _AuthField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.hint,
+    this.obscureText = false,
+    this.hasError = false,
+    this.keyboardType,
+    this.suffix,
+    this.onSubmitted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      onSubmitted: onSubmitted,
+      style: AegisTypography.bodyMedium.copyWith(color: AegisColors.textPrimary),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        hintStyle: AegisTypography.bodyMedium.copyWith(color: AegisColors.textTertiary),
+        labelStyle: AegisTypography.bodyMedium.copyWith(color: AegisColors.textSecondary),
+        prefixIcon: Icon(icon, color: AegisColors.textTertiary, size: AegisIconSize.md),
+        suffixIcon: suffix,
+        filled: true,
+        fillColor: AegisColors.surface,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AegisSpacing.inputPaddingH,
+          vertical: AegisSpacing.inputPaddingV,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AegisRadius.input,
+          borderSide: BorderSide(
+            color: hasError ? AegisColors.danger : AegisColors.border,
+            width: AegisBorders.regular,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AegisRadius.input,
+          borderSide: BorderSide(
+            color: hasError ? AegisColors.danger : AegisColors.primary,
+            width: AegisBorders.regular,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: AegisRadius.input,
+          borderSide: const BorderSide(color: AegisColors.danger, width: AegisBorders.regular),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  const _ErrorBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AegisSpacing.md,
+        vertical: AegisSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AegisColors.dangerLight,
+        borderRadius: AegisRadius.input,
+        border: Border.all(color: AegisColors.danger.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded,
+              color: AegisColors.danger, size: AegisIconSize.md),
+          const SizedBox(width: AegisSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: AegisTypography.bodySmall.copyWith(
+                  color: AegisColors.dangerDark, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrimaryAuthBtn extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final bool isLoading;
 
-  const _PrimaryBtn({
+  const _PrimaryAuthBtn({
     required this.label,
     required this.onPressed,
     this.isLoading = false,
@@ -431,34 +452,26 @@ class _PrimaryBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: AegisTokens.btnHeight,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: _kAccent,
-          disabledBackgroundColor: _kAccent.withValues(alpha: 0.4),
+          backgroundColor: AegisColors.primary,
+          foregroundColor: AegisColors.onPrimary,
+          disabledBackgroundColor: AegisColors.primarySurface,
           elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
+          textStyle: AegisTypography.labelLarge,
         ),
         child: isLoading
             ? const SizedBox(
-                width: 20,
-                height: 20,
+                width: 22,
+                height: 22,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
+                    strokeWidth: 2.5, color: Colors.white),
               )
-            : Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
+            : Text(label),
       ),
     );
   }

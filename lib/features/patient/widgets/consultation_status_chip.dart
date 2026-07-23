@@ -1,44 +1,61 @@
+// ─────────────────────────────────────────────────────────────
+// AegisRx Patient Widget — ConsultationStatusChip
+// Migrated to AegisRx Design System
+// ─────────────────────────────────────────────────────────────
+
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:health_lock/core/theme/design_system.dart';
 
 class ConsultationStatusChip extends StatelessWidget {
   final String status;
 
   const ConsultationStatusChip({super.key, required this.status});
 
-  // 60-30-10 Design Tokens
-  static const _teal = Color(0xFF2E8B90);
-  static const _amber = Color(0xFFD97736);
-  static const _red = Color(0xFFB33A3A);
-  static const _border = Color(0xFFB88E74);
-
-  Color _getStatusColor() {
+  Color _chipColor() {
     switch (status.toLowerCase()) {
       case 'active':
       case 'accepted':
-        return _teal;
+        return AegisColors.success;
       case 'pending':
-        return _amber;
+        return AegisColors.warning;
       case 'rejected':
-        return _red;
+        return AegisColors.danger;
       default:
-        return _border;
+        return AegisColors.textTertiary;
+    }
+  }
+
+  Color _chipBg() {
+    switch (status.toLowerCase()) {
+      case 'active':
+      case 'accepted':
+        return AegisColors.successLight;
+      case 'pending':
+        return AegisColors.warningLight;
+      case 'rejected':
+        return AegisColors.dangerLight;
+      default:
+        return AegisColors.surfaceDim;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final color = _getStatusColor();
+    final color = _chipColor();
+    final bg = _chipBg();
     final label = status.toLowerCase() == 'inactive'
         ? 'NO SESSION'
         : status.toUpperCase();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AegisTokens.chipPaddingH,
+        vertical: AegisTokens.chipPaddingV + 2,
+      ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.5), width: 1.0),
+        color: bg,
+        borderRadius: AegisRadius.chip,
+        border: Border.all(color: color.withValues(alpha: 0.4), width: AegisBorders.thin),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -46,19 +63,14 @@ class ConsultationStatusChip extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AegisSpacing.xs + 2),
           Text(
             label,
-            style: GoogleFonts.inter(
+            style: AegisTypography.labelSmall.copyWith(
               color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
+              letterSpacing: 0.6,
             ),
           ),
         ],

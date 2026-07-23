@@ -25,6 +25,58 @@ class BaseLLM(ABC):
         """
         logger.info("Executing mock LLM fallback generation in BaseLLM...")
         user_prompt_lower = user_prompt.lower()
+
+        if "voice" in user_prompt_lower or "speech" in user_prompt_lower or "transcription parser" in user_prompt_lower:
+            medications = []
+            diagnosis = "Fever"
+            if "paracetamol" in user_prompt_lower:
+                medications.append({
+                    "drug": "Paracetamol",
+                    "dose": "500 mg",
+                    "frequency": "BD",
+                    "duration": "5 Days"
+                })
+            if "amoxicillin" in user_prompt_lower:
+                medications.append({
+                    "drug": "Amoxicillin",
+                    "dose": "500 mg",
+                    "frequency": "TDS",
+                    "duration": "5 Days"
+                })
+            if "ibuprofen" in user_prompt_lower:
+                medications.append({
+                    "drug": "Ibuprofen",
+                    "dose": "400 mg",
+                    "frequency": "TDS",
+                    "duration": "7 Days"
+                })
+            if "warfarin" in user_prompt_lower:
+                medications.append({
+                    "drug": "Warfarin",
+                    "dose": "5 mg",
+                    "frequency": "OD",
+                    "duration": "30 Days"
+                })
+            
+            if not medications:
+                medications.append({
+                    "drug": "Paracetamol",
+                    "dose": "500 mg",
+                    "frequency": "BD",
+                    "duration": "5 Days"
+                })
+            
+            if "fever" in user_prompt_lower:
+                diagnosis = "Fever"
+            elif "pain" in user_prompt_lower:
+                diagnosis = "Pain Relief"
+            elif "infection" in user_prompt_lower:
+                diagnosis = "Infection"
+
+            return json.dumps({
+                "diagnosis": diagnosis,
+                "medications": medications
+            })
         
         # Try to parse patient clinical profile JSON from prompt
         patient_data = None

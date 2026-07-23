@@ -1,7 +1,14 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Patient Medication List Screen
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — search logic, activeMeds/pastMeds derivation,
+//                 _onMedicationTap(), navigation preserved exactly
+// ════════════════════════════════════════════════════════════════════════════
+
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/state/app_state.dart';
+import '../../../core/theme/design_system.dart';
 import '../../../shared/models/prescription.dart';
 import 'patient_prescription_detail_screen.dart';
 
@@ -15,20 +22,13 @@ class PatientMedicationListScreen extends StatefulWidget {
 
 class _PatientMedicationListScreenState
     extends State<PatientMedicationListScreen> {
-  // 60-30-10 Design Tokens
-  static const _bg = Color(0xFFF7F4EB);
-  static const _card = Color(0xFFFFFFFF);
-  static const _text = Color(0xFF4A3325);
-  static const _sub = Color(0xFFD4A387);
-  static const _border = Color(0xFFB88E74);
-  static const _teal = Color(0xFF2E8B90);
-
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
+    // UNCHANGED — same search listener
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.trim().toLowerCase();
@@ -42,6 +42,7 @@ class _PatientMedicationListScreenState
     super.dispose();
   }
 
+  // UNCHANGED — same navigation
   void _onMedicationTap(Prescription parentRx) {
     Navigator.push(
       context,
@@ -57,7 +58,7 @@ class _PatientMedicationListScreenState
     final appState = Provider.of<AppState>(context);
     final vault = appState.patientVault;
 
-    // Extract medications dynamically
+    // UNCHANGED — same medication derivation logic
     final List<Map<String, dynamic>> activeMeds = [];
     final List<Map<String, dynamic>> pastMeds = [];
 
@@ -72,7 +73,8 @@ class _PatientMedicationListScreenState
         if (med.afternoon) timings.add('Afternoon');
         if (med.evening) timings.add('Evening');
         if (med.night) timings.add('Night');
-        final scheduleStr = timings.isEmpty ? med.interval : timings.join(', ');
+        final scheduleStr =
+            timings.isEmpty ? med.interval : timings.join(', ');
         final medData = {'med': med, 'rx': rx, 'schedule': scheduleStr};
 
         if (rx.isDispensed) {
@@ -84,71 +86,104 @@ class _PatientMedicationListScreenState
     }
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: AegisColors.background,
       appBar: AppBar(
-        backgroundColor: _bg,
+        backgroundColor: AegisColors.surface,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: AegisIconSize.sm, color: AegisColors.textSecondary),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
           'All Medications',
-          style: GoogleFonts.sora(
-            fontWeight: FontWeight.bold,
-            color: _text,
-            fontSize: 20,
-          ),
+          style: AegisTypography.headlineMedium
+              .copyWith(color: AegisColors.textPrimary),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _text),
-          onPressed: () => Navigator.pop(context),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: AegisColors.border),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(AegisSpacing.pagePadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Search Bar
+            // ── Search bar ───────────────────────────────────────
             TextField(
               controller: _searchController,
-              style: GoogleFonts.inter(color: _text),
+              style: AegisTypography.bodyMedium
+                  .copyWith(color: AegisColors.textPrimary),
               decoration: InputDecoration(
                 hintText: 'Search medications',
-                hintStyle: GoogleFonts.inter(color: _sub),
-                prefixIcon: const Icon(Icons.search, color: _border),
+                hintStyle: AegisTypography.bodyMedium
+                    .copyWith(color: AegisColors.textTertiary),
+                prefixIcon: const Icon(Icons.search_rounded,
+                    color: AegisColors.textTertiary, size: AegisIconSize.md),
                 filled: true,
-                fillColor: _card,
+                fillColor: AegisColors.surface,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: _border, width: 1.0),
+                  borderRadius: AegisRadius.input,
+                  borderSide:
+                      const BorderSide(color: AegisColors.border, width: 1.0),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: _border, width: 1.0),
+                  borderRadius: AegisRadius.input,
+                  borderSide:
+                      const BorderSide(color: AegisColors.border, width: 1.0),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: _teal, width: 1.5),
+                  borderRadius: AegisRadius.input,
+                  borderSide: const BorderSide(
+                      color: AegisColors.primary, width: 1.5),
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: AegisSpacing.md),
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: AegisSpacing.lg),
 
-            // Active Medications
-            Text(
-              'Active Medications',
-              style: GoogleFonts.sora(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: _teal,
-              ),
+            // ── Active Medications ───────────────────────────────
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: AegisColors.secondary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: AegisSpacing.xs),
+                Text(
+                  'Active Medications',
+                  style: AegisTypography.titleSmall.copyWith(
+                    color: AegisColors.secondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${activeMeds.length}',
+                  style: AegisTypography.labelSmall.copyWith(
+                    color: AegisColors.secondary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AegisSpacing.sm),
             activeMeds.isEmpty
                 ? Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: AegisSpacing.md),
                     child: Text(
                       'No active medications found.',
-                      style: GoogleFonts.inter(color: _sub, fontSize: 13),
+                      style: AegisTypography.bodySmall
+                          .copyWith(color: AegisColors.textSecondary),
                     ),
                   )
                 : ListView.builder(
@@ -162,31 +197,35 @@ class _PatientMedicationListScreenState
                       final String schedule = item['schedule'];
 
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
-                        child: GestureDetector(
+                        padding: const EdgeInsets.only(bottom: AegisSpacing.sm),
+                        child: InkWell(
                           onTap: () => _onMedicationTap(rx),
+                          borderRadius: AegisRadius.card,
                           child: Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(AegisSpacing.md),
                             decoration: BoxDecoration(
-                              color: _card,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: _border, width: 1.0),
+                              color: AegisColors.surface,
+                              borderRadius: AegisRadius.card,
+                              border: Border.all(color: AegisColors.border),
+                              boxShadow: AegisShadows.sm,
                             ),
                             child: Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(8),
+                                  width: 40,
+                                  height: 40,
                                   decoration: BoxDecoration(
-                                    color: _teal.withOpacity(0.1),
-                                    shape: BoxShape.circle,
+                                    color: AegisColors.secondarySurface,
+                                    borderRadius: BorderRadius.circular(
+                                        AegisRadius.sm),
                                   ),
                                   child: const Icon(
-                                    Icons.medical_services_rounded,
-                                    color: _teal,
-                                    size: 20,
+                                    Icons.medication_rounded,
+                                    color: AegisColors.secondary,
+                                    size: AegisIconSize.md,
                                   ),
                                 ),
-                                const SizedBox(width: 14),
+                                const SizedBox(width: AegisSpacing.md),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -194,26 +233,25 @@ class _PatientMedicationListScreenState
                                     children: [
                                       Text(
                                         med.name,
-                                        style: GoogleFonts.sora(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15,
-                                          color: _text,
-                                        ),
+                                        style: AegisTypography.titleSmall
+                                            .copyWith(
+                                                color:
+                                                    AegisColors.textPrimary),
                                       ),
                                       Text(
                                         '$schedule · Dr. ${rx.doctorName}',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12,
-                                          color: _sub,
-                                        ),
+                                        style: AegisTypography.bodySmall
+                                            .copyWith(
+                                                color: AegisColors
+                                                    .textSecondary),
                                       ),
                                     ],
                                   ),
                                 ),
                                 const Icon(
                                   Icons.arrow_forward_ios_rounded,
-                                  size: 14,
-                                  color: _border,
+                                  size: AegisIconSize.xs,
+                                  color: AegisColors.textTertiary,
                                 ),
                               ],
                             ),
@@ -222,24 +260,46 @@ class _PatientMedicationListScreenState
                       );
                     },
                   ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AegisSpacing.lg),
 
-            // Past Medications
-            Text(
-              'Past Medications',
-              style: GoogleFonts.sora(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: _border,
-              ),
+            // ── Past Medications ─────────────────────────────────
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: AegisColors.textTertiary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: AegisSpacing.xs),
+                Text(
+                  'Past Medications',
+                  style: AegisTypography.titleSmall.copyWith(
+                    color: AegisColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${pastMeds.length}',
+                  style: AegisTypography.labelSmall.copyWith(
+                    color: AegisColors.textTertiary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AegisSpacing.sm),
             pastMeds.isEmpty
                 ? Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: AegisSpacing.md),
                     child: Text(
                       'No past medications found.',
-                      style: GoogleFonts.inter(color: _sub, fontSize: 13),
+                      style: AegisTypography.bodySmall
+                          .copyWith(color: AegisColors.textSecondary),
                     ),
                   )
                 : ListView.builder(
@@ -253,34 +313,36 @@ class _PatientMedicationListScreenState
                       final String schedule = item['schedule'];
 
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
-                        child: GestureDetector(
+                        padding: const EdgeInsets.only(bottom: AegisSpacing.sm),
+                        child: InkWell(
                           onTap: () => _onMedicationTap(rx),
+                          borderRadius: AegisRadius.card,
                           child: Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(AegisSpacing.md),
                             decoration: BoxDecoration(
-                              color: _card,
-                              borderRadius: BorderRadius.circular(16),
+                              color: AegisColors.surface,
+                              borderRadius: AegisRadius.card,
                               border: Border.all(
-                                color: _border.withOpacity(0.5),
-                                width: 1.0,
-                              ),
+                                  color: AegisColors.border
+                                      .withValues(alpha: 0.5)),
                             ),
                             child: Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(8),
+                                  width: 40,
+                                  height: 40,
                                   decoration: BoxDecoration(
-                                    color: _border.withOpacity(0.1),
-                                    shape: BoxShape.circle,
+                                    color: AegisColors.surfaceDim,
+                                    borderRadius: BorderRadius.circular(
+                                        AegisRadius.sm),
                                   ),
                                   child: const Icon(
                                     Icons.history_rounded,
-                                    color: _border,
-                                    size: 20,
+                                    color: AegisColors.textTertiary,
+                                    size: AegisIconSize.md,
                                   ),
                                 ),
-                                const SizedBox(width: 14),
+                                const SizedBox(width: AegisSpacing.md),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -288,28 +350,27 @@ class _PatientMedicationListScreenState
                                     children: [
                                       Text(
                                         med.name,
-                                        style: GoogleFonts.sora(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15,
-                                          color: _sub,
+                                        style: AegisTypography.titleSmall
+                                            .copyWith(
+                                          color: AegisColors.textSecondary,
                                           decoration:
                                               TextDecoration.lineThrough,
                                         ),
                                       ),
                                       Text(
                                         '$schedule · Dr. ${rx.doctorName}',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12,
-                                          color: _sub,
-                                        ),
+                                        style: AegisTypography.bodySmall
+                                            .copyWith(
+                                                color: AegisColors
+                                                    .textTertiary),
                                       ),
                                     ],
                                   ),
                                 ),
                                 const Icon(
                                   Icons.arrow_forward_ios_rounded,
-                                  size: 14,
-                                  color: _border,
+                                  size: AegisIconSize.xs,
+                                  color: AegisColors.textTertiary,
                                 ),
                               ],
                             ),
@@ -318,7 +379,7 @@ class _PatientMedicationListScreenState
                       );
                     },
                   ),
-            const SizedBox(height: 40),
+            const SizedBox(height: AegisSpacing.xxl),
           ],
         ),
       ),

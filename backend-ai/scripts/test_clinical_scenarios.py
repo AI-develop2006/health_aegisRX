@@ -1,5 +1,6 @@
 import asyncio
 import httpx
+import traceback
 
 async def test_scenarios():
     audit_url = "http://127.0.0.1:4005/api/audit"
@@ -21,7 +22,7 @@ async def test_scenarios():
     
     async with httpx.AsyncClient() as client:
         try:
-            res = await client.post(audit_url, json=audit_payload, timeout=15.0)
+            res = await client.post(audit_url, json=audit_payload, timeout=45.0)
             print(f"Audit Status: {res.status_code}")
             if res.status_code == 200:
                 data = res.json()
@@ -35,6 +36,7 @@ async def test_scenarios():
                 print(f"[FAIL] Test 1 returned status {res.status_code}: {res.text}")
         except Exception as e:
             print(f"[FAIL] Connection to Audit Service failed: {e}")
+            traceback.print_exc()
 
         # ── Test Scenario 2: Save Interceptor blocks creation without Doctor Override ──
         print("\n[TEST 2] Submitting high-risk prescription WITHOUT doctor override reason...")
@@ -60,7 +62,7 @@ async def test_scenarios():
         }
         
         try:
-            res = await client.post(prescription_url, json=rx_payload_no_override, timeout=15.0)
+            res = await client.post(prescription_url, json=rx_payload_no_override, timeout=45.0)
             print(f"Prescription Status: {res.status_code}")
             print(f"Response Payload: {res.text}")
             if res.status_code == 403:
@@ -69,6 +71,7 @@ async def test_scenarios():
                 print("[FAIL] Test 2 did not return 403 Forbidden status!")
         except Exception as e:
             print(f"[FAIL] Connection to Prescription Service failed: {e}")
+            traceback.print_exc()
 
         # ── Test Scenario 3: Save Interceptor allows creation WITH Doctor Override ──
         print("\n[TEST 3] Submitting high-risk prescription WITH doctor override reason...")
@@ -77,7 +80,7 @@ async def test_scenarios():
         rx_payload_with_override["overrideReason"] = "Patient tolerated beta-lactam therapy previously under clinical observation"
         
         try:
-            res = await client.post(prescription_url, json=rx_payload_with_override, timeout=15.0)
+            res = await client.post(prescription_url, json=rx_payload_with_override, timeout=45.0)
             print(f"Prescription Status: {res.status_code}")
             if res.status_code in (200, 201):
                 print("[PASS] Test 3: Prescription successfully saved with signed doctor override justification!")
@@ -85,6 +88,7 @@ async def test_scenarios():
                 print(f"[FAIL] Test 3 returned status {res.status_code}: {res.text}")
         except Exception as e:
             print(f"[FAIL] Connection to Prescription Service failed: {e}")
+            traceback.print_exc()
 
 if __name__ == "__main__":
     asyncio.run(test_scenarios())

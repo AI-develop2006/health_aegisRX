@@ -1,4 +1,11 @@
+// ─────────────────────────────────────────────────────────────
+// AegisRx Shared Widget — NeonCard
+// Migrated to AegisRx Design System
+// Repurposed as a glowing accent card for AI/Blockchain features
+// ─────────────────────────────────────────────────────────────
+
 import 'package:flutter/material.dart';
+import 'package:health_lock/core/theme/design_system.dart';
 
 class NeonCard extends StatelessWidget {
   final Widget child;
@@ -10,29 +17,28 @@ class NeonCard extends StatelessWidget {
     super.key,
     required this.child,
     this.neonColor,
-    this.borderWidth = 1.0,
-    this.padding = const EdgeInsets.all(16.0),
+    this.borderWidth = AegisBorders.thin,
+    this.padding = const EdgeInsets.all(AegisTokens.cardPaddingV),
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final resolvedNeon = neonColor ?? theme.colorScheme.primary;
-    final resolvedBg = theme.colorScheme.surface;
+    // Default to AI violet — NeonCard is used for AI / blockchain accent panels
+    final resolvedColor = neonColor ?? AegisColors.tertiary;
 
     return Container(
       decoration: BoxDecoration(
-        color: resolvedBg,
-        borderRadius: BorderRadius.circular(16),
+        color: AegisColors.surface,
+        borderRadius: AegisRadius.card,
         border: Border.all(
-          color: resolvedNeon.withOpacity(0.5),
+          color: resolvedColor.withValues(alpha: 0.35),
           width: borderWidth,
         ),
         boxShadow: [
           BoxShadow(
-            color: resolvedNeon.withOpacity(0.1),
-            blurRadius: 10,
-            spreadRadius: 2,
+            color: resolvedColor.withValues(alpha: 0.08),
+            blurRadius: 16,
+            spreadRadius: 0,
             offset: const Offset(0, 4),
           ),
         ],

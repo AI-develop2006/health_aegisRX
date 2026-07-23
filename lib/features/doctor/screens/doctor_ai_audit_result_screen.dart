@@ -1,5 +1,12 @@
+// ════════════════════════════════════════════════════════════════════════════
+// AegisRx — Doctor AI Audit Result Screen
+// Design System: AegisRx Clinical Precision
+// Business logic: UNCHANGED — auditResult map parsing, riskColor, riskLabel,
+//                 reasons, drug interactions, allergy risks, alternatives preserved
+// ════════════════════════════════════════════════════════════════════════════
+
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../../core/theme/design_system.dart';
 import '../doctor_theme.dart';
 
 /// Shown when navigating to view a completed AI audit result.
@@ -38,18 +45,19 @@ class DoctorAiAuditResultScreen extends StatelessWidget {
     return ClinicalScaffold(
       appBar: clinicalAppBar(title: 'AI Safety Audit Report'),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AegisSpacing.pagePadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Risk Banner ───────────────────────────────────
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(AegisSpacing.base),
               decoration: BoxDecoration(
-                color: rc.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: rc.withOpacity(0.4), width: 1.5),
+                color: rc.withValues(alpha: 0.08),
+                borderRadius: AegisRadius.card,
+                border: Border.all(color: rc.withValues(alpha: 0.4), width: 1.5),
+                boxShadow: AegisShadows.sm,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,9 +65,9 @@ class DoctorAiAuditResultScreen extends StatelessWidget {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(AegisSpacing.xs),
                         decoration: BoxDecoration(
-                          color: rc.withOpacity(0.12),
+                          color: rc.withValues(alpha: 0.15),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -69,82 +77,79 @@ class DoctorAiAuditResultScreen extends StatelessWidget {
                                   ? Icons.warning_amber_rounded
                                   : Icons.dangerous_rounded,
                           color: rc,
-                          size: 22,
+                          size: AegisIconSize.md,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: AegisSpacing.sm),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('Clinical Safety Result',
-                                style: Dr.meta(12)),
+                                style: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary)),
                             Text(rl,
-                                style: GoogleFonts.sora(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
+                                style: AegisTypography.headlineSmall.copyWith(
+                                    fontWeight: FontWeight.w800,
                                     color: rc)),
                           ],
                         ),
                       ),
                       DoctorStatusBadge(
-                          label: recommended
-                              .replaceAll('_', ' '),
+                          label: recommended.replaceAll('_', ' '),
                           color: rc),
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AegisSpacing.lg),
 
             // ── Clinical Explanation ──────────────────────────
             sectionHeader('Clinical Explanation'),
             DoctorCard(
               child: Text(explanation,
-                  style: Dr.body(13).copyWith(height: 1.6)),
+                  style: AegisTypography.bodyMedium.copyWith(color: AegisColors.textPrimary, height: 1.6)),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AegisSpacing.lg),
 
             // ── Flagged Reasons ───────────────────────────────
             if (reasons.isNotEmpty) ...[
               sectionHeader('Safety Findings (${reasons.length})'),
               ...reasons.asMap().entries.map((entry) {
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.only(bottom: AegisSpacing.sm),
                   child: DoctorCard(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        const EdgeInsets.symmetric(horizontal: AegisSpacing.base, vertical: AegisSpacing.sm),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          width: 22,
-                          height: 22,
+                          width: 24,
+                          height: 24,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: rc.withOpacity(0.1),
+                            color: rc.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Text(
                             '${entry.key + 1}',
-                            style: GoogleFonts.jetBrainsMono(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                            style: AegisTypography.monoSmall.copyWith(
+                                fontWeight: FontWeight.w800,
                                 color: rc),
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: AegisSpacing.sm),
                         Expanded(
                           child: Text(entry.value.toString(),
-                              style: Dr.body(13).copyWith(height: 1.5)),
+                              style: AegisTypography.bodyMedium.copyWith(color: AegisColors.textPrimary, height: 1.5)),
                         ),
                       ],
                     ),
                   ),
                 );
               }),
-              const SizedBox(height: 20),
+              const SizedBox(height: AegisSpacing.lg),
             ],
 
             // ── Drug Interactions ─────────────────────────────
@@ -157,29 +162,28 @@ class DoctorAiAuditResultScreen extends StatelessWidget {
                     'Unknown';
                 final severity =
                     i['severity']?.toString() ?? 'MODERATE';
-                final ic = severity == 'MAJOR' ? Dr.red : Dr.amber;
+                final ic = severity == 'MAJOR' ? AegisColors.danger : AegisColors.warning;
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.only(bottom: AegisSpacing.sm),
                   child: DoctorCard(
-                    borderColor: ic.withOpacity(0.3),
-                    padding: const EdgeInsets.all(14),
+                    borderColor: ic.withValues(alpha: 0.4),
+                    padding: const EdgeInsets.all(AegisSpacing.md),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(Icons.compare_arrows_rounded,
-                            color: ic, size: 18),
-                        const SizedBox(width: 10),
+                            color: ic, size: AegisIconSize.sm),
+                        const SizedBox(width: AegisSpacing.sm),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(drugs,
-                                  style: Dr.body(13).copyWith(
-                                      fontWeight: FontWeight.bold),
+                                  style: AegisTypography.titleSmall.copyWith(color: AegisColors.textPrimary),
                                   overflow: TextOverflow.ellipsis),
                               Text(
                                   i['description']?.toString() ?? '',
-                                  style: Dr.meta(12)),
+                                  style: AegisTypography.bodySmall.copyWith(color: AegisColors.textSecondary)),
                             ],
                           ),
                         ),
@@ -190,33 +194,33 @@ class DoctorAiAuditResultScreen extends StatelessWidget {
                   ),
                 );
               }),
-              const SizedBox(height: 20),
+              const SizedBox(height: AegisSpacing.lg),
             ],
 
             // ── Allergy Risks ─────────────────────────────────
             if (allergies.isNotEmpty) ...[
               sectionHeader('Allergy Conflicts'),
               ...allergies.map((a) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: AegisSpacing.sm),
                     child: DoctorCard(
-                      borderColor: Dr.red.withOpacity(0.3),
-                      padding: const EdgeInsets.all(14),
+                      borderColor: AegisColors.danger.withValues(alpha: 0.4),
+                      padding: const EdgeInsets.all(AegisSpacing.md),
                       child: Row(
                         children: [
                           const Icon(Icons.personal_injury_outlined,
-                              color: Dr.red, size: 18),
-                          const SizedBox(width: 10),
+                              color: AegisColors.danger, size: AegisIconSize.sm),
+                          const SizedBox(width: AegisSpacing.sm),
                           Expanded(
                             child: Text(
                                 a['description']?.toString() ??
                                     a.toString(),
-                                style: Dr.body(13)),
+                                style: AegisTypography.bodyMedium.copyWith(color: AegisColors.textPrimary)),
                           ),
                         ],
                       ),
                     ),
                   )),
-              const SizedBox(height: 20),
+              const SizedBox(height: AegisSpacing.lg),
             ],
 
             // ── Alternatives ──────────────────────────────────
@@ -224,37 +228,37 @@ class DoctorAiAuditResultScreen extends StatelessWidget {
               sectionHeader('Suggested Alternatives'),
               DoctorCard(
                 child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: AegisSpacing.xs,
+                  runSpacing: AegisSpacing.xs,
                   children: alternatives
                       .map((alt) => Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                                horizontal: AegisSpacing.md, vertical: AegisSpacing.xs),
                             decoration: BoxDecoration(
-                              color: Dr.green.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(8),
+                              color: AegisColors.secondarySurface,
+                              borderRadius: BorderRadius.circular(AegisRadius.sm),
                               border: Border.all(
-                                  color: Dr.green.withOpacity(0.3)),
+                                  color: AegisColors.secondary.withValues(alpha: 0.4)),
                             ),
                             child: Text(alt.toString(),
-                                style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: Dr.green)),
+                                style: AegisTypography.labelSmall.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: AegisColors.secondary)),
                           ))
                       .toList(),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: AegisSpacing.lg),
             ],
 
-            // ── CTA ───────────────────────────────────────────
+            // ── CTA (Royal Blue Primary Action) ───────────────
             DoctorPrimaryButton(
               label: 'Proceed to Override Decision',
               icon: Icons.edit_note_rounded,
+              backgroundColor: AegisColors.primary,
               onPressed: () => Navigator.pop(context),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: AegisSpacing.xxl),
           ],
         ),
       ),
