@@ -9,9 +9,7 @@ class ApiClient {
   ApiClient({required this.baseUrl, required this.appState});
 
   Map<String, String> _getHeaders() {
-    final headers = {
-      'Content-Type': 'application/json',
-    };
+    final headers = {'Content-Type': 'application/json'};
     if (appState.token != null) {
       headers['Authorization'] = 'Bearer ${appState.token}';
     }
@@ -20,15 +18,15 @@ class ApiClient {
 
   Future<http.Response> get(String path) async {
     final url = Uri.parse('$baseUrl$path');
-    return await http.get(url, headers: _getHeaders()).timeout(const Duration(seconds: 5));
+    return await http
+        .get(url, headers: _getHeaders())
+        .timeout(const Duration(seconds: 15));
   }
 
   Future<http.Response> post(String path, Map<String, dynamic> body) async {
     final url = Uri.parse('$baseUrl$path');
-    return await http.post(
-      url,
-      headers: _getHeaders(),
-      body: jsonEncode(body),
-    ).timeout(const Duration(seconds: 5));
+    return await http
+        .post(url, headers: _getHeaders(), body: jsonEncode(body))
+        .timeout(const Duration(seconds: 15));
   }
 }
