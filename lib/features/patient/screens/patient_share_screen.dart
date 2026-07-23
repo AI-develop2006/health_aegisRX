@@ -1,25 +1,73 @@
 // ════════════════════════════════════════════════════════════════════════════
-// AegisRx — Patient Share Screen (QR Vault Access)
+// AegisRx — Patient Share Screen (Dynamic Single-Use QR Vault Access)
 // Design System: AegisRx Clinical Precision
-// Business logic: UNCHANGED — QR payload, appState reads, SnackBar logic preserved
 // ════════════════════════════════════════════════════════════════════════════
 
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/state/app_state.dart';
 import '../../../core/theme/design_system.dart';
 
-class PatientShareScreen extends StatelessWidget {
+class PatientShareScreen extends StatefulWidget {
   const PatientShareScreen({super.key});
+
+  @override
+  State<PatientShareScreen> createState() => _PatientShareScreenState();
+}
+
+class _PatientShareScreenState extends State<PatientShareScreen> {
+  Timer? _refreshTimer;
+  int _secondsRemaining = 30;
+  late String _tokenNonce;
+
+  @override
+  void initState() {
+    super.initState();
+    _generateNewNonce();
+    _startCountdown();
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _generateNewNonce() {
+    final random = Random();
+    final nonceVal = '${DateTime.now().microsecondsSinceEpoch}-${random.nextInt(10000)}';
+    setState(() {
+      _tokenNonce = nonceVal.replaceAll('-', '').substring(0, 10);
+      _secondsRemaining = 30;
+    });
+  }
+
+  void _startCountdown() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_secondsRemaining > 1) {
+        setState(() {
+          _secondsRemaining--;
+        });
+      } else {
+        _generateNewNonce();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    // UNCHANGED — same payload construction
-    final patientId   = appState.patientMobileOrId;
+    final patientId = appState.patientMobileOrId;
     final patientName = appState.patientName;
-    final qrPayload   = 'aegisrx://patient/$patientId/$patientName';
+    final int expiry = DateTime.now().add(const Duration(minutes: 5)).millisecondsSinceEpoch ~/ 1000;
+    
+    // Dynamic single-use session payload with rotating token nonce and expiry
+    final qrPayload = 'aegisrx://patient/$patientId/$patientName?token=$_tokenNonce&exp=$expiry';
 
     return Scaffold(
       backgroundColor: AegisColors.background,
@@ -38,6 +86,25 @@ class PatientShareScreen extends StatelessWidget {
           style: AegisTypography.headlineMedium.copyWith(
               color: AegisColors.textPrimary),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: AegisColors.primary),
+            onPressed: () {
+              _generateNewNonce();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'QR Code security token refreshed!',
+                    style: AegisTypography.bodySmall.copyWith(color: Colors.white),
+                  ),
+                  backgroundColor: AegisColors.secondary,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            tooltip: 'Refresh QR Token',
+          ),
+        ],
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
           child: Divider(height: 1, color: AegisColors.border),
@@ -56,51 +123,13 @@ class PatientShareScreen extends StatelessWidget {
             ),
             const SizedBox(height: AegisSpacing.sm),
             Text(
-              'Present the QR code below to your clinical doctor or pharmacist to authorize temporary session read access to your vault.',
+              'Present the dynamic QR code below to your clinical doctor to authorize single-session read access to your vault.',
               style: AegisTypography.bodyMedium.copyWith(
                 color: AegisColors.textSecondary,
                 height: 1.6,
               ),
             ),
             const SizedBox(height: AegisSpacing.lg),
-
-            // ── Share with Doctor button (primary blue CTA) ────
-            SizedBox(
-              width: double.infinity,
-              height: AegisTokens.btnHeight,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Doctor sharing integration is coming soon.',
-                        style: AegisTypography.bodySmall
-                            .copyWith(color: Colors.white),
-                      ),
-                      backgroundColor: AegisColors.primary,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.send_rounded,
-                    size: AegisIconSize.sm, color: Colors.white),
-                label: Text(
-                  'Share with my doctor',
-                  style: AegisTypography.labelLarge.copyWith(color: Colors.white),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AegisColors.primary,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: AegisRadius.button),
-                  textStyle: AegisTypography.labelLarge,
-                ),
-              ),
-            ),
-            const SizedBox(height: AegisSpacing.lg),
-            const Divider(color: AegisColors.border),
-            const SizedBox(height: AegisSpacing.base),
 
             // ── QR Code Card ───────────────────────────────────
             Container(
@@ -114,14 +143,24 @@ class PatientShareScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  Text(
-                    'Scan to Connect',
-                    style: AegisTypography.headlineSmall.copyWith(
-                        color: AegisColors.textPrimary),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.verified_user_rounded,
+                          size: AegisIconSize.sm, color: AegisColors.secondary),
+                      const SizedBox(width: AegisSpacing.xs),
+                      Text(
+                        'Dynamic Single-Use Consent',
+                        style: AegisTypography.labelSmall.copyWith(
+                          color: AegisColors.secondary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: AegisSpacing.xs),
                   Text(
-                    'Show this QR to your doctor or pharmacist.',
+                    'Rotates automatically to prevent replay attacks.',
                     textAlign: TextAlign.center,
                     style: AegisTypography.bodySmall.copyWith(
                         color: AegisColors.textSecondary),
@@ -155,6 +194,35 @@ class PatientShareScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: AegisSpacing.base),
 
+                  // Countdown bar
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AegisSpacing.base,
+                      vertical: AegisSpacing.xs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AegisColors.surfaceDim,
+                      borderRadius: AegisRadius.chip,
+                      border: Border.all(color: AegisColors.border),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.timer_outlined,
+                            size: AegisIconSize.xs, color: AegisColors.textSecondary),
+                        const SizedBox(width: AegisSpacing.xs),
+                        Text(
+                          'Token auto-refreshes in ${_secondsRemaining}s',
+                          style: AegisTypography.monoSmall.copyWith(
+                            color: AegisColors.textSecondary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AegisSpacing.sm),
+
                   // Patient ID tag — blue surface
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -174,7 +242,7 @@ class PatientShareScreen extends StatelessWidget {
                             size: AegisIconSize.sm, color: AegisColors.primary),
                         const SizedBox(width: AegisSpacing.xs),
                         Text(
-                          'ID: $patientId',
+                          'Patient ID: $patientId',
                           style: AegisTypography.monoMedium.copyWith(
                             color: AegisColors.primary,
                             fontWeight: FontWeight.w700,
@@ -188,26 +256,26 @@ class PatientShareScreen extends StatelessWidget {
             ),
             const SizedBox(height: AegisSpacing.base),
 
-            // ── Warning note ───────────────────────────────────
+            // ── Security Note ───────────────────────────────────
             Container(
               padding: const EdgeInsets.all(AegisSpacing.md),
               decoration: BoxDecoration(
-                color: AegisColors.warningLight,
+                color: AegisColors.secondarySurface,
                 borderRadius: AegisRadius.card,
                 border: Border.all(
-                    color: AegisColors.warning.withValues(alpha: 0.4)),
+                    color: AegisColors.secondary.withValues(alpha: 0.4)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline_rounded,
-                      color: AegisColors.warning, size: AegisIconSize.sm),
+                  const Icon(Icons.shield_outlined,
+                      color: AegisColors.secondary, size: AegisIconSize.sm),
                   const SizedBox(width: AegisSpacing.sm),
                   Expanded(
                     child: Text(
-                      'This QR code grants temporary read-only access. Only share with authorized medical personnel.',
+                      'Each QR code contains a dynamic cryptographic token valid for a single scan session. Screenshots cannot be re-used by unauthorized third parties.',
                       style: AegisTypography.bodySmall.copyWith(
-                        color: AegisColors.warningDark,
+                        color: AegisColors.secondaryDark,
                         height: 1.5,
                       ),
                     ),

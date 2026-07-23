@@ -1552,7 +1552,8 @@ class AppState extends ChangeNotifier {
         if (stripped.contains('/')) {
           final parts = stripped.split('/');
           patientIdVal = parts[0].trim();
-          patientNameVal = Uri.decodeComponent(parts[1]).trim();
+          final rawName = parts[1].trim();
+          patientNameVal = Uri.decodeComponent(rawName.split('?')[0]).trim();
         } else {
           patientIdVal = stripped;
           final namePart = patientIdVal.replaceAll(RegExp(r'_\d+$'), '');
