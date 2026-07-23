@@ -977,8 +977,11 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  bool _isFetchingPatientProfile = false;
+
   // Fetch patient profile and allergies from backend database
   Future<void> fetchPatientProfile() async {
+    if (_isFetchingPatientProfile) return;
     debugPrint('[DEBUG_API] Entering fetchPatientProfile()');
     if (!isAuthenticated) {
       debugPrint(
@@ -1008,6 +1011,7 @@ class AppState extends ChangeNotifier {
       return;
     }
 
+    _isFetchingPatientProfile = true;
     try {
       final encodedName = Uri.encodeComponent(name);
       final url = '$_backendUrl/api/doctor/patient-history/$encodedName';
@@ -1035,6 +1039,8 @@ class AppState extends ChangeNotifier {
     } catch (e, stack) {
       debugPrint('[DEBUG_API] Exception in fetchPatientProfile: $e');
       debugPrint('[DEBUG_API] StackTrace: $stack');
+    } finally {
+      _isFetchingPatientProfile = false;
     }
   }
 

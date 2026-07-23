@@ -17,7 +17,9 @@ void main() {
         exceptionStr.contains('speech_to_text') ||
         exceptionStr.contains('speechtotext') ||
         exceptionStr.contains('permission')) {
-      debugPrint('[GLOBAL_FLUTTER_ERROR] Safe-filtered platform warning: ${details.exception}');
+      debugPrint(
+        '[GLOBAL_FLUTTER_ERROR] Safe-filtered platform warning: ${details.exception}',
+      );
       return;
     }
     FlutterError.presentError(details);
@@ -81,7 +83,10 @@ void main() {
                             ),
                           );
                         },
-                        icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                        icon: const Icon(
+                          Icons.refresh_rounded,
+                          color: Colors.white,
+                        ),
                         label: const Text(
                           'Return to Safe Home',
                           style: TextStyle(
