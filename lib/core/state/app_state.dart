@@ -23,7 +23,7 @@ enum PatientAuthState {
 class AppState extends ChangeNotifier {
   UserRole? _role;
   String? _token; // session token (e.g. from backend)
-  String _backendUrl = 'http://10.91.100.79:4000';
+  String _backendUrl = 'http://3.109.123.75:4000';
   bool _isLoading = false;
   Timer? _pollTimer;
 
